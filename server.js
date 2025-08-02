@@ -26,18 +26,31 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 
 // --- קריאת משתני סביבה ---
-// השרת יקרא את הערכים האלה מההגדרות ב-Render
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
 
+// --- בדיקת משתני סביבה (שלב אבחון) ---
+console.log("--- Verifying Environment Variables ---");
+console.log("CLIENT_URL:", CLIENT_URL ? "Loaded Successfully" : "ERROR: MISSING!");
+console.log("MONGO_URI:", MONGO_URI ? "Loaded Successfully" : "ERROR: MISSING!");
+console.log("JWT_SECRET:", JWT_SECRET ? "Loaded Successfully" : "ERROR: MISSING!");
+console.log("GOOGLE_CLIENT_SECRET:", GOOGLE_CLIENT_SECRET ? "Loaded Successfully" : "ERROR: MISSING!");
+if (GOOGLE_CLIENT_ID) {
+    // אנו מדפיסים רק חלק מהמפתח כדי לא לחשוף אותו, אבל מספיק כדי שנוכל לוודא שהוא נכון
+    console.log("GOOGLE_CLIENT_ID (starts with):", GOOGLE_CLIENT_ID.substring(0, 15));
+} else {
+    console.log("GOOGLE_CLIENT_ID: ERROR: MISSING!");
+}
+console.log("------------------------------------");
+
+
 // --- חיבור למסד הנתונים (MongoDB) ---
-// בדיקה אם כל משתני הסביבה קיימים לפני שמנסים להתחבר
 if (!MONGO_URI) {
-    console.error("FATAL ERROR: MONGO_URI is not defined.");
-    process.exit(1); // סגירת השרת אם אין כתובת למסד הנתונים
+    console.error("FATAL ERROR: MONGO_URI is not defined. Server cannot start.");
+    process.exit(1);
 }
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB Connected Successfully!'))
