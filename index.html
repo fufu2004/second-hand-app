@@ -8,51 +8,54 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Assistant', sans-serif; }
-        .modal-backdrop {
-            transition: opacity 0.3s ease;
-        }
-        .modal-content {
-            transition: transform 0.3s ease;
+        body { font-family: 'Assistant', sans-serif; background-color: #f0f5f5; }
+        .modal-backdrop { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        .item-card { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body class="bg-gray-100">
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
-        <header class="text-center my-8">
-            <h1 class="text-4xl font-bold text-gray-800">קהילת האופנה שלנו</h1>
-            <p class="text-gray-600">הפריטים האחרונים שעלו למכירה</p>
+        <header class="text-center my-10">
+            <h1 class="text-5xl font-bold text-teal-700">Second Style</h1>
+            <p class="text-gray-500 mt-2">הפריטים הכי שווים בקהילה, מתעדכן LIVE</p>
         </header>
 
-        <main id="items-feed" class="space-y-4">
+        <main id="items-feed" class="space-y-6">
             <!-- פריטים יוצגו כאן -->
         </main>
     </div>
 
     <!-- כפתור צף להוספת פריט -->
-    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg">
-        +
+    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
     </button>
 
     <!-- חלון מודאל להוספת פריט -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
         <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10">
-            <h2 class="text-2xl font-bold mb-4">הוספת פריט חדש</h2>
+            <h2 class="text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש למכירה</h2>
             <form id="upload-form">
                 <div class="space-y-4">
-                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ)" class="w-full p-2 border rounded" required>
-                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, וכו')" class="w-full p-2 border rounded" rows="3" required></textarea>
-                    <input type="text" id="item-contact" placeholder="פרטי קשר (טלגרם, טלפון...)" class="w-full p-2 border rounded" required>
-                    <input type="number" id="item-price" placeholder="מחיר (בשקלים)" class="w-full p-2 border rounded" required>
+                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
+                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea>
+                    <input type="text" id="item-contact" placeholder="פרטי קשר (שם משתמש בטלגרם, אינסטגרם...)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
+                    <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
                     <div>
-                        <label for="item-image" class="block text-sm font-medium text-gray-700">העלאת תמונה</label>
-                        <input type="file" id="item-image" class="mt-1" accept="image/*" required>
+                        <label for="item-image" class="block text-sm font-medium text-gray-700">תמונה ראשית של הפריט</label>
+                        <input type="file" id="item-image" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" required>
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" id="close-modal-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">ביטול</button>
-                    <button type="submit" id="submit-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">פרסם פריט</button>
+                    <button type="button" id="close-modal-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button>
                 </div>
             </form>
         </div>
@@ -60,7 +63,7 @@
 
 
     <script>
-        const SERVER_URL = 'https://second-hand-server.onrender.com'; // יש לעדכן לכתובת השרת החי שלך
+        const SERVER_URL = 'https://second-hand-server.onrender.com';
 
         const itemsFeed = document.getElementById('items-feed');
         const uploadForm = document.getElementById('upload-form');
@@ -82,22 +85,27 @@
         function createItemCard(item) {
             const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
             const canDelete = myItems[item._id];
-            const deleteButtonHtml = canDelete ? `<button data-id="${item._id}" data-key="${myItems[item._id]}" class="delete-btn text-red-500 hover:text-red-700 text-sm">מחק</button>` : '';
+            const deleteButtonHtml = canDelete ? `
+                <button data-id="${item._id}" data-key="${myItems[item._id]}" class="delete-btn text-gray-400 hover:text-red-500 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                    </svg>
+                </button>` : '';
             
-            const date = new Date(item.createdAt).toLocaleString('he-IL');
-            // The image source is now the direct Data URL from the database
+            const date = new Date(item.createdAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
             return `
-                <div id="item-${item._id}" class="bg-white p-4 rounded-lg shadow-md flex gap-4">
-                    <img src="${item.imageUrl}" alt="${item.title}" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-md">
-                    <div class="flex-grow">
+                <div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4">
+                    <img src="${item.imageUrl}" alt="${item.title}" class="w-full h-64 md:w-48 md:h-auto object-cover">
+                    <div class="p-5 flex flex-col flex-grow">
                         <div class="flex justify-between items-start">
-                            <h2 class="text-xl font-bold">${item.title}</h2>
-                            <p class="text-lg text-blue-600 font-semibold flex-shrink-0">₪${item.price}</p>
+                            <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2>
+                            <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0">₪${item.price}</div>
                         </div>
-                        <p class="text-gray-700 my-2">${item.description || ''}</p>
-                        <p class="text-sm text-gray-600 font-semibold">ליצירת קשר: ${item.contact || ''}</p>
-                        <div class="flex justify-between items-end mt-2">
-                            <p class="text-xs text-gray-500">פורסם ב: ${date}</p>
+                        <p class="text-gray-600 my-3 flex-grow">${item.description || ''}</p>
+                        <p class="text-sm text-teal-700 font-semibold">ליצירת קשר: ${item.contact || ''}</p>
+                        <div class="flex justify-between items-end mt-4 pt-2 border-t border-gray-200">
+                            <p class="text-xs text-gray-400">${date}</p>
                             ${deleteButtonHtml}
                         </div>
                     </div>
@@ -129,8 +137,10 @@
         // --- Modal Logic ---
         function showModal() {
             uploadModal.classList.remove('hidden');
-            setTimeout(() => uploadModal.classList.remove('opacity-0'), 10);
-            setTimeout(() => uploadModal.querySelector('.modal-content').classList.remove('-translate-y-10'), 10);
+            setTimeout(() => {
+                uploadModal.classList.remove('opacity-0');
+                uploadModal.querySelector('.modal-content').classList.remove('-translate-y-10');
+            }, 10);
         }
         function hideModal() {
             uploadModal.classList.add('opacity-0');
@@ -165,12 +175,9 @@
                 const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
                 myItems[newItem._id] = newItem.deleteKey;
                 localStorage.setItem('myItems', JSON.stringify(myItems));
-
-                console.log('Item uploaded successfully:', newItem);
                 
                 uploadForm.reset();
                 hideModal();
-                // A full refetch is the simplest way to ensure UI consistency
                 fetchHistory();
 
             } catch (error) {
@@ -184,9 +191,10 @@
         
         // --- Delete Logic ---
         itemsFeed.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                const id = e.target.dataset.id;
-                const key = e.target.dataset.key;
+            const deleteButton = e.target.closest('.delete-btn');
+            if (deleteButton) {
+                const id = deleteButton.dataset.id;
+                const key = deleteButton.dataset.key;
 
                 if (confirm('האם אתה בטוח שברצונך למחוק את הפריט?')) {
                     try {
