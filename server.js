@@ -31,15 +31,16 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL || 'https://second-hand-server.onrender.com'; // הוספת כתובת השרת
 
 // --- בדיקת משתני סביבה (שלב אבחון) ---
 console.log("--- Verifying Environment Variables (DEBUG MODE) ---");
 console.log("CLIENT_URL:", CLIENT_URL ? "Loaded Successfully" : "ERROR: MISSING!");
+console.log("SERVER_URL:", SERVER_URL ? "Loaded Successfully" : "ERROR: MISSING!");
 console.log("MONGO_URI:", MONGO_URI ? "Loaded (hidden for security)" : "ERROR: MISSING!");
 console.log("JWT_SECRET:", JWT_SECRET ? "Loaded (hidden for security)" : "ERROR: MISSING!");
 console.log("GOOGLE_CLIENT_SECRET:", GOOGLE_CLIENT_SECRET ? "Loaded (hidden for security)" : "ERROR: MISSING!");
-// אזהרה: הדפסת המפתח המלא היא לצורכי בדיקה בלבד. יש להסיר זאת בסיום.
-console.log("FULL GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID || "ERROR: MISSING!");
+console.log("GOOGLE_CLIENT_ID (starts with):", GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 15) : "ERROR: MISSING!");
 console.log("---------------------------------------------");
 
 
@@ -62,13 +63,20 @@ const Item = mongoose.model('Item', ItemSchema);
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// --- הגדרת Passport.js (מערכת התחברות) (ללא שינוי) ---
+// --- הגדרת Passport.js (מערכת התחברות) ---
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
-passport.use(new GoogleStrategy({ clientID: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET, callbackURL: "/auth/google/callback", proxy: true },
+
+// *** תיקון: שימוש בכתובת המלאה עבור ה-callbackURL ***
+passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: `${SERVER_URL}/auth/google/callback`, // שימוש בכתובת המלאה והמפורשת
+    proxy: true
+  },
   async (accessToken, refreshToken, profile, done) => {
     try {
         let user = await User.findOne({ googleId: profile.id });
