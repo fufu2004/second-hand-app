@@ -24,6 +24,8 @@
         .gallery-content img { max-height: 80vh; max-width: 90vw; }
         .view { display: none; }
         .view.active { display: block; }
+        .item-card.sold .main-image-container { opacity: 0.5; }
+        .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -31,16 +33,12 @@
     <div class="container mx-auto p-4 max-w-2xl pb-24">
         <!-- Header -->
         <header class="text-center py-4 bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-            <div id="auth-container" class="absolute top-2 left-2 flex gap-2 items-center">
-                <!-- Auth buttons will be injected here -->
-            </div>
+            <div id="auth-container" class="absolute top-2 left-2 flex gap-2 items-center"></div>
             <div class="flex justify-center items-center gap-3 md:gap-4 cursor-pointer" id="home-logo">
                 <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 md:h-20 md:w-20 rounded-full">
                 <h1 class="text-3xl md:text-5xl font-bold text-teal-700">סטייל מתגלגל</h1>
             </div>
-            <p class="text-gray-500 mt-2 text-sm md:text-base flex items-center justify-center">
-                הפריטים הכי שווים בקהילה, מתעדכן <span class="blinking-dot"></span> LIVE
-            </p>
+            <p class="text-gray-500 mt-2 text-sm md:text-base flex items-center justify-center">הפריטים הכי שווים בקהילה, מתעדכן <span class="blinking-dot"></span> LIVE</p>
         </header>
 
         <!-- Main Feed View -->
@@ -55,9 +53,7 @@
                     <button data-category="accessories" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">אקססוריז</button>
                 </div>
             </div>
-            <main id="items-feed" class="space-y-6">
-                <!-- Items will be displayed here -->
-            </main>
+            <main id="items-feed" class="space-y-6"></main>
         </div>
 
         <!-- Profile View -->
@@ -66,99 +62,18 @@
                 <h2 class="text-2xl font-bold text-gray-800">הפריטים שלי</h2>
                 <p class="text-gray-500">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
             </div>
-            <main id="profile-items-feed" class="space-y-6">
-                <!-- User's items will be displayed here -->
-            </main>
+            <main id="profile-items-feed" class="space-y-6"></main>
         </div>
     </div>
 
     <!-- Floating Add Button -->
     <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
     </button>
 
-    <!-- Upload/Edit Item Modal -->
-    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10">
-            <h2 id="upload-modal-title" class="text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2>
-            <form id="upload-form">
-                <input type="hidden" id="editing-item-id" value="">
-                <div class="space-y-4">
-                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea>
-                    <select id="item-category" class="w-full p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                        <option value="" disabled selected>בחרי קטגוריה</option>
-                        <option value="tops">חלקים עליונים</option>
-                        <option value="bottoms">מכנסיים וחצאיות</option>
-                        <option value="dresses">שמלות</option>
-                        <option value="accessories">אקססוריז</option>
-                        <option value="other">אחר</option>
-                    </select>
-                    <input type="text" id="item-contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <div>
-                        <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label>
-                        <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p>
-                        <input type="file" id="item-images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple>
-                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Register Modal -->
-    <div id="register-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10">
-            <h2 class="text-2xl font-bold mb-4 text-teal-800">הרשמה</h2>
-            <form id="register-form">
-                <div class="space-y-4">
-                    <input type="text" id="register-name" placeholder="שם משתמש" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <input type="email" id="register-email" placeholder="כתובת אימייל" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <input type="password" id="register-password" placeholder="סיסמה" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">הירשם</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Login Modal -->
-    <div id="login-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10">
-            <h2 class="text-2xl font-bold mb-4 text-teal-800">התחברות</h2>
-            <form id="login-form">
-                <div class="space-y-4">
-                    <input type="email" id="login-email" placeholder="כתובת אימייל" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                    <input type="password" id="login-password" placeholder="סיסמה" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">התחבר</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Gallery Modal -->
-    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="gallery-content relative">
-            <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain">
-            <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button>
-            <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button>
-            <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button>
-            <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
-        </div>
-    </div>
-
+    <!-- Modals -->
+    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10"> <h2 id="upload-modal-title" class="text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> <div class="space-y-4"> <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> <select id="item-category" class="w-full p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> <option value="" disabled selected>בחרי קטגוריה</option> <option value="tops">חלקים עליונים</option> <option value="bottoms">מכנסיים וחצאיות</option> <option value="dresses">שמלות</option> <option value="accessories">אקססוריז</option> <option value="other">אחר</option> </select> <input type="text" id="item-contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> <div> <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> <input type="file" id="item-images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple> <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div> </div> </div> <div class="mt-6 flex justify-end gap-4"> <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button> <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button> </div> </form> </div> </div>
+    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
 
     <script>
         const SERVER_URL = 'https://second-hand-server.onrender.com';
@@ -177,11 +92,7 @@
         // Modals & Forms
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
         const uploadModal = document.getElementById('upload-modal');
-        const registerModal = document.getElementById('register-modal');
-        const loginModal = document.getElementById('login-modal');
         const galleryModal = document.getElementById('gallery-modal');
-        const registerForm = document.getElementById('register-form');
-        const loginForm = document.getElementById('login-form');
         const uploadForm = document.getElementById('upload-form');
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
@@ -198,94 +109,45 @@
         // State
         let currentUser = null;
         let currentCategory = 'all';
-        let allItemsCache = {}; // Cache to hold item data for editing
+        let allItemsCache = {};
         let galleryImages = [];
         let currentImageIndex = 0;
         
-        const categoryMap = {
-            'tops': 'חלקים עליונים',
-            'bottoms': 'מכנסיים וחצאיות',
-            'dresses': 'שמלות',
-            'accessories': 'אקססוריז',
-            'other': 'אחר'
-        };
+        const categoryMap = { 'tops': 'חלקים עליונים', 'bottoms': 'מכנסיים וחצאיות', 'dresses': 'שמלות', 'accessories': 'אקססוריז', 'other': 'אחר' };
 
         // --- View & Modal Management ---
-        function showView(viewId) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-        }
-
-        function hideAllModals() {
-            allModals.forEach(modal => {
-                modal.classList.add('opacity-0');
-                const content = modal.querySelector('.modal-content, .gallery-content');
-                if (content) content.classList.add('-translate-y-10', 'opacity-0');
-                setTimeout(() => modal.classList.add('hidden'), 300);
-            });
-        }
+        function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); }
+        function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
+        function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
-        allModals.forEach(modal => modal.addEventListener('click', (e) => {
-            if (e.target === modal) hideAllModals();
-        }));
-
-        function showModal(modalElement) {
-            hideAllModals();
-            modalElement.classList.remove('hidden');
-            setTimeout(() => {
-                modalElement.classList.remove('opacity-0');
-                const content = modalElement.querySelector('.modal-content');
-                if (content) {
-                    content.classList.remove('-translate-y-10', 'opacity-0');
-                }
-            }, 10);
-        }
+        allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
         // --- Gallery (Lightbox) System ---
-        function openGallery(images, startIndex = 0) {
-            if (!images || images.length === 0) return;
-            galleryImages = images;
-            galleryModal.classList.remove('hidden');
-            setTimeout(() => galleryModal.classList.remove('opacity-0'), 10);
-            document.body.style.overflow = 'hidden';
-            updateGalleryImage(startIndex);
-        }
-
-        function closeGallery() {
-            galleryModal.classList.add('opacity-0');
-            setTimeout(() => galleryModal.classList.add('hidden'), 300);
-            document.body.style.overflow = '';
-        }
-
-        function updateGalleryImage(index) {
-            currentImageIndex = index;
-            galleryImage.src = galleryImages[index];
-            galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`;
-            galleryPrev.disabled = index === 0;
-            galleryNext.disabled = index === galleryImages.length - 1;
-        }
-
-        galleryPrev.addEventListener('click', () => {
-            if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1);
-        });
-        galleryNext.addEventListener('click', () => {
-            if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1);
-        });
+        function openGallery(images, startIndex = 0) { if (!images || images.length === 0) return; galleryImages = images; galleryModal.classList.remove('hidden'); setTimeout(() => galleryModal.classList.remove('opacity-0'), 10); document.body.style.overflow = 'hidden'; updateGalleryImage(startIndex); }
+        function closeGallery() { galleryModal.classList.add('opacity-0'); setTimeout(() => galleryModal.classList.add('hidden'), 300); document.body.style.overflow = ''; }
+        function updateGalleryImage(index) { currentImageIndex = index; galleryImage.src = galleryImages[index]; galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`; galleryPrev.disabled = index === 0; galleryNext.disabled = index === galleryImages.length - 1; }
+        galleryPrev.addEventListener('click', () => { if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1); });
+        galleryNext.addEventListener('click', () => { if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1); });
         galleryClose.addEventListener('click', closeGallery);
-        document.addEventListener('keydown', (e) => {
-            if (galleryModal.classList.contains('hidden')) return;
-            if (e.key === 'Escape') closeGallery();
-            if (e.key === 'ArrowRight') galleryNext.click();
-            if (e.key === 'ArrowLeft') galleryPrev.click();
-        });
+        document.addEventListener('keydown', (e) => { if (galleryModal.classList.contains('hidden')) return; if (e.key === 'Escape') closeGallery(); if (e.key === 'ArrowRight') galleryNext.click(); if (e.key === 'ArrowLeft') galleryPrev.click(); });
 
-
-        // --- Auth System ---
+        // --- Auth System (UPDATED for Google Login) ---
         function checkAuthState() {
-            const token = localStorage.getItem('authToken');
-            const user = localStorage.getItem('authUser');
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const user = urlParams.get('user');
+
             if (token && user) {
-                currentUser = JSON.parse(user);
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('authUser', decodeURIComponent(user));
+                window.history.replaceState({}, document.title, "/");
+            }
+
+            const storedToken = localStorage.getItem('authToken');
+            const storedUser = localStorage.getItem('authUser');
+
+            if (storedToken && storedUser) {
+                currentUser = JSON.parse(storedUser);
             } else {
                 currentUser = null;
             }
@@ -306,330 +168,90 @@
                 document.getElementById('logout-btn').addEventListener('click', handleLogout);
             } else {
                 authContainer.innerHTML = `
-                    <button id="login-btn" class="text-sm bg-teal-500 text-white py-1 px-2 rounded-md hover:bg-teal-600 transition">התחברות</button>
-                    <button id="register-btn" class="text-sm bg-gray-200 text-gray-800 py-1 px-2 rounded-md hover:bg-gray-300 transition">הרשמה</button>
+                    <button id="google-login-btn" class="flex items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition">
+                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                        <span>התחברות עם Google</span>
+                    </button>
                 `;
-                document.getElementById('login-btn').addEventListener('click', () => showModal(loginModal));
-                document.getElementById('register-btn').addEventListener('click', () => showModal(registerModal));
-            }
-        }
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            const name = document.getElementById('register-name').value;
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            try {
-                const response = await fetch(`${SERVER_URL}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'שגיאה בהרשמה');
-                localStorage.setItem('authToken', data.token);
-                localStorage.setItem('authUser', JSON.stringify(data.user));
-                hideAllModals();
-                checkAuthState();
-            } catch (error) {
-                alert(`שגיאת הרשמה: ${error.message}`);
-            }
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            try {
-                const response = await fetch(`${SERVER_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'שגיאה בהתחברות');
-                localStorage.setItem('authToken', data.token);
-                localStorage.setItem('authUser', JSON.stringify(data.user));
-                hideAllModals();
-                checkAuthState();
-            } catch (error) {
-                alert(`שגיאת התחברות: ${error.message}`);
-            }
-        }
-
-        function handleLogout() {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('authUser');
-            currentUser = null;
-            showView('main-view');
-            updateUIForAuthState();
-            fetchHistory();
-        }
-
-        // --- Profile View Logic ---
-        async function showProfileView() {
-            showView('profile-view');
-            profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`;
-                return;
-            }
-            try {
-                const response = await fetch(`${SERVER_URL}/items/my-items`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Could not fetch user items');
-                const items = await response.json();
-                profileItemsFeed.innerHTML = '';
-                allItemsCache = {};
-                if (items.length === 0) {
-                    profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`;
-                } else {
-                    items.forEach(item => {
-                        const cardHtml = createItemCard(item);
-                        profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml);
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to fetch profile items:', error);
-                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`;
-            }
-        }
-
-        // --- Item Card Creation ---
-        function createItemCard(item) {
-            allItemsCache[item._id] = item;
-            const isOwner = currentUser && item.owner && item.owner._id === currentUser.id;
-            
-            const editButtonHtml = isOwner ? `
-                <button data-id="${item._id}" class="edit-btn text-gray-400 hover:text-blue-500 transition" title="עריכת פריט">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-                    </svg>
-                </button>` : '';
-
-            const deleteButtonHtml = isOwner ? `
-                <button data-id="${item._id}" class="delete-btn text-gray-400 hover:text-red-500 transition" title="מחיקת פריט">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
-                </button>` : '';
-            
-            const date = new Date(item.createdAt);
-            const dateString = date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            const isNew = (new Date() - date) < 24 * 60 * 60 * 1000;
-            const newBadgeHtml = isNew ? `<span class="bg-yellow-400 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">חדש!</span>` : '';
-            const ownerName = item.owner ? item.owner.name : 'אנונימי';
-            const ownerInitial = ownerName.charAt(0).toUpperCase();
-            const contactHtml = generateContactHtml(item.contact, item.title, ownerName);
-            const imageUrlsJson = JSON.stringify(item.imageUrls || []);
-            const thumbnailsHtml = (item.imageUrls || []).map((url, index) => `<img src="${url}" class="thumbnail w-12 h-12 object-cover rounded-md" onclick='openGallery(${imageUrlsJson}, ${index})'>`).join('');
-            const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
-            const categoryHtml = `<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`;
-
-            return `
-                <div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4" data-category="${item.category || 'other'}">
-                    <div class="md:w-48 flex-shrink-0 main-image-container" onclick='openGallery(${imageUrlsJson}, 0)'>
-                        <img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover">
-                    </div>
-                    <div class="p-5 flex flex-col flex-grow">
-                        <div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0">₪${item.price}</div> </div>
-                        <div class="flex items-center my-2 gap-2"> ${newBadgeHtml} ${categoryHtml} </div>
-                        <p class="text-gray-600 my-3 flex-grow">${item.description || ''}</p>
-                        <div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div>
-                        <div class="flex justify-between items-end mt-4 pt-2 border-t border-gray-200">
-                             <div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm ml-2">${ownerInitial}</div> ${contactHtml} </div>
-                            <div class="flex items-center gap-4"> <p class="text-xs text-gray-400">${dateString}</p> ${editButtonHtml} ${deleteButtonHtml} </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // --- Data Fetching & Display ---
-        async function fetchHistory() {
-            itemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
-            try {
-                const response = await fetch(`${SERVER_URL}/items`);
-                const items = await response.json();
-                itemsFeed.innerHTML = '';
-                allItemsCache = {};
-                if (items.length === 0) {
-                    showEmptyState();
-                } else {
-                    items.forEach(item => displayItem(item, false, itemsFeed));
-                    applyFilters();
-                }
-            } catch (error) {
-                console.error('Failed to fetch history:', error);
-                itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים.</p>';
+                document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
             }
         }
         
+        function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
+        function handleLogout() { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); currentUser = null; showView('main-view'); updateUIForAuthState(); fetchHistory(); }
+
+        // --- Profile View Logic ---
+        async function showProfileView() { showView('profile-view'); profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); const token = localStorage.getItem('authToken'); if (!token) { profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; return; } try { const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Could not fetch user items'); const items = await response.json(); profileItemsFeed.innerHTML = ''; allItemsCache = {}; if (items.length === 0) { profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; } else { items.forEach(item => { const cardHtml = createItemCard(item); profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); }); } } catch (error) { console.error('Failed to fetch profile items:', error); profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; } }
+
+        // --- Item Card Creation & Helpers ---
+        function createItemCard(item) { allItemsCache[item._id] = item; const isOwner = currentUser && item.owner && item.owner._id === currentUser.id; const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : ''; const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר'; const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`; const soldButtonHtml = isOwner ? `<button data-id="${item._id}" class="sold-btn text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : ''; const editButtonHtml = isOwner && !item.sold ? `<button data-id="${item._id}" class="edit-btn text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : ''; const deleteButtonHtml = isOwner ? `<button data-id="${item._id}" class="delete-btn text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : ''; const date = new Date(item.createdAt); const dateString = date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); const ownerName = item.owner ? item.owner.name : 'אנונימי'; const ownerInitial = ownerName.charAt(0).toUpperCase(); const contactHtml = generateContactHtml(item.contact, item.title, ownerName); const imageUrlsJson = JSON.stringify(item.imageUrls || []); const thumbnailsHtml = (item.imageUrls || []).map((url, index) => `<img src="${url}" class="thumbnail w-12 h-12 object-cover rounded-md" onclick='openGallery(${imageUrlsJson}, ${index})'>`).join(''); const categoryName = categoryMap[item.category] || 'ללא קטגוריה'; const categoryHtml = `<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; return `<div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''}" data-category="${item.category || 'other'}"><div class="md-w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>${soldStampHtml}<img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover"></div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><p class="text-gray-600 my-3 flex-grow">${item.description || ''}</p><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="flex justify-between items-end mt-4 pt-2 border-t border-gray-200"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm ml-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-4"> <p class="text-xs text-gray-400">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div>`; }
         function createSkeletonCard() { return `<div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
         function showEmptyState() { itemsFeed.innerHTML = `<div class="text-center py-16 px-4"><svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg><h3 class="mt-2 text-sm font-medium text-gray-900">לא נמצאו פריטים</h3><p class="mt-1 text-sm text-gray-500">נסה לשנות את תנאי החיפוש או היה הראשון להעלות פריט!</p></div>`; }
         function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); if (isNew) { container.insertAdjacentHTML('afterbegin', itemCardHtml); } else { container.insertAdjacentHTML('beforeend', itemCardHtml); } }
         function generateContactHtml(contact, title, ownerName) { if (!contact) return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`; const phoneRegex = /^(05\d-?\d{7})$/; if (phoneRegex.test(contact.trim())) { let phoneNumber = contact.replace(/-/g, ''); if (phoneNumber.startsWith('0')) phoneNumber = `972${phoneNumber.substring(1)}`; const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`); const whatsappUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`; return `<div class="flex items-center gap-2"><p class="text-sm text-teal-700 font-semibold">${ownerName}</p><a href="${whatsappUrl}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="שלח הודעה בווטסאפ"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a></div>`; } return `<p class="text-sm text-teal-700 font-semibold">${ownerName}</p>`; }
         function applyFilters() { const searchTerm = filterInput.value.toLowerCase(); const allItems = itemsFeed.querySelectorAll('.item-card'); let itemsFound = false; allItems.forEach(item => { const title = item.querySelector('h2').textContent.toLowerCase(); const category = item.dataset.category; const categoryMatch = (currentCategory === 'all' || category === currentCategory); const searchMatch = title.includes(searchTerm); if (categoryMatch && searchMatch) { item.style.display = 'flex'; itemsFound = true; } else { item.style.display = 'none'; } }); const emptyState = itemsFeed.querySelector('.text-center'); if (!itemsFound && allItems.length > 0) { if (!emptyState) showEmptyState(); } else if (emptyState) { emptyState.remove(); } }
         
-        // --- Socket Listeners ---
-        socket.on('newItem', (item) => {
-            displayItem(item, true, itemsFeed);
-            applyFilters();
-            if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) {
-                const emptyState = profileItemsFeed.querySelector('.text-center');
-                if (emptyState) emptyState.remove();
-                displayItem(item, true, profileItemsFeed);
+        // --- Data Fetching (FIXED) ---
+        async function fetchHistory() {
+            itemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
+            try {
+                const response = await fetch(`${SERVER_URL}/items`);
+                const items = await response.json();
+                
+                if (!response.ok) {
+                     console.error("Server response was not ok:", items);
+                     if (items && items.message && items.message.includes("timed out")) {
+                        itemsFeed.innerHTML = `
+                            <div class="text-center py-16 px-4 bg-white rounded-lg shadow-md">
+                                <h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3>
+                                <p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br>
+                                    יכולות להיות לכך שתי סיבות:</p>
+                                <div class="text-right mx-auto max-w-md mt-4 space-y-4">
+                                    <p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p>
+                                    <p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p>
+                                </div>
+                                <button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button>
+                            </div>`;
+                    } else {
+                        itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
+                    }
+                    return;
+                }
+                
+                if (!Array.isArray(items)) {
+                    console.error("Server response is not an array:", items);
+                    itemsFeed.innerHTML = '<p class="text-center text-red-500">התקבלה תגובה לא תקינה מהשרת.</p>';
+                    return;
+                }
+
+                itemsFeed.innerHTML = '';
+                allItemsCache = {};
+                const availableItems = items.filter(item => !item.sold);
+                if (availableItems.length === 0) {
+                    showEmptyState();
+                } else {
+                    availableItems.forEach(item => displayItem(item, false, itemsFeed));
+                    applyFilters();
+                }
+                items.forEach(item => allItemsCache[item._id] = item);
+            } catch (error) {
+                console.error('Failed to fetch history:', error);
+                itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה קריטית בטעינת הפריטים. אנא בדוק את חיבור האינטרנט ואת כתובת השרת.</p>';
             }
-        });
-
-        socket.on('itemDeleted', (itemId) => {
-            const itemElementMain = document.getElementById(`item-${itemId}`);
-            if (itemElementMain) itemElementMain.remove();
-            const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`);
-            if (itemElementProfile) itemElementProfile.remove();
-        });
-
-        socket.on('itemUpdated', (updatedItem) => {
-            const newCardHtml = createItemCard(updatedItem);
-            // Update card in both feeds if it exists
-            document.querySelectorAll(`#item-${updatedItem._id}`).forEach(oldCard => {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = newCardHtml;
-                oldCard.replaceWith(tempDiv.firstChild.cloneNode(true));
-            });
-        });
+        }
+        
+        // --- Socket Listeners ---
+        socket.on('newItem', (item) => { displayItem(item, true, itemsFeed); applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const emptyState = profileItemsFeed.querySelector('.text-center'); if (emptyState) emptyState.remove(); displayItem(item, true, profileItemsFeed); } });
+        socket.on('itemDeleted', (itemId) => { const itemElementMain = document.getElementById(`item-${itemId}`); if (itemElementMain) itemElementMain.remove(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
+        socket.on('itemUpdated', (updatedItem) => { const newCardHtml = createItemCard(updatedItem); const mainFeedCard = document.querySelector(`#items-feed #item-${updatedItem._id}`); if (updatedItem.sold) { if (mainFeedCard) mainFeedCard.remove(); } else { if (!mainFeedCard) { displayItem(updatedItem, true, itemsFeed); applyFilters(); } } const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = newCardHtml; profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
 
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
-        openModalBtn.addEventListener('click', () => {
-            if (!currentUser) {
-                alert('יש להתחבר או להירשם כדי להוסיף פריט.');
-                showModal(loginModal);
-                return;
-            }
-            uploadForm.reset();
-            editingItemIdInput.value = '';
-            uploadModalTitle.textContent = 'העלאת פריט חדש';
-            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!';
-            document.getElementById('item-images').required = true;
-            document.getElementById('image-preview-container').innerHTML = '';
-            showModal(uploadModal);
-        });
-
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) return alert('יש להתחבר כדי לבצע פעולה זו.');
-
-            const editingId = editingItemIdInput.value;
-            const isEditing = !!editingId;
-
-            const formData = new FormData();
-            formData.append('title', document.getElementById('item-title').value);
-            formData.append('description', document.getElementById('item-description').value);
-            formData.append('contact', document.getElementById('item-contact').value);
-            formData.append('price', document.getElementById('item-price').value);
-            formData.append('category', document.getElementById('item-category').value);
-            
-            const imageFiles = document.getElementById('item-images').files;
-            if (!isEditing && imageFiles.length === 0) {
-                return alert('יש להעלות לפחות תמונה אחת.');
-            }
-            if (imageFiles.length > 0) {
-                for (let i = 0; i < imageFiles.length; i++) {
-                    formData.append('images', imageFiles[i]);
-                }
-            }
-
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...';
-
-            const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`;
-            const method = isEditing ? 'PATCH' : 'POST';
-
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Server responded with an error');
-                }
-                hideAllModals();
-            } catch (error) {
-                console.error('Upload/Edit failed:', error);
-                alert(`שגיאה: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-            }
-        });
-
-        document.body.addEventListener('click', async (e) => {
-            const editButton = e.target.closest('.edit-btn');
-            const deleteButton = e.target.closest('.delete-btn');
-
-            if (editButton) {
-                const id = editButton.dataset.id;
-                const itemToEdit = allItemsCache[id];
-                if (!itemToEdit) return alert('שגיאה: לא ניתן למצוא את פרטי הפריט.');
-
-                uploadForm.reset();
-                editingItemIdInput.value = id;
-                document.getElementById('item-title').value = itemToEdit.title;
-                document.getElementById('item-description').value = itemToEdit.description;
-                document.getElementById('item-category').value = itemToEdit.category;
-                document.getElementById('item-contact').value = itemToEdit.contact;
-                document.getElementById('item-price').value = itemToEdit.price;
-                document.getElementById('item-images').required = false;
-                
-                uploadModalTitle.textContent = 'עריכת פריט';
-                document.getElementById('submit-btn').textContent = 'שמור שינויים';
-                
-                const previewContainer = document.getElementById('image-preview-container');
-                previewContainer.innerHTML = '';
-                (itemToEdit.imageUrls || []).forEach(url => {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.className = 'w-16 h-16 object-cover rounded-md opacity-75';
-                    previewContainer.appendChild(img);
-                });
-
-                showModal(uploadModal);
-            }
-
-            if (deleteButton) {
-                const id = deleteButton.dataset.id;
-                const token = localStorage.getItem('authToken');
-                if (!token) return alert('שגיאת אימות למחיקה.');
-
-                if (confirm('האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.')) {
-                    try {
-                        const response = await fetch(`${SERVER_URL}/items/${id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (!response.ok) throw new Error('Failed to delete');
-                    } catch (error) {
-                        console.error('Delete failed:', error);
-                        alert('שגיאה במחיקת הפריט.');
-                    }
-                }
-            }
-        });
-
-        registerForm.addEventListener('submit', handleRegister);
-        loginForm.addEventListener('submit', handleLogin);
-        categoryFilters.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                currentCategory = e.target.dataset.category;
-                categoryFilters.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-                applyFilters();
-            }
-        });
+        openModalBtn.addEventListener('click', () => { if (!currentUser) { alert('יש להתחבר או להירשם כדי להוסיף פריט.'); showModal(loginModal); return; } uploadForm.reset(); editingItemIdInput.value = ''; uploadModalTitle.textContent = 'העלאת פריט חדש'; document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; document.getElementById('item-images').required = true; document.getElementById('image-preview-container').innerHTML = ''; showModal(uploadModal); });
+        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) return alert('יש להתחבר כדי לבצע פעולה זו.'); const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return alert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); alert(`שגיאה: ${error.message}`); } finally { submitBtn.disabled = false; } });
+        document.body.addEventListener('click', async (e) => { const editButton = e.target.closest('.edit-btn'); const deleteButton = e.target.closest('.delete-btn'); const soldButton = e.target.closest('.sold-btn'); if (soldButton) { const id = soldButton.dataset.id; await handleToggleSoldStatus(id); } if (editButton) { const id = editButton.dataset.id; const itemToEdit = allItemsCache[id]; if (!itemToEdit) return alert('שגיאה: לא ניתן למצוא את פרטי הפריט.'); uploadForm.reset(); editingItemIdInput.value = id; document.getElementById('item-title').value = itemToEdit.title; document.getElementById('item-description').value = itemToEdit.description; document.getElementById('item-category').value = itemToEdit.category; document.getElementById('item-contact').value = itemToEdit.contact; document.getElementById('item-price').value = itemToEdit.price; document.getElementById('item-images').required = false; uploadModalTitle.textContent = 'עריכת פריט'; document.getElementById('submit-btn').textContent = 'שמור שינויים'; const previewContainer = document.getElementById('image-preview-container'); previewContainer.innerHTML = ''; (itemToEdit.imageUrls || []).forEach(url => { const img = document.createElement('img'); img.src = url; img.className = 'w-16 h-16 object-cover rounded-md opacity-75'; previewContainer.appendChild(img); }); showModal(uploadModal); } if (deleteButton) { const id = deleteButton.dataset.id; const token = localStorage.getItem('authToken'); if (!token) return alert('שגיאת אימות למחיקה.'); if (confirm('האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.')) { try { const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Failed to delete'); } catch (error) { console.error('Delete failed:', error); alert('שגיאה במחיקת הפריט.'); } } } });
+        async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return alert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); alert('שגיאה בעדכון סטטוס הפריט.'); } }
+        categoryFilters.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { currentCategory = e.target.dataset.category; categoryFilters.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); applyFilters(); } });
         filterInput.addEventListener('input', applyFilters);
         
         // Initial Setup
