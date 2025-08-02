@@ -152,7 +152,6 @@
             const contactInitial = item.contact ? item.contact.charAt(0).toUpperCase() : '?';
             const contactHtml = generateContactHtml(item.contact, item.title);
             
-            // --- NEW: Thumbnail gallery logic ---
             const mainImageId = `main-image-${item._id}`;
             const thumbnailsHtml = (item.imageUrls || []).map((url, index) => `
                 <img src="${url}" class="thumbnail w-12 h-12 object-cover rounded-md ${index === 0 ? 'active' : ''}" onclick="document.getElementById('${mainImageId}').src='${url}'; document.querySelectorAll('#item-${item._id} .thumbnail').forEach(t => t.classList.remove('active')); this.classList.add('active');">
@@ -278,9 +277,6 @@
             if (e.target === uploadModal) hideModal();
         });
         
-        // --- UPDATED: Handle multiple files preview ---
-        const imageInput = document.getElementById('item-images');
-        const imagePreviewContainer = document.getElementById('image-preview-container');
         imageInput.addEventListener('change', () => {
             imagePreviewContainer.innerHTML = '';
             if (imageInput.files.length > 6) {
