@@ -12,6 +12,7 @@ const { Server } = require("socket.io");
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs'); // --- NEW: Import File System module ---
 
 const app = express();
 const server = http.createServer(app);
@@ -25,6 +26,13 @@ const io = new Server(server, {
 // --- הגדרות ---
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI; // קורא את כתובת החיבור מקובץ .env
+
+// --- FIX: Create 'uploads' directory if it doesn't exist ---
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)){
+    fs.mkdirSync(uploadsDir);
+    console.log("Created 'uploads' directory.");
+}
 
 // --- חיבור למסד הנתונים (MongoDB) ---
 mongoose.connect(MONGO_URI)
@@ -44,7 +52,7 @@ const Item = mongoose.model('Item', itemSchema);
 app.use(cors());
 app.use(express.json());
 // הגדרת תיקיית 'uploads' כסטטית כדי שהדפדפן יוכל לגשת לתמונות
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // --- הגדרת Multer לאחסון תמונות ---
 const storage = multer.diskStorage({
