@@ -33,18 +33,14 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
 
 // --- בדיקת משתני סביבה (שלב אבחון) ---
-console.log("--- Verifying Environment Variables ---");
+console.log("--- Verifying Environment Variables (DEBUG MODE) ---");
 console.log("CLIENT_URL:", CLIENT_URL ? "Loaded Successfully" : "ERROR: MISSING!");
-console.log("MONGO_URI:", MONGO_URI ? "Loaded Successfully" : "ERROR: MISSING!");
-console.log("JWT_SECRET:", JWT_SECRET ? "Loaded Successfully" : "ERROR: MISSING!");
-console.log("GOOGLE_CLIENT_SECRET:", GOOGLE_CLIENT_SECRET ? "Loaded Successfully" : "ERROR: MISSING!");
-if (GOOGLE_CLIENT_ID) {
-    // אנו מדפיסים רק חלק מהמפתח כדי לא לחשוף אותו, אבל מספיק כדי שנוכל לוודא שהוא נכון
-    console.log("GOOGLE_CLIENT_ID (starts with):", GOOGLE_CLIENT_ID.substring(0, 15));
-} else {
-    console.log("GOOGLE_CLIENT_ID: ERROR: MISSING!");
-}
-console.log("------------------------------------");
+console.log("MONGO_URI:", MONGO_URI ? "Loaded (hidden for security)" : "ERROR: MISSING!");
+console.log("JWT_SECRET:", JWT_SECRET ? "Loaded (hidden for security)" : "ERROR: MISSING!");
+console.log("GOOGLE_CLIENT_SECRET:", GOOGLE_CLIENT_SECRET ? "Loaded (hidden for security)" : "ERROR: MISSING!");
+// אזהרה: הדפסת המפתח המלא היא לצורכי בדיקה בלבד. יש להסיר זאת בסיום.
+console.log("FULL GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID || "ERROR: MISSING!");
+console.log("---------------------------------------------");
 
 
 // --- חיבור למסד הנתונים (MongoDB) ---
