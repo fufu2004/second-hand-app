@@ -1,179 +1,249 @@
 // server.js
-// --- VERSION 5.0 (Advanced Features: Sorting & Sold Status) ---
-// This version adds sorting capabilities and allows users to mark items as 'sold'.
 
-require('dotenv').config();
+// 1. ייבוא ספריות נדרשות
 const express = require('express');
-const mongoose = require('mongoose');
 const http = require('http');
 const { Server } = require("socket.io");
-const multer = require('multer');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
+const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
+// --- הגדרות ראשוניות ---
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST", "DELETE", "PATCH"]
+        origin: "*", // אפשר גישה מכל מקור
+        methods: ["GET", "POST", "PATCH", "DELETE"]
     }
 });
-
-// --- הגדרות ---
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
+const CLIENT_URL = "https://mellow-longma-d22b01.netlify.app";
+
+// --- תצורה ---
+const GOOGLE_CLIENT_ID = '384614022081-0d426f73bftk942e3md5kukur43k0sun.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
+const MONGO_URI = 'mongodb+srv://fufu2004:liat1976riftal@second-hand-shop.1k54hdk.mongodb.net/?retryWrites=true&w=majority&appName=second-hand-shop';
+const JWT_SECRET = 'MySuperSecretKeyForRollingStyleApp123!';
 
 // --- חיבור למסד הנתונים (MongoDB) ---
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('Connected to MongoDB...'))
-    .catch(err => console.error('Could not connect to MongoDB...', err));
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB Connected'))
+    .catch(err => console.log(err));
 
-// --- הגדרת מודל (Schema) לפריט ---
-const itemSchema = new mongoose.Schema({
+// --- הגדרת מודלים למסד הנתונים ---
+const UserSchema = new mongoose.Schema({
+    googleId: { type: String, required: true },
+    displayName: String,
+    email: String,
+    image: String,
+});
+const User = mongoose.model('User', UserSchema);
+
+const ItemSchema = new mongoose.Schema({
     title: String,
-    price: Number,
     description: String,
+    price: Number,
+    category: String,
     contact: String,
     imageUrls: [String],
-    deleteKey: { type: String, required: true },
-    status: { type: String, default: 'available', enum: ['available', 'sold'] }, // NEW: Item status
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    sold: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
-const Item = mongoose.model('Item', itemSchema);
+const Item = mongoose.model('Item', ItemSchema);
 
-// --- Middlewares ---
-app.use(cors());
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
-// --- הגדרת Multer לאחסון תמונות בזיכרון ---
-const storage = multer.memoryStorage();
+// --- הגדרות העלאת קבצים (Multer) ---
+const storage = multer.memoryStorage(); // אחסון קבצים בזיכרון לפני העלאה
 const upload = multer({ storage: storage });
 
-// --- API Endpoints ---
 
-// קבלת כל היסטוריית הפריטים
+// --- הגדרת Passport.js (מערכת התחברות) ---
+app.use(session({ secret: 'some secret', resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
+
+passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: "/auth/google/callback",
+    proxy: true
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ googleId: profile.id });
+        if (user) return done(null, user);
+        
+        const newUser = new User({
+            googleId: profile.id,
+            displayName: profile.displayName,
+            email: profile.emails[0].value,
+            image: profile.photos[0].value
+        });
+        await newUser.save();
+        return done(null, newUser);
+    } catch (err) {
+        console.error(err);
+        return done(err, null);
+    }
+  }
+));
+
+// --- Middleware ---
+app.use(cors());
+app.use(express.json());
+
+// Middleware לאימות טוקן
+const authMiddleware = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    if (token == null) return res.sendStatus(401);
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
+
+
+// --- נתיבים (Routes) ---
+
+// -- נתיבי התחברות --
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/', session: false }),
+  (req, res) => {
+    const payload = { id: req.user._id, name: req.user.displayName };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    const userString = encodeURIComponent(JSON.stringify(payload));
+    res.redirect(`${CLIENT_URL}?token=${token}&user=${userString}`);
+  }
+);
+
+// -- נתיבי פריטים (Items API) --
+
+// קבלת כל הפריטים
 app.get('/items', async (req, res) => {
     try {
-        const sortQuery = {};
-        switch (req.query.sort) {
-            case 'price_asc':
-                sortQuery.price = 1;
-                break;
-            case 'price_desc':
-                sortQuery.price = -1;
-                break;
-            default:
-                sortQuery.createdAt = -1; // Newest first
-        }
-
-        // Move sold items to the end
-        const items = await Item.find()
-            .select('-deleteKey')
-            .sort({ status: 1 }) // 'available' comes before 'sold'
-            .sort(sortQuery);
-            
+        const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 });
         res.json(items);
-    } catch (error) {
-        res.status(500).send('Error fetching items');
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
-// העלאת פריט חדש
-app.post('/items', upload.array('images', 6), async (req, res) => {
+// קבלת פריטים של משתמש ספציפי
+app.get('/items/my-items', authMiddleware, async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).send('No images uploaded.');
+        const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 });
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// יצירת פריט חדש
+app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
+    // כאן צריך להוסיף לוגיקה להעלאת התמונות לשירות ענן כמו Cloudinary או S3
+    // כרגע נשתמש בכתובות Placeholder
+    const imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Image`);
+
+    const newItem = new Item({
+        title: req.body.title,
+        description: req.body.description,
+        price: req.body.price,
+        category: req.body.category,
+        contact: req.body.contact,
+        imageUrls: imageUrls,
+        owner: req.user.id
+    });
+    try {
+        const savedItem = await newItem.save();
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName');
+        io.emit('newItem', populatedItem); // שלח עדכון לכל הלקוחות
+        res.status(201).json(populatedItem);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// עדכון פריט
+app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
+
+        const updateData = { ...req.body };
+        if (req.files && req.files.length > 0) {
+            // לוגיקה להעלאת תמונות חדשות...
+            updateData.imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Updated+Image`);
         }
 
-        const deleteKey = uuidv4();
-        const imageUrls = req.files.map(file => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`);
-
-        const newItem = new Item({
-            title: req.body.title,
-            price: req.body.price,
-            description: req.body.description,
-            contact: req.body.contact,
-            imageUrls: imageUrls,
-            deleteKey: deleteKey,
-            status: 'available' // Default status
-        });
-
-        await newItem.save();
-        
-        const publicItem = newItem.toObject();
-        delete publicItem.deleteKey;
-        io.emit('newItem', publicItem);
-
-        res.status(201).json(newItem);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error creating item');
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName');
+        io.emit('itemUpdated', updatedItem);
+        res.json(updatedItem);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
     }
 });
 
-// --- NEW: Mark an item as sold ---
-app.patch('/items/:id/sold', async (req, res) => {
+// עדכון סטטוס "נמכר"
+app.patch('/items/:id/sold', authMiddleware, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { deleteKey } = req.body;
+        const item = await Item.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
 
-        if (!deleteKey) return res.status(400).send('Delete key is required.');
-
-        const item = await Item.findById(id);
-        if (!item) return res.status(404).send('Item not found.');
-        if (item.deleteKey !== deleteKey) return res.status(403).send('Invalid delete key.');
-
-        item.status = 'sold';
+        item.sold = req.body.sold;
         await item.save();
-
-        const publicItem = item.toObject();
-        delete publicItem.deleteKey;
-        io.emit('itemUpdated', publicItem); // Broadcast the update
-
-        res.status(200).json(publicItem);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error updating item status');
+        const updatedItem = await Item.findById(item._id).populate('owner', 'displayName');
+        io.emit('itemUpdated', updatedItem);
+        res.json(updatedItem);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
     }
 });
 
 
 // מחיקת פריט
-app.delete('/items/:id', async (req, res) => {
+app.delete('/items/:id', authMiddleware, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { deleteKey } = req.body;
+        const item = await Item.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
 
-        if (!deleteKey) return res.status(400).send('Delete key is required.');
-
-        const item = await Item.findById(id);
-        if (!item) return res.status(404).send('Item not found.');
-        if (item.deleteKey !== deleteKey) return res.status(403).send('Invalid delete key.');
-
-        await Item.findByIdAndDelete(id);
-
-        io.emit('itemDeleted', id);
-        res.status(200).send('Item deleted successfully.');
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error deleting item');
+        await item.remove();
+        io.emit('itemDeleted', req.params.id);
+        res.json({ message: 'Item deleted' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
 
-// --- Socket.IO Connection ---
+// --- הגדרת Socket.io ---
 io.on('connection', (socket) => {
-    console.log('a user connected:', socket.id);
-    socket.on('disconnect', () => {
-        console.log('user disconnected:', socket.id);
-    });
+  console.log('a user connected');
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+  });
 });
 
-// --- הפעלת השרת ---
+
+// --- הרצת השרת ---
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
