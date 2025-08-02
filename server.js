@@ -1,8 +1,7 @@
 // server.js
-// השרת מנהל את מסד הנתונים, את העלאת הקבצים ואת התקשורת בזמן אמת
-
-// --- התקנות נדרשות ---
-// npm install express mongoose socket.io multer cors dotenv
+// --- VERSION 2.0 (Advanced Features) ---
+// This version adds a description and contact field to items,
+// and implements a secure way to delete items using a secret key.
 
 require('dotenv').config();
 const express = require('express');
@@ -12,22 +11,22 @@ const { Server } = require("socket.io");
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs'); // --- NEW: Import File System module ---
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid'); // For generating unique keys
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*", // בסביבת פרודקשן, יש לשנות לכתובת האתר שלך
-        methods: ["GET", "POST"]
+        origin: "*",
+        methods: ["GET", "POST", "DELETE"]
     }
 });
 
 // --- הגדרות ---
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI; // קורא את כתובת החיבור מקובץ .env
+const MONGO_URI = process.env.MONGO_URI;
 
-// --- FIX: Create 'uploads' directory if it doesn't exist ---
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)){
     fs.mkdirSync(uploadsDir);
@@ -43,7 +42,10 @@ mongoose.connect(MONGO_URI)
 const itemSchema = new mongoose.Schema({
     title: String,
     price: Number,
+    description: String, // NEW
+    contact: String,     // NEW
     imageUrl: String,
+    deleteKey: { type: String, required: true }, // NEW
     createdAt: { type: Date, default: Date.now }
 });
 const Item = mongoose.model('Item', itemSchema);
@@ -51,17 +53,12 @@ const Item = mongoose.model('Item', itemSchema);
 // --- Middlewares ---
 app.use(cors());
 app.use(express.json());
-// הגדרת תיקיית 'uploads' כסטטית כדי שהדפדפן יוכל לגשת לתמונות
 app.use('/uploads', express.static(uploadsDir));
 
 // --- הגדרת Multer לאחסון תמונות ---
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/')
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)) // שם קובץ ייחודי
-    }
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({ storage: storage });
 
@@ -70,7 +67,8 @@ const upload = multer({ storage: storage });
 // קבלת כל היסטוריית הפריטים
 app.get('/items', async (req, res) => {
     try {
-        const items = await Item.find().sort({ createdAt: -1 }); // מיון מהחדש לישן
+        // Exclude deleteKey from the public response
+        const items = await Item.find().sort({ createdAt: -1 }).select('-deleteKey');
         res.json(items);
     } catch (error) {
         res.status(500).send('Error fetching items');
@@ -80,28 +78,72 @@ app.get('/items', async (req, res) => {
 // העלאת פריט חדש
 app.post('/items', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).send('No image uploaded.');
-        }
+        if (!req.file) return res.status(400).send('No image uploaded.');
+
+        const deleteKey = uuidv4(); // Generate a unique secret key for deletion
 
         const newItem = new Item({
             title: req.body.title,
             price: req.body.price,
-            // הכתובת המלאה שבה התמונה תהיה זמינה באינטרנט
-            imageUrl: `/uploads/${req.file.filename}`
+            description: req.body.description,
+            contact: req.body.contact,
+            imageUrl: `/uploads/${req.file.filename}`,
+            deleteKey: deleteKey
         });
 
         await newItem.save();
         
-        // --- שידור הפריט החדש לכל המשתמשים המחוברים ---
-        io.emit('newItem', newItem);
+        // Broadcast the new item WITHOUT the delete key
+        const publicItem = newItem.toObject();
+        delete publicItem.deleteKey;
+        io.emit('newItem', publicItem);
 
+        // Return the new item WITH the delete key to the uploader
         res.status(201).json(newItem);
     } catch (error) {
         console.error(error);
         res.status(500).send('Error creating item');
     }
 });
+
+// --- NEW: Delete an item ---
+app.delete('/items/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { deleteKey } = req.body;
+
+        if (!deleteKey) {
+            return res.status(400).send('Delete key is required.');
+        }
+
+        const item = await Item.findById(id);
+        if (!item) {
+            return res.status(404).send('Item not found.');
+        }
+
+        if (item.deleteKey !== deleteKey) {
+            return res.status(403).send('Invalid delete key.');
+        }
+
+        // Delete the image file from the server
+        const imagePath = path.join(__dirname, item.imageUrl);
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+        }
+
+        await Item.findByIdAndDelete(id);
+
+        // Broadcast the ID of the deleted item to all clients
+        io.emit('itemDeleted', id);
+
+        res.status(200).send('Item deleted successfully.');
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error deleting item');
+    }
+});
+
 
 // --- Socket.IO Connection ---
 io.on('connection', (socket) => {
