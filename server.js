@@ -1,6 +1,7 @@
 // server.js
-// --- VERSION 4.0 (Advanced Features: Multiple Images) ---
-// This version adds support for uploading up to 6 images per item.
+// --- VERSION 3.0 (Stable Version with Base64 Image Storage) ---
+// This version stores images directly in the database as Base64 data URLs
+// to solve the ephemeral filesystem issue on hosting platforms like Render.
 
 require('dotenv').config();
 const express = require('express');
@@ -10,7 +11,7 @@ const { Server } = require("socket.io");
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid'); // For generating unique keys
 
 const app = express();
 const server = http.createServer(app);
@@ -36,7 +37,7 @@ const itemSchema = new mongoose.Schema({
     price: Number,
     description: String,
     contact: String,
-    imageUrls: [String], // UPDATED: Now an array of strings for multiple images
+    imageUrl: String, // Will now store a Base64 Data URL
     deleteKey: { type: String, required: true },
     createdAt: { type: Date, default: Date.now }
 });
@@ -44,11 +45,13 @@ const Item = mongoose.model('Item', itemSchema);
 
 // --- Middlewares ---
 app.use(cors());
-app.use(express.json({ limit: '25mb' })); // Increased limit for multiple images
-app.use(express.urlencoded({ limit: '25mb', extended: true }));
+// Increase payload size limit to allow for Base64 images
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 
 // --- הגדרת Multer לאחסון תמונות בזיכרון ---
-const storage = multer.memoryStorage();
+const storage = multer.memoryStorage(); // Use memory storage to get buffer
 const upload = multer({ storage: storage });
 
 // --- API Endpoints ---
@@ -64,26 +67,21 @@ app.get('/items', async (req, res) => {
 });
 
 // העלאת פריט חדש
-// UPDATED: Use upload.array() to accept up to 6 images
-app.post('/items', upload.array('images', 6), async (req, res) => {
+app.post('/items', upload.single('image'), async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).send('No images uploaded.');
-        }
+        if (!req.file) return res.status(400).send('No image uploaded.');
 
         const deleteKey = uuidv4();
         
-        // Convert all uploaded image buffers to Base64 Data URLs
-        const imageUrls = req.files.map(file => 
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
-        );
+        // Convert image buffer to Base64 Data URL
+        const imageAsDataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
         const newItem = new Item({
             title: req.body.title,
             price: req.body.price,
             description: req.body.description,
             contact: req.body.contact,
-            imageUrls: imageUrls, // Save the array of Data URLs
+            imageUrl: imageAsDataUrl, // Save the Data URL
             deleteKey: deleteKey
         });
 
