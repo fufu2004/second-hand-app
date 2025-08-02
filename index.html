@@ -39,8 +39,8 @@
 
     <script>
         // --- הגדרות ---
-        // יש לעדכן לכתובת השרת החי שלך לאחר ההעלאה לאינטרנט
-        const SERVER_URL = 'http://localhost:3000'; 
+        // --- UPDATED: Using the live server URL from Render ---
+        const SERVER_URL = 'https://second-hand-server.onrender.com'; 
 
         // --- אלמנטים מה-DOM ---
         const itemsFeed = document.getElementById('items-feed');
@@ -98,7 +98,7 @@
                 items.forEach(item => displayItem(item, false));
             } catch (error) {
                 console.error('Failed to fetch history:', error);
-                itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים. ודא שהשרת (קובץ server.js) פועל.</p>';
+                itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים. ודא שהשרת פועל.</p>';
             }
         }
 
