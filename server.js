@@ -25,15 +25,19 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3000;
 
-// --- הגדרות קבועות לצורך בדיקה ---
-// אזהרה: אין להשתמש בגרסה זו בסביבת ייצור!
-const GOOGLE_CLIENT_ID = '384614022081-aoa15ct9nvp8unae07bmm70tv3csrajj.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = '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';
-const MONGO_URI = 'mongodb+srv://fufu2004:liat1976riftal@second-hand-shop.1k54hdk.mongodb.net/?retryWrites=true&w=majority&appName=second-hand-shop';
-const JWT_SECRET = 'MySuperSecretKeyForRollingStyleApp123!';
-const CLIENT_URL = "https://mellow-longma-d22b01.netlify.app";
-const SERVER_URL = "https://second-hand-server.onrender.com";
+// --- קריאת משתני סביבה ---
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
 
+// --- בדיקת משתני סביבה חיוניים ---
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL) {
+    console.error("FATAL ERROR: One or more required environment variables are missing!");
+    process.exit(1);
+}
 
 // --- חיבור למסד הנתונים (MongoDB) ---
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -58,8 +62,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // --- הגדרת Passport.js ---
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((obj, done) => done(null, obj));
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
 
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
@@ -67,16 +71,23 @@ passport.use(new GoogleStrategy({
     callbackURL: `${SERVER_URL}/auth/google/callback`,
     proxy: true
   },
-  // *** שינוי לצורך בדיקה: שימוש בלוגיקה הפשוטה שעבדה בטסט ***
   async (accessToken, refreshToken, profile, done) => {
-    console.log("Google Strategy callback executed successfully.");
-    // במקום להתחבר למסד הנתונים, אנחנו פשוט מעבירים את הפרופיל הלאה
-    // זה מאפשר לנו לבדוק אם תהליך ההתחברות הבסיסי עובד בקוד המלא
-    const mockUser = {
-        _id: profile.id, // שימוש ב-googleId כמזהה זמני
-        displayName: profile.displayName
-    };
-    return done(null, mockUser);
+    try {
+        let user = await User.findOne({ googleId: profile.id });
+        if (user) return done(null, user);
+        
+        const newUser = new User({
+            googleId: profile.id,
+            displayName: profile.displayName,
+            email: profile.emails[0].value,
+            image: profile.photos[0].value
+        });
+        await newUser.save();
+        return done(null, newUser);
+    } catch (err) {
+        console.error("Error during Google Strategy user processing:", err);
+        return done(err, null);
+    }
   }
 ));
 
