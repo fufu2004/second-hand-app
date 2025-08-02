@@ -160,7 +160,8 @@
             return `
                 <div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4">
                     <div class="md:w-48 flex-shrink-0">
-                        <img id="${mainImageId}" src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/192x192/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-64 md:h-full object-cover">
+                        <!-- FIX: Changed from object-cover to object-contain for mobile, and adjusted heights -->
+                        <img id="${mainImageId}" src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover">
                     </div>
                     <div class="p-5 flex flex-col flex-grow">
                         <div class="flex justify-between items-start">
@@ -176,7 +177,7 @@
                         </div>
                         <p class="text-gray-600 my-3 flex-grow">${item.description || ''}</p>
                         <!-- NEW: Thumbnail gallery container -->
-                        <div class="flex gap-2 mt-2">${thumbnailsHtml}</div>
+                        <div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div>
                         <div class="flex justify-between items-end mt-4 pt-2 border-t border-gray-200">
                             <p class="text-xs text-gray-400">${dateString}</p>
                             ${deleteButtonHtml}
