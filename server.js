@@ -11,7 +11,7 @@ const { Server } = require("socket.io");
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid'); // For generating unique keys
 
 const app = express();
 const server = http.createServer(app);
