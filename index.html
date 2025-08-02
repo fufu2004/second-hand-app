@@ -33,6 +33,20 @@
         .thumbnail.active {
             border-color: #14b8a6; /* teal-500 */
         }
+        /* --- NEW: Blinking dot animation --- */
+        .blinking-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #22c55e; /* green-500 */
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 6px;
+            animation: blink-animation 1.5s infinite;
+        }
+        @keyframes blink-animation {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -44,7 +58,10 @@
                 <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 md:h-20 md:w-20 rounded-full">
                 <h1 class="text-3xl md:text-5xl font-bold text-teal-700">סטייל מתגלגל</h1>
             </div>
-            <p class="text-gray-500 mt-2 text-sm md:text-base">הפריטים הכי שווים בקהילה, מתעדכן LIVE</p>
+            <!-- UPDATED: Added blinking dot -->
+            <p class="text-gray-500 mt-2 text-sm md:text-base flex items-center justify-center">
+                הפריטים הכי שווים בקהילה, מתעדכן <span class="blinking-dot"></span> LIVE
+            </p>
         </header>
 
         <!-- Search/Filter Bar -->
@@ -277,6 +294,7 @@
             if (e.target === uploadModal) hideModal();
         });
         
+        // --- FIX: Removed duplicate declaration ---
         imageInput.addEventListener('change', () => {
             imagePreviewContainer.innerHTML = '';
             if (imageInput.files.length > 6) {
