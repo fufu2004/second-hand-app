@@ -9,77 +9,101 @@
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Assistant', sans-serif; }
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <div class="container mx-auto p-4 max-w-2xl">
+    <div class="container mx-auto p-4 max-w-2xl pb-24">
         <header class="text-center my-8">
             <h1 class="text-4xl font-bold text-gray-800">קהילת האופנה שלנו</h1>
             <p class="text-gray-600">הפריטים האחרונים שעלו למכירה</p>
         </header>
 
-        <!-- אזור להצגת הפריטים -->
         <main id="items-feed" class="space-y-4">
             <!-- פריטים יוצגו כאן -->
         </main>
-
-        <!-- טופס העלאת פריט חדש -->
-        <footer class="sticky bottom-0 bg-white p-4 mt-8 border-t rounded-t-lg shadow-lg">
-            <form id="upload-form" class="flex items-center gap-4">
-                <input type="text" id="item-title" placeholder="שם הפריט" class="flex-grow p-2 border rounded" required>
-                <input type="number" id="item-price" placeholder="מחיר (בשקלים)" class="w-32 p-2 border rounded" required>
-                <input type="file" id="item-image" class="hidden" accept="image/*" required>
-                <button type="button" id="image-upload-btn" class="bg-gray-200 p-2 rounded">📷</button>
-                <button type="submit" id="submit-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">שלח</button>
-            </form>
-            <div id="image-preview" class="text-sm text-gray-500 mt-2"></div>
-        </footer>
     </div>
 
-    <script>
-        // --- הגדרות ---
-        // --- UPDATED: Using the live server URL from Render ---
-        const SERVER_URL = 'https://second-hand-server.onrender.com'; 
+    <!-- כפתור צף להוספת פריט -->
+    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg">
+        +
+    </button>
 
-        // --- אלמנטים מה-DOM ---
+    <!-- חלון מודאל להוספת פריט -->
+    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform -translate-y-10">
+            <h2 class="text-2xl font-bold mb-4">הוספת פריט חדש</h2>
+            <form id="upload-form">
+                <div class="space-y-4">
+                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ)" class="w-full p-2 border rounded" required>
+                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, וכו')" class="w-full p-2 border rounded" rows="3" required></textarea>
+                    <input type="text" id="item-contact" placeholder="פרטי קשר (טלגרם, טלפון...)" class="w-full p-2 border rounded" required>
+                    <input type="number" id="item-price" placeholder="מחיר (בשקלים)" class="w-full p-2 border rounded" required>
+                    <div>
+                        <label for="item-image" class="block text-sm font-medium text-gray-700">העלאת תמונה</label>
+                        <input type="file" id="item-image" class="mt-1" accept="image/*" required>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" id="close-modal-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">ביטול</button>
+                    <button type="submit" id="submit-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">פרסם פריט</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const SERVER_URL = 'https://second-hand-server.onrender.com'; // יש לעדכן לכתובת השרת החי שלך
+
         const itemsFeed = document.getElementById('items-feed');
         const uploadForm = document.getElementById('upload-form');
-        const itemTitle = document.getElementById('item-title');
-        const itemPrice = document.getElementById('item-price');
-        const itemImage = document.getElementById('item-image');
-        const imageUploadBtn = document.getElementById('image-upload-btn');
-        const imagePreview = document.getElementById('image-preview');
         const submitBtn = document.getElementById('submit-btn');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const uploadModal = document.getElementById('upload-modal');
 
-        // --- חיבור לשרת בזמן אמת ---
         const socket = io(SERVER_URL);
 
-        // מאזין לפריטים חדשים המגיעים מהשרת
-        socket.on('newItem', (item) => {
-            console.log('New item received:', item);
-            displayItem(item, true); // הצג פריט חדש בראש הפיד
+        socket.on('newItem', (item) => displayItem(item, true));
+        socket.on('itemDeleted', (itemId) => {
+            const itemElement = document.getElementById(`item-${itemId}`);
+            if (itemElement) {
+                itemElement.remove();
+            }
         });
 
-        // --- פונקציות ---
-
-        // יצירת כרטיס פריט
         function createItemCard(item) {
-            const imageUrl = item.imageUrl.startsWith('http') ? item.imageUrl : `${SERVER_URL}${item.imageUrl}`;
+            const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
+            const canDelete = myItems[item._id];
+            const deleteButtonHtml = canDelete ? `<button data-id="${item._id}" data-key="${myItems[item._id]}" class="delete-btn text-red-500 hover:text-red-700 text-sm">מחק</button>` : '';
+            
             const date = new Date(item.createdAt).toLocaleString('he-IL');
             return `
-                <div class="bg-white p-4 rounded-lg shadow-md flex gap-4">
-                    <img src="${imageUrl}" alt="${item.title}" class="w-24 h-24 object-cover rounded-md" onerror="this.onerror=null;this.src='https://placehold.co/96x96/e2e8f0/94a3b8?text=תמונה';">
+                <div id="item-${item._id}" class="bg-white p-4 rounded-lg shadow-md flex gap-4">
+                    <img src="${item.imageUrl.startsWith('http') ? item.imageUrl : SERVER_URL + item.imageUrl}" alt="${item.title}" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-md">
                     <div class="flex-grow">
-                        <h2 class="text-xl font-bold">${item.title}</h2>
-                        <p class="text-lg text-blue-600 font-semibold">₪${item.price}</p>
-                        <p class="text-sm text-gray-500 mt-2">פורסם ב: ${date}</p>
+                        <div class="flex justify-between items-start">
+                            <h2 class="text-xl font-bold">${item.title}</h2>
+                            <p class="text-lg text-blue-600 font-semibold flex-shrink-0">₪${item.price}</p>
+                        </div>
+                        <p class="text-gray-700 my-2">${item.description || ''}</p>
+                        <p class="text-sm text-gray-600 font-semibold">ליצירת קשר: ${item.contact || ''}</p>
+                        <div class="flex justify-between items-end mt-2">
+                            <p class="text-xs text-gray-500">פורסם ב: ${date}</p>
+                            ${deleteButtonHtml}
+                        </div>
                     </div>
                 </div>
             `;
         }
 
-        // הצגת פריט בפיד
         function displayItem(item, isNew = false) {
             const itemCard = createItemCard(item);
             if (isNew) {
@@ -89,7 +113,6 @@
             }
         }
 
-        // טעינת היסטוריית הפריטים בעת עליית הדף
         async function fetchHistory() {
             try {
                 const response = await fetch(`${SERVER_URL}/items`);
@@ -102,60 +125,93 @@
             }
         }
 
-        // --- אירועים ---
-        imageUploadBtn.addEventListener('click', () => {
-            itemImage.click();
+        // --- Modal Logic ---
+        function showModal() {
+            uploadModal.classList.remove('hidden');
+            setTimeout(() => uploadModal.classList.remove('opacity-0'), 10);
+            setTimeout(() => uploadModal.querySelector('.modal-content').classList.remove('-translate-y-10'), 10);
+        }
+        function hideModal() {
+            uploadModal.classList.add('opacity-0');
+            uploadModal.querySelector('.modal-content').classList.add('-translate-y-10');
+            setTimeout(() => uploadModal.classList.add('hidden'), 300);
+        }
+        openModalBtn.addEventListener('click', showModal);
+        closeModalBtn.addEventListener('click', hideModal);
+        uploadModal.addEventListener('click', (e) => {
+            if (e.target === uploadModal) hideModal();
         });
 
-        itemImage.addEventListener('change', () => {
-            if (itemImage.files.length > 0) {
-                imagePreview.textContent = `קובץ שנבחר: ${itemImage.files[0].name}`;
-            } else {
-                imagePreview.textContent = '';
-            }
-        });
-
+        // --- Form Submission ---
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            if (!itemTitle.value || !itemPrice.value || itemImage.files.length === 0) {
-                alert('יש למלא את כל השדות ולהעלות תמונה.');
-                return;
-            }
+            const formData = new FormData(e.target);
+            formData.append('title', document.getElementById('item-title').value);
+            formData.append('description', document.getElementById('item-description').value);
+            formData.append('contact', document.getElementById('item-contact').value);
+            formData.append('price', document.getElementById('item-price').value);
+            formData.append('image', document.getElementById('item-image').files[0]);
 
             submitBtn.disabled = true;
-            submitBtn.textContent = 'שולח...';
-
-            const formData = new FormData();
-            formData.append('title', itemTitle.value);
-            formData.append('price', itemPrice.value);
-            formData.append('image', itemImage.files[0]);
+            submitBtn.textContent = 'מפרסם...';
 
             try {
-                const response = await fetch(`${SERVER_URL}/items`, {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response.ok) {
-                    throw new Error('Server responded with an error');
-                }
+                const response = await fetch(`${SERVER_URL}/items`, { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Server responded with an error');
                 const newItem = await response.json();
                 
+                // Save the item's ID and delete key to local storage
+                const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
+                myItems[newItem._id] = newItem.deleteKey;
+                localStorage.setItem('myItems', JSON.stringify(myItems));
+
                 console.log('Item uploaded successfully:', newItem);
                 
                 uploadForm.reset();
-                imagePreview.textContent = '';
+                hideModal();
+                // The new item will be added via the socket, so we just refresh the card to show the delete button
+                const itemElement = document.getElementById(`item-${newItem._id}`);
+                if (itemElement) itemElement.outerHTML = createItemCard(newItem);
+
 
             } catch (error) {
                 console.error('Upload failed:', error);
                 alert('שגיאה בהעלאת הפריט. ודא שהשרת פועל.');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'שלח';
+                submitBtn.textContent = 'פרסם פריט';
+            }
+        });
+        
+        // --- Delete Logic ---
+        itemsFeed.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const id = e.target.dataset.id;
+                const key = e.target.dataset.key;
+
+                if (confirm('האם אתה בטוח שברצונך למחוק את הפריט?')) {
+                    try {
+                        const response = await fetch(`${SERVER_URL}/items/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ deleteKey: key })
+                        });
+                        if (!response.ok) throw new Error('Failed to delete');
+                        
+                        // The item will be removed via the socket broadcast
+                        const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
+                        delete myItems[id];
+                        localStorage.setItem('myItems', JSON.stringify(myItems));
+
+                    } catch (error) {
+                        console.error('Delete failed:', error);
+                        alert('שגיאה במחיקת הפריט. ייתכן שמפתח המחיקה אינו תקין.');
+                    }
+                }
             }
         });
 
-        // טעינה ראשונית של הנתונים
         fetchHistory();
     </script>
 </body>
