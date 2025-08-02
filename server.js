@@ -70,11 +70,12 @@ app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
 
-// *** תיקון: הסרת הגדרת הפרוקסי ***
+// *** תיקון: החזרת הגדרת הפרוקסי ***
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: `${SERVER_URL}/auth/google/callback` // שימוש בכתובת המלאה והמפורשת
+    callbackURL: `${SERVER_URL}/auth/google/callback`, // שימוש בכתובת המלאה והמפורשת
+    proxy: true // הגדרה זו חיונית עבור שירותים כמו Render
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
