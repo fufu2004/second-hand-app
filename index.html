@@ -38,17 +38,17 @@
 <body class="bg-gray-100">
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
-        <header class="text-center my-6 md:my-10">
+        <!-- UPDATED: Added sticky positioning to the header -->
+        <header class="text-center py-4 bg-gray-100/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
              <div class="flex justify-center items-center gap-3 md:gap-4">
-                <!-- --- UPDATED LOGO URL --- -->
-                <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-16 w-16 md:h-20 md:w-20 rounded-full">
-                <h1 class="text-5xl md:text-6xl font-bold text-teal-700">סטייל מתגלגל</h1>
+                <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 md:h-20 md:w-20 rounded-full">
+                <h1 class="text-3xl md:text-5xl font-bold text-teal-700">סטייל מתגלגל</h1>
             </div>
-            <p class="text-gray-500 mt-2">הפריטים הכי שווים בקהילה, מתעדכן LIVE</p>
+            <p class="text-gray-500 mt-2 text-sm md:text-base">הפריטים הכי שווים בקהילה, מתעדכן LIVE</p>
         </header>
 
         <!-- Search/Filter Bar -->
-        <div class="mb-6">
+        <div class="my-6">
             <input type="text" id="filter-input" placeholder="סנן פריטים לפי שם..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
         </div>
 
