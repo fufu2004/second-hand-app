@@ -31,9 +31,10 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
 
 // --- בדיקת משתני סביבה חיוניים ---
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL) {
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL) {
     console.error("FATAL ERROR: One or more required environment variables are missing!");
     process.exit(1);
 }
@@ -64,11 +65,10 @@ app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
 
-// *** תיקון: שימוש בכתובת חזרה קבועה ומלאה ***
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://second-hand-server.onrender.com/auth/google/callback",
+    callbackURL: `${SERVER_URL}/auth/google/callback`,
     proxy: true
   },
   async (accessToken, refreshToken, profile, done) => {
