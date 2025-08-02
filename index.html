@@ -85,9 +85,10 @@
             const deleteButtonHtml = canDelete ? `<button data-id="${item._id}" data-key="${myItems[item._id]}" class="delete-btn text-red-500 hover:text-red-700 text-sm">מחק</button>` : '';
             
             const date = new Date(item.createdAt).toLocaleString('he-IL');
+            // The image source is now the direct Data URL from the database
             return `
                 <div id="item-${item._id}" class="bg-white p-4 rounded-lg shadow-md flex gap-4">
-                    <img src="${item.imageUrl.startsWith('http') ? item.imageUrl : SERVER_URL + item.imageUrl}" alt="${item.title}" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-md">
+                    <img src="${item.imageUrl}" alt="${item.title}" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-md">
                     <div class="flex-grow">
                         <div class="flex justify-between items-start">
                             <h2 class="text-xl font-bold">${item.title}</h2>
@@ -146,7 +147,7 @@
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const formData = new FormData(e.target);
+            const formData = new FormData();
             formData.append('title', document.getElementById('item-title').value);
             formData.append('description', document.getElementById('item-description').value);
             formData.append('contact', document.getElementById('item-contact').value);
@@ -161,7 +162,6 @@
                 if (!response.ok) throw new Error('Server responded with an error');
                 const newItem = await response.json();
                 
-                // Save the item's ID and delete key to local storage
                 const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
                 myItems[newItem._id] = newItem.deleteKey;
                 localStorage.setItem('myItems', JSON.stringify(myItems));
@@ -170,10 +170,12 @@
                 
                 uploadForm.reset();
                 hideModal();
-                // The new item will be added via the socket, so we just refresh the card to show the delete button
+                // Manually refresh the card to show the delete button
                 const itemElement = document.getElementById(`item-${newItem._id}`);
                 if (itemElement) itemElement.outerHTML = createItemCard(newItem);
-
+                
+                // A full refetch is the simplest way to ensure UI consistency
+                fetchHistory();
 
             } catch (error) {
                 console.error('Upload failed:', error);
@@ -199,7 +201,6 @@
                         });
                         if (!response.ok) throw new Error('Failed to delete');
                         
-                        // The item will be removed via the socket broadcast
                         const myItems = JSON.parse(localStorage.getItem('myItems')) || {};
                         delete myItems[id];
                         localStorage.setItem('myItems', JSON.stringify(myItems));
