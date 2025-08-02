@@ -170,10 +170,6 @@
                 
                 uploadForm.reset();
                 hideModal();
-                // Manually refresh the card to show the delete button
-                const itemElement = document.getElementById(`item-${newItem._id}`);
-                if (itemElement) itemElement.outerHTML = createItemCard(newItem);
-                
                 // A full refetch is the simplest way to ensure UI consistency
                 fetchHistory();
 
