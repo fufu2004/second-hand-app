@@ -105,12 +105,16 @@ const authMiddleware = (req, res, next) => {
 
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    const payload = { id: req.user._id, name: req.user.displayName };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-    const userString = encodeURIComponent(JSON.stringify(payload));
-    res.redirect(`${CLIENT_URL}?token=${token}&user=${userString}`);
-});
+
+// *** שינוי לצורך בדיקה: הפנייה פשוטה ללא פרמטרים ***
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
+  (req, res) => {
+    // במקום לשלוח טוקן, נבצע הפנייה פשוטה לדף הבית
+    // זה יעזור לנו לבדוק אם בעיית ה-"Not Found" נפתרה
+    res.redirect(CLIENT_URL);
+  }
+);
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
