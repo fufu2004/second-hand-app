@@ -50,6 +50,15 @@
                     <!-- JS injects buttons here -->
                 </div>
 
+                <!-- Share App Button -->
+                 <div class="absolute top-2 right-4 sm:top-1/2 sm:-translate-y-1/2">
+                    <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                        </svg>
+                    </button>
+                </div>
+
                 <!-- Centered Logo and Title -->
                 <div class="flex flex-col items-center">
                     <div class="flex items-center gap-3 md:gap-4 cursor-pointer" id="home-logo">
@@ -145,10 +154,27 @@
     </div>
     <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
     <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
+    <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-xs p-6 transform opacity-0 -translate-y-10">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">שתפי את האפליקציה</h3>
+            <div class="space-y-3">
+                <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    <span>שתפי בווטסאפ</span>
+                </a>
+                <button id="copy-link-btn" class="flex items-center justify-center gap-3 w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    <span>העתקת קישור</span>
+                </button>
+            </div>
+            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
 
     <script>
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
         const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
+        const CLIENT_URL = window.location.origin;
 
         // UI Elements
         const mainView = document.getElementById('main-view');
@@ -161,12 +187,14 @@
         const filterInput = document.getElementById('filter-input');
         const categoryFilters = document.getElementById('category-filters');
         const emptyState = document.getElementById('empty-state');
+        const shareAppBtn = document.getElementById('share-app-btn');
         
         // Modals & Forms
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
         const uploadModal = document.getElementById('upload-modal');
         const galleryModal = document.getElementById('gallery-modal');
         const customModal = document.getElementById('custom-modal');
+        const shareModal = document.getElementById('share-modal');
         const uploadForm = document.getElementById('upload-form');
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
@@ -388,11 +416,7 @@
             const isOwner = currentUser && ownerId && ownerId === currentUser.id;
             const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
             
-            const isPostByAdmin = (item.affiliateLink && item.affiliateLink.length > 0) || 
-                                  (item.owner && 
-                                  typeof item.owner === 'object' && 
-                                  item.owner.email &&
-                                  item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase());
+            const isPostByAdmin = (item.affiliateLink && item.affiliateLink.length > 0);
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
@@ -588,9 +612,47 @@
                 });
             }
         }
+        
+        // --- Share Logic ---
+        function showShareModal(shareData) {
+            const whatsappShareLink = document.getElementById('whatsapp-share-link');
+            const copyLinkBtn = document.getElementById('copy-link-btn');
+            
+            whatsappShareLink.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
+            
+            copyLinkBtn.onclick = () => {
+                navigator.clipboard.writeText(shareData.url).then(() => {
+                    copyLinkBtn.textContent = 'הקישור הועתק!';
+                    setTimeout(() => {
+                        copyLinkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>העתקת קישור</span>`;
+                    }, 2000);
+                }).catch(err => console.error('Failed to copy text: ', err));
+            };
+
+            showModal(shareModal);
+        }
+
+        async function shareApp() {
+            const shareData = {
+                title: 'סטייל מתגלגל',
+                text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!',
+                url: CLIENT_URL,
+            };
+
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    console.error('Error sharing:', err);
+                }
+            } else {
+                showShareModal(shareData);
+            }
+        }
 
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
+        shareAppBtn.addEventListener('click', shareApp);
         openModalBtn.addEventListener('click', () => { 
             if (!currentUser) { 
                 showAlert('יש להתחבר או להירשם כדי להוסיף פריט.'); 
