@@ -113,7 +113,7 @@
 
     <!-- Modals -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
-        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 transform -translate-y-10"> 
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
             <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> 
             <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
                 <div class="space-y-4"> 
@@ -440,14 +440,19 @@
 
             if (isPostByAdmin) {
                 const buttonText = 'לרכישה';
-                const link = item.affiliateLink || whatsappUrl;
+                const link = item.affiliateLink;
                 const colorClasses = 'bg-amber-500 hover:bg-amber-600';
                 const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
 
                 if (link) {
                     purchaseButtonHtml = `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>`;
-                } else {
-                    purchaseButtonHtml = `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
+                } else { // Admin post without affiliate link, fallback to whatsapp
+                     const link = whatsappUrl;
+                     if(link) {
+                        purchaseButtonHtml = `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>`;
+                     } else {
+                        purchaseButtonHtml = `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
+                     }
                 }
             } else { 
                 const buttonText = 'שלחי הודעה';
