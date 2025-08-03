@@ -11,6 +11,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2; // <-- ספרייה חדשה
+const streamifier = require('streamifier'); // <-- ספרייה חדשה
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -30,11 +32,18 @@ const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
 const SERVER_URL = process.env.SERVER_URL;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL; // קריאת כתובת המייל של המנהל ממשתני הסביבה
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+
+// --- הגדרת Cloudinary ---
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
+});
 
 // --- בדיקת משתני סביבה חיוניים ---
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL) {
-    console.error("FATAL ERROR: One or more required environment variables are missing! (including ADMIN_EMAIL)");
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
+    console.error("FATAL ERROR: One or more required environment variables are missing!");
     process.exit(1);
 }
 
@@ -97,10 +106,20 @@ const authMiddleware = (req, res, next) => {
     });
 };
 
+// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
+const uploadToCloudinary = (fileBuffer) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream({ folder: "second-hand-app" }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+        });
+        streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+    });
+};
+
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    // הוספת האימייל לטוקן לצורך בדיקות הרשאה מאובטחות
     const payload = { id: req.user._id, name: req.user.displayName, email: req.user.email };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     res.redirect(`${CLIENT_URL}?token=${token}`);
@@ -108,8 +127,59 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
-app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => { const imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Image`); const newItem = new Item({ title: req.body.title, description: req.body.description, price: req.body.price, category: req.body.category, contact: req.body.contact, imageUrls: imageUrls, owner: req.user.id }); try { const savedItem = await newItem.save(); const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName'); io.emit('newItem', populatedItem); res.status(201).json(populatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
-app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); const updateData = { ...req.body }; if (req.files && req.files.length > 0) { updateData.imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Updated+Image`); } const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
+
+// --- נתיב POST מעודכן להעלאת תמונות אמיתיות ---
+app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
+    try {
+        const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
+        const uploadResults = await Promise.all(uploadPromises);
+        const imageUrls = uploadResults.map(result => result.secure_url);
+
+        const newItem = new Item({ 
+            title: req.body.title, 
+            description: req.body.description, 
+            price: req.body.price, 
+            category: req.body.category, 
+            contact: req.body.contact, 
+            imageUrls: imageUrls, // <-- שימוש בכתובות האמיתיות מ-Cloudinary
+            owner: req.user.id 
+        });
+        
+        const savedItem = await newItem.save();
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName');
+        io.emit('newItem', populatedItem);
+        res.status(201).json(populatedItem);
+    } catch (err) {
+        console.error("Error uploading item:", err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// --- נתיב PATCH מעודכן לעריכת פריט עם תמונות אמיתיות ---
+app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        const isOwner = item.owner && item.owner.toString() === req.user.id;
+        const isAdmin = req.user.email === ADMIN_EMAIL;
+        if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' });
+
+        const updateData = { ...req.body };
+        if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
+            const uploadResults = await Promise.all(uploadPromises);
+            updateData.imageUrls = uploadResults.map(result => result.secure_url);
+        }
+
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName');
+        io.emit('itemUpdated', updatedItem);
+        res.json(updatedItem);
+    } catch (err) {
+        console.error("Error updating item:", err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
 app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
