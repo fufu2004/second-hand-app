@@ -11,8 +11,6 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
-const path = require('path');
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -25,19 +23,20 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3000;
 
-// --- קריאת משתני סביבה ---
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL;
-const SERVER_URL = process.env.SERVER_URL;
+// --- הגדרות קבועות ---
+// הערה: הטמעת מפתחות בקוד היא לצורכי בדיקה בלבד. בסביבת ייצור יש להשתמש במשתני סביבה.
+const GOOGLE_CLIENT_ID = '384614022081-aoa15ct9nvp8unae07bmm70tv3csrajj.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
+const MONGO_URI = 'mongodb+srv://myAppUser:LiatRiftal1976@second-hand-shop.1k54hdk.mongodb.net/?retryWrites=true&w=majority&appName=second-hand-shop';
+const JWT_SECRET = 'MySuperSecretKeyForRollingStyleApp123';
+const CLIENT_URL = "https://mellow-longma-d22b01.netlify.app";
+const SERVER_URL = "https://second-hand-app-6ht2.onrender.com";
 
-// --- בדיקת משתני סביבה חיוניים ---
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL) {
-    console.error("FATAL ERROR: One or more required environment variables are missing!");
-    process.exit(1);
-}
+
+// --- חיבור למסד הנתונים (MongoDB) ---
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB Connected Successfully!'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
 
 // --- הגדרת מודלים למסד הנתונים ---
 const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
@@ -100,21 +99,12 @@ const authMiddleware = (req, res, next) => {
 
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-// *** שינוי לצורך בדיקה: הוספת לוג לפני ההפניה ***
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
-  (req, res) => {
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
     const payload = { id: req.user._id, name: req.user.displayName };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     const userString = encodeURIComponent(JSON.stringify(payload));
-    const redirectUrl = `${CLIENT_URL}?token=${token}&user=${userString}`;
-    
-    console.log("Redirecting to:", redirectUrl); // הדפסת הכתובת המלאה ללוגים
-    
-    res.redirect(redirectUrl);
-  }
-);
+    res.redirect(`${CLIENT_URL}?token=${token}&user=${userString}`);
+});
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
