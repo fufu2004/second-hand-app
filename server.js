@@ -10,22 +10,19 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
-// const multer = require('multer'); // נטרול זמני לצורך בדיקה
-// const { v4: uuidv4 } = require('uuid');
-// const path = require('path');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 // --- הגדרות ראשוניות ---
 const app = express();
 const server = http.createServer(app);
-/*
-// נטרול זמני של Socket.io לצורך בדיקה
 const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST", "PATCH", "DELETE"]
     }
 });
-*/
 const PORT = process.env.PORT || 3000;
 
 // --- קריאת משתני סביבה ---
@@ -45,13 +42,12 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
 // --- הגדרת מודלים למסד הנתונים ---
 const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
 const User = mongoose.model('User', UserSchema);
-// נטרול זמני של מודל הפריטים
-// const ItemSchema = new mongoose.Schema({ title: String, description: String, price: Number, category: String, contact: String, imageUrls: [String], owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, sold: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } });
-// const Item = mongoose.model('Item', ItemSchema);
+const ItemSchema = new mongoose.Schema({ title: String, description: String, price: Number, category: String, contact: String, imageUrls: [String], owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, sold: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } });
+const Item = mongoose.model('Item', ItemSchema);
 
-// --- הגדרות העלאת קבצים (מנוטרל זמנית) ---
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage: storage });
+// --- הגדרות העלאת קבצים ---
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // --- הגדרת Middleware ---
 app.use(cors());
@@ -90,8 +86,7 @@ passport.use(new GoogleStrategy({
   }
 ));
 
-/*
-// Middleware לאימות טוקן (מנוטרל זמנית)
+// Middleware לאימות טוקן
 const authMiddleware = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -102,42 +97,31 @@ const authMiddleware = (req, res, next) => {
         next();
     });
 };
-*/
 
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
-  (req, res) => {
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
     const payload = { id: req.user._id, name: req.user.displayName };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     const userString = encodeURIComponent(JSON.stringify(payload));
     res.redirect(`${CLIENT_URL}?token=${token}&user=${userString}`);
-  }
-);
+});
 
-/*
-// נתיבי הפריטים מנוטרלים זמנית
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => { const imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Image`); const newItem = new Item({ title: req.body.title, description: req.body.description, price: req.body.price, category: req.body.category, contact: req.body.contact, imageUrls: imageUrls, owner: req.user.id }); try { const savedItem = await newItem.save(); const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName'); io.emit('newItem', populatedItem); res.status(201).json(populatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' }); const updateData = { ...req.body }; if (req.files && req.files.length > 0) { updateData.imageUrls = req.files.map(f => `https://placehold.co/600x400?text=Updated+Image`); } const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); if (item.owner.toString() !== req.user.id) return res.status(403).json({ message: 'Not authorized' }); await item.remove(); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
-*/
 
-/*
-// הגדרת Socket.io מנוטרלת זמנית
+// --- הגדרת Socket.io ---
 io.on('connection', (socket) => { console.log('a user connected'); socket.on('disconnect', () => { console.log('user disconnected'); }); });
-*/
 
 // --- חיבור למסד הנתונים והרצת השרת ---
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('MongoDB Connected Successfully!');
-        // שימוש ב-app.listen במקום server.listen כי io מנוטרל
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
         });
     })
