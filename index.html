@@ -144,6 +144,36 @@
             showModal(customModal);
             return new Promise(resolve => { modalResolver = resolve; });
         }
+        
+        function showInlineAlert(message, title = 'הודעה') {
+            const customModal = document.getElementById('custom-modal');
+            document.getElementById('custom-modal-title').textContent = title;
+            document.getElementById('custom-modal-message').innerHTML = message;
+            const buttonsContainer = document.getElementById('custom-modal-buttons');
+            buttonsContainer.innerHTML = '';
+            
+            const buttonEl = document.createElement('button');
+            buttonEl.textContent = 'הבנתי';
+            buttonEl.className = 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition';
+            
+            const hideThisModal = () => {
+                customModal.classList.add('opacity-0');
+                const content = customModal.querySelector('.modal-content');
+                if (content) {
+                    content.classList.add('opacity-0', '-translate-y-10');
+                }
+                setTimeout(() => {
+                    customModal.classList.add('hidden');
+                }, 300);
+            };
+            
+            buttonEl.onclick = hideThisModal;
+            
+            buttonsContainer.appendChild(buttonEl);
+            
+            showModal(customModal);
+        }
+
         async function showAlert(message, title = 'הודעה') {
             await showCustomModal({
                 title: title,
@@ -375,7 +405,7 @@
             const files = event.target.files;
 
             if (files.length > 6) {
-                showAlert('ניתן להעלות עד 6 תמונות בלבד.');
+                showInlineAlert('ניתן להעלות עד 6 תמונות בלבד.');
                 event.target.value = ''; // Clear the file input
                 return;
             }
