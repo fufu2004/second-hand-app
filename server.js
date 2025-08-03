@@ -106,13 +106,18 @@ const authMiddleware = (req, res, next) => {
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-// *** שינוי לצורך בדיקה: הפנייה פשוטה ללא פרמטרים ***
+// *** שינוי לצורך בדיקה: הוספת לוג לפני ההפניה ***
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
   (req, res) => {
-    // במקום לשלוח טוקן, נבצע הפנייה פשוטה לדף הבית
-    // זה יעזור לנו לבדוק אם בעיית ה-"Not Found" נפתרה
-    res.redirect(CLIENT_URL);
+    const payload = { id: req.user._id, name: req.user.displayName };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    const userString = encodeURIComponent(JSON.stringify(payload));
+    const redirectUrl = `${CLIENT_URL}?token=${token}&user=${userString}`;
+    
+    console.log("Redirecting to:", redirectUrl); // הדפסת הכתובת המלאה ללוגים
+    
+    res.redirect(redirectUrl);
   }
 );
 
