@@ -187,13 +187,13 @@
         // --- Auth System ---
         function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            const user = urlParams.get('user');
+            const tokenFromUrl = urlParams.get('token');
 
-            if (token && user) {
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('authUser', decodeURIComponent(user));
-                window.history.replaceState({}, document.title, "/");
+            // If a new token is provided in the URL, update it in localStorage
+            if (tokenFromUrl) {
+                localStorage.setItem('authToken', tokenFromUrl);
+                // Clean the URL from auth parameters
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
 
             const storedToken = localStorage.getItem('authToken');
@@ -201,18 +201,11 @@
             if (storedToken) {
                 const decodedUser = parseJwt(storedToken);
                 if (decodedUser && decodedUser.id) {
-                    // Prioritize fresh data from the token
                     currentUser = decodedUser;
-                    // Update local storage with the fresh data for consistency
-                    localStorage.setItem('authUser', JSON.stringify(currentUser));
                 } else {
-                    // Fallback for safety, though should not be needed with the new server code
-                    const storedUser = localStorage.getItem('authUser');
-                    if (storedUser) {
-                        currentUser = JSON.parse(storedUser);
-                    } else {
-                        currentUser = null;
-                    }
+                    // If token is invalid/expired, clear it
+                    currentUser = null;
+                    localStorage.removeItem('authToken');
                 }
             } else {
                 currentUser = null;
@@ -247,7 +240,14 @@
         }
         
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
-        function handleLogout() { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); currentUser = null; showView('main-view'); updateUIForAuthState(); fetchHistory(); }
+        function handleLogout() { 
+            localStorage.removeItem('authToken'); 
+            localStorage.removeItem('authUser'); // Remove this too for a clean logout
+            currentUser = null; 
+            showView('main-view'); 
+            updateUIForAuthState(); 
+            fetchHistory(); 
+        }
 
         // --- Profile View Logic ---
         async function showProfileView() { showView('profile-view'); profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); const token = localStorage.getItem('authToken'); if (!token) { profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; return; } try { const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Could not fetch user items'); const items = await response.json(); profileItemsFeed.innerHTML = ''; allItemsCache = {}; if (items.length === 0) { profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; } else { items.forEach(item => { const cardHtml = createItemCard(item); profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); }); } } catch (error) { console.error('Failed to fetch profile items:', error); profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; } }
