@@ -11,8 +11,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2; // <-- ספרייה חדשה
-const streamifier = require('streamifier'); // <-- ספרייה חדשה
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -50,7 +50,7 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
 // --- הגדרת מודלים למסד הנתונים ---
 const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
 const User = mongoose.model('User', UserSchema);
-const ItemSchema = new mongoose.Schema({ title: String, description: String, price: Number, category: String, contact: String, imageUrls: [String], owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, sold: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } });
+const ItemSchema = new mongoose.Schema({ title: String, description: String, price: Number, category: String, contact: String, imageUrls: [String], affiliateLink: { type: String, default: '' }, owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, sold: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } });
 const Item = mongoose.model('Item', ItemSchema);
 
 // --- הגדרות העלאת קבצים ---
@@ -125,8 +125,9 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
-app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+// --- שינוי כאן: הוספנו 'email' לרשימת השדות ש-populate מחזיר ---
+app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- נתיב POST מעודכן להעלאת תמונות אמיתיות ---
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
@@ -135,18 +136,24 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         const uploadResults = await Promise.all(uploadPromises);
         const imageUrls = uploadResults.map(result => result.secure_url);
 
-        const newItem = new Item({ 
+        const newItemData = { 
             title: req.body.title, 
             description: req.body.description, 
             price: req.body.price, 
             category: req.body.category, 
             contact: req.body.contact, 
-            imageUrls: imageUrls, // <-- שימוש בכתובות האמיתיות מ-Cloudinary
+            imageUrls: imageUrls,
             owner: req.user.id 
-        });
+        };
+
+        if (req.user.email === ADMIN_EMAIL && req.body.affiliateLink) {
+            newItemData.affiliateLink = req.body.affiliateLink;
+        }
         
+        const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
-        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName');
+        // --- שינוי כאן: הוספנו 'email' ---
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email');
         io.emit('newItem', populatedItem);
         res.status(201).json(populatedItem);
     } catch (err) {
@@ -171,7 +178,14 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
             updateData.imageUrls = uploadResults.map(result => result.secure_url);
         }
 
-        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName');
+        if (isAdmin && req.body.affiliateLink) {
+            updateData.affiliateLink = req.body.affiliateLink;
+        } else if (!isAdmin) {
+            delete updateData.affiliateLink; // Make sure non-admins cannot set this
+        }
+
+        // --- שינוי כאן: הוספנו 'email' ---
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email');
         io.emit('itemUpdated', updatedItem);
         res.json(updatedItem);
     } catch (err) {
@@ -180,7 +194,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
     }
 });
 
-app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
+app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- הגדרת Socket.io ---
