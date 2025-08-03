@@ -11,26 +11,20 @@
         body { font-family: 'Assistant', sans-serif; background-color: #f0f5f5; }
         .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
         .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
-        .item-card { animation: fadeIn 0.5s ease-in-out; }
+        .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .item-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .skeleton-loader { background-color: #e2e8f0; border-radius: 0.75rem; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         .thumbnail { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s ease; }
-        .main-image-container img { cursor: pointer; }
-        .blinking-dot { height: 8px; width: 8px; background-color: #22c55e; border-radius: 50%; display: inline-block; margin: 0 6px; animation: blink-animation 1.5s infinite; }
-        @keyframes blink-animation { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .category-btn { transition: all 0.2s ease-in-out; }
-        .category-btn.active { background-color: #0d9488; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .gallery-content img { max-height: 80vh; max-width: 90vw; }
-        .view { display: none; }
+        .view { display: none; animation: fadeIn 0.3s ease-in-out; }
         .view.active { display: block; }
         .item-card.sold .main-image-container { opacity: 0.5; }
-        .item-card.sold .purchase-btn {
-            background-color: #9ca3af; /* gray-400 */
-            cursor: not-allowed;
-            pointer-events: none;
-        }
+        .item-card.sold .purchase-btn { background-color: #9ca3af; cursor: not-allowed; pointer-events: none; }
         .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
+        .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
+        .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -43,21 +37,12 @@
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
         <!-- Header -->
-        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
+        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-2">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <!-- Left Side: Auth for Desktop, Share for Mobile -->
                 <div class="w-1/3 flex justify-start">
-                    <div id="auth-container-desktop" class="hidden sm:flex">
-                        <!-- JS injects buttons here -->
-                    </div>
-                    <button id="share-app-btn-mobile" class="sm:hidden text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                        </svg>
-                    </button>
+                    <div id="auth-container-desktop" class="hidden sm:flex"></div>
+                    <button id="share-app-btn-mobile" class="sm:hidden text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg></button>
                 </div>
-
-                <!-- Center: Logo and Title -->
                 <div class="flex-shrink-0">
                     <div class="flex flex-col items-center">
                         <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
@@ -69,39 +54,26 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Right side: Share button for Desktop, placeholder for Mobile -->
                 <div class="w-1/3 flex justify-end">
-                    <button id="share-app-btn-desktop" class="hidden sm:block text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                        </svg>
-                    </button>
+                    <button id="share-app-btn-desktop" class="hidden sm:block text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg></button>
                 </div>
             </div>
         </header>
 
         <!-- Mobile Auth Container -->
-        <div id="auth-container-mobile" class="my-2 flex justify-center sm:hidden">
-            <!-- JS injects buttons here -->
-        </div>
+        <div id="auth-container-mobile" class="my-2 flex justify-center sm:hidden"></div>
 
         <!-- Main Feed View -->
         <div id="main-view" class="view active">
-            <div class="my-6 space-y-4">
+             <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                <div id="category-filters" class="flex flex-wrap gap-2 justify-center">
-                    <button data-category="all" class="category-btn active bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">הכל</button>
-                    <button data-category="pants" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">מכנסיים</button>
-                    <button data-category="shirts" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">חולצות</button>
-                    <button data-category="jackets" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">ג'קטים</button>
-                    <button data-category="dresses" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">שמלות</button>
-                    <button data-category="skirts" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">חצאיות</button>
-                    <button data-category="top" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">טופ</button>
-                    <button data-category="tank-tops" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">גופיות</button>
-                    <button data-category="blazer" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">בלייזר</button>
-                    <button data-category="accessories" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">אקססוריז</button>
-                    <button data-category="general" class="category-btn bg-white hover:bg-teal-100 text-teal-800 font-semibold py-2 px-4 border border-teal-200 rounded-full shadow-sm">כללי</button>
+                <div class="flex gap-2 justify-center">
+                    <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                         <!-- Options will be populated by JS -->
+                    </select>
+                    <button id="favorites-filter-btn" class="p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
+                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
+                    </button>
                 </div>
             </div>
             <main id="items-feed" class="space-y-6"></main>
@@ -111,6 +83,12 @@
                 <p class="mt-1 text-sm text-gray-500">נסה לשנות את תנאי החיפוש.</p>
             </div>
         </div>
+
+        <!-- NEW: Item Detail View -->
+        <div id="item-detail-view" class="view"></div>
+
+        <!-- NEW: Public Profile View -->
+        <div id="public-profile-view" class="view"></div>
 
         <!-- Profile View -->
         <div id="profile-view" class="view">
@@ -186,6 +164,10 @@
             <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
         </div>
     </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
+
 
     <script>
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
@@ -195,6 +177,8 @@
         // UI Elements
         const mainView = document.getElementById('main-view');
         const profileView = document.getElementById('profile-view');
+        const itemDetailView = document.getElementById('item-detail-view');
+        const publicProfileView = document.getElementById('public-profile-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
         const authContainerDesktop = document.getElementById('auth-container-desktop');
@@ -202,7 +186,8 @@
         const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
-        const categoryFilters = document.getElementById('category-filters');
+        const categorySelect = document.getElementById('category-select');
+        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
         const emptyState = document.getElementById('empty-state');
         const shareAppBtn = document.querySelectorAll('[id^="share-app-btn"]');
         
@@ -222,15 +207,18 @@
         const galleryPrev = document.getElementById('gallery-prev');
         const galleryNext = document.getElementById('gallery-next');
         const galleryCounter = document.getElementById('gallery-counter');
+        
+        const toastNotification = document.getElementById('toast-notification');
 
         const socket = io(SERVER_URL);
         
         // State
         let currentUser = null;
-        let currentCategory = 'all';
+        let currentFilter = { category: 'all', favorites: false };
         let allItemsCache = {};
         let galleryImages = [];
         let currentImageIndex = 0;
+        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
         
         const categoryMap = { 
             'pants': 'מכנסיים', 
@@ -291,7 +279,6 @@
             buttonEl.onclick = hideThisModal;
             buttonsContainer.appendChild(buttonEl);
 
-            // Show alert without hiding other modals
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -309,9 +296,23 @@
                 buttons: [{ text: 'הבנתי', class: 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }]
             });
         }
+        
+        function showToast(message) {
+            toastNotification.textContent = message;
+            toastNotification.classList.remove('hidden');
+            setTimeout(() => {
+                toastNotification.classList.remove('opacity-0', 'transform', 'translate-y-4');
+            }, 10);
+            setTimeout(() => {
+                toastNotification.classList.add('opacity-0', 'transform', 'translate-y-4');
+                setTimeout(() => {
+                    toastNotification.classList.add('hidden');
+                }, 500);
+            }, 2500);
+        }
 
         // --- View & Modal Management ---
-        function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); }
+        function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); window.scrollTo(0, 0); }
         function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
         function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
@@ -530,10 +531,11 @@
             allItems.forEach(item => {
                 const title = item.querySelector('h2').textContent.toLowerCase();
                 const category = item.dataset.category;
-                const categoryMatch = (currentCategory === 'all' || category === currentCategory);
+                const categoryMatch = (currentFilter.category === 'all' || category === currentFilter.category);
                 const searchMatch = title.includes(searchTerm);
+                const favoritesMatch = !currentFilter.favorites || favorites.includes(item.id.replace('item-', ''));
 
-                if (categoryMatch && searchMatch) {
+                if (categoryMatch && searchMatch && favoritesMatch) {
                     item.style.display = 'flex';
                     itemsFound = true;
                 } else {
@@ -664,10 +666,8 @@
             
             copyLinkBtn.onclick = () => {
                 navigator.clipboard.writeText(shareData.url).then(() => {
-                    copyLinkBtn.textContent = 'הקישור הועתק!';
-                    setTimeout(() => {
-                        copyLinkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>העתקת קישור</span>`;
-                    }, 2000);
+                    showToast('הקישור הועתק!');
+                    hideAllModals();
                 }).catch(err => console.error('Failed to copy text: ', err));
             };
 
@@ -805,7 +805,8 @@
             }
         });
         async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return showAlert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); showAlert('שגיאה בעדכון סטטוס הפריט.'); } }
-        categoryFilters.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { currentCategory = e.target.dataset.category; categoryFilters.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); applyFilters(); } });
+        categorySelect.addEventListener('change', (e) => { currentFilter.category = e.target.value; applyFilters(); });
+        favoritesFilterBtn.addEventListener('click', () => { currentFilter.favorites = !currentFilter.favorites; favoritesFilterBtn.classList.toggle('bg-red-100', currentFilter.favorites); favoritesFilterBtn.querySelector('svg').classList.toggle('text-red-500', currentFilter.favorites); applyFilters(); });
         filterInput.addEventListener('input', applyFilters);
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
@@ -818,8 +819,19 @@
                 announcementBar.style.display = 'none';
             });
         }
+        
+        function populateCategoryFilter() {
+            categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
+            for (const [key, value] of Object.entries(categoryMap)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = value;
+                categorySelect.appendChild(option);
+            }
+        }
 
         // Initial Setup
+        populateCategoryFilter();
         checkAuthState();
     </script>
 </body>
