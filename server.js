@@ -39,11 +39,6 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
     process.exit(1);
 }
 
-// --- חיבור למסד הנתונים (MongoDB) ---
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB Connected Successfully!'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
-
 // --- הגדרת מודלים למסד הנתונים ---
 const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
 const User = mongoose.model('User', UserSchema);
@@ -105,21 +100,12 @@ const authMiddleware = (req, res, next) => {
 
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-// *** שינוי לצורך בדיקה: הוספת לוג לפני ההפניה ***
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
-  (req, res) => {
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
     const payload = { id: req.user._id, name: req.user.displayName };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     const userString = encodeURIComponent(JSON.stringify(payload));
-    const redirectUrl = `${CLIENT_URL}?token=${token}&user=${userString}`;
-    
-    console.log("Redirecting to:", redirectUrl); // הדפסת הכתובת המלאה ללוגים
-    
-    res.redirect(redirectUrl);
-  }
-);
+    res.redirect(`${CLIENT_URL}?token=${token}&user=${userString}`);
+});
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
@@ -131,5 +117,16 @@ app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item 
 // --- הגדרת Socket.io ---
 io.on('connection', (socket) => { console.log('a user connected'); socket.on('disconnect', () => { console.log('user disconnected'); }); });
 
-// --- הרצת השרת ---
-server.listen(PORT, () => { console.log(`Server is running on port ${PORT}`); });
+// --- חיבור למסד הנתונים והרצת השרת ---
+// *** תיקון: הרצת השרת רק אחרי חיבור מוצלח למסד הנתונים ***
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => {
+        console.log('MongoDB Connected Successfully!');
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('FATAL: MongoDB Connection Error:', err);
+        process.exit(1);
+    });
