@@ -23,20 +23,19 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3000;
 
-// --- הגדרות קבועות ---
-// הערה: הטמעת מפתחות בקוד היא לצורכי בדיקה בלבד. בסביבת ייצור יש להשתמש במשתני סביבה.
-const GOOGLE_CLIENT_ID = '384614022081-aoa15ct9nvp8unae07bmm70tv3csrajj.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = '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';
-const MONGO_URI = 'mongodb+srv://myAppUser:LiatRiftal1976@second-hand-shop.1k54hdk.mongodb.net/?retryWrites=true&w=majority&appName=second-hand-shop';
-const JWT_SECRET = 'MySuperSecretKeyForRollingStyleApp123';
-const CLIENT_URL = "https://mellow-longma-d22b01.netlify.app";
-const SERVER_URL = "https://second-hand-app-6ht2.onrender.com";
+// --- קריאת משתני סביבה ---
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
 
-
-// --- חיבור למסד הנתונים (MongoDB) ---
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB Connected Successfully!'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
+// --- בדיקת משתני סביבה חיוניים ---
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL) {
+    console.error("FATAL ERROR: One or more required environment variables are missing!");
+    process.exit(1);
+}
 
 // --- הגדרת מודלים למסד הנתונים ---
 const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
