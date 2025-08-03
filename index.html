@@ -189,10 +189,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
 
-            // If a new token is provided in the URL, update it in localStorage
             if (tokenFromUrl) {
                 localStorage.setItem('authToken', tokenFromUrl);
-                // Clean the URL from auth parameters
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
 
@@ -203,7 +201,6 @@
                 if (decodedUser && decodedUser.id) {
                     currentUser = decodedUser;
                 } else {
-                    // If token is invalid/expired, clear it
                     currentUser = null;
                     localStorage.removeItem('authToken');
                 }
@@ -215,12 +212,11 @@
             fetchHistory();
         }
 
-
         function updateUIForAuthState() {
             if (currentUser) {
                 authContainer.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name}</span>
+                        <span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name} <span class="text-xs text-gray-400">(${currentUser.email || 'חסר אימייל'})</span></span>
                         <button id="profile-btn" class="text-sm bg-teal-500 text-white py-1 px-2 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
                         <button id="logout-btn" class="text-sm bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600 transition">התנתקות</button>
                     </div>
@@ -242,7 +238,6 @@
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
         function handleLogout() { 
             localStorage.removeItem('authToken'); 
-            localStorage.removeItem('authUser'); // Remove this too for a clean logout
             currentUser = null; 
             showView('main-view'); 
             updateUIForAuthState(); 
