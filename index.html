@@ -113,13 +113,13 @@
 
     <!-- Modals -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
-        <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm p-4 transform -translate-y-10 max-h-[85vh] overflow-y-auto"> 
             <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> 
             <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
                 <div class="space-y-4"> 
-                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
-                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
-                    <select id="item-category" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
+                    <select id="item-category" class="w-full p-2 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
                         <option value="" disabled selected>בחרי קטגוריה</option> 
                         <option value="pants">מכנסיים</option> 
                         <option value="shirts">חולצות</option> 
@@ -132,11 +132,11 @@
                         <option value="accessories">אקססוריז</option> 
                         <option value="general">כללי</option> 
                     </select> 
-                    <input type="text" id="item-contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
-                    <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="text" id="item-contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
                     <div id="affiliate-link-container" class="hidden"> 
                         <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700">קישור אפילייט (מנהלים בלבד)</label> 
-                        <input type="url" id="item-affiliate-link" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
+                        <input type="url" id="item-affiliate-link" placeholder="https://example.com/product/123" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
                     </div> 
                     <div> 
                         <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> 
@@ -153,9 +153,9 @@
         </div> 
     </div>
     <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
-    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
+    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm p-4 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content relative bg-white rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-full max-w-xs p-4 transform opacity-0 -translate-y-10">
             <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">שתפי את האפליקציה</h3>
             <div class="space-y-3">
                 <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
