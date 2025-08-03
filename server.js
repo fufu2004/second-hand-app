@@ -68,9 +68,14 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
+        console.log("Google Strategy: Profile received from Google:", profile.displayName);
         let user = await User.findOne({ googleId: profile.id });
-        if (user) return done(null, user);
+        if (user) {
+            console.log("Google Strategy: Existing user found in DB.");
+            return done(null, user);
+        }
         
+        console.log("Google Strategy: New user. Creating entry in DB...");
         const newUser = new User({
             googleId: profile.id,
             displayName: profile.displayName,
@@ -78,6 +83,7 @@ passport.use(new GoogleStrategy({
             image: profile.photos[0].value
         });
         await newUser.save();
+        console.log("Google Strategy: New user saved successfully.");
         return done(null, newUser);
     } catch (err) {
         console.error("Error during Google Strategy user processing:", err);
@@ -101,20 +107,32 @@ const authMiddleware = (req, res, next) => {
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-// *** שינוי לצורך בדיקה: הוספת לוג לפני ההפניה ***
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), 
-  (req, res) => {
-    const payload = { id: req.user._id, name: req.user.displayName };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-    const userString = encodeURIComponent(JSON.stringify(payload));
-    const redirectUrl = `${CLIENT_URL}?token=${token}&user=${userString}`;
-    
-    console.log("Redirecting to:", redirectUrl); // הדפסת הכתובת המלאה ללוגים
-    
-    res.redirect(redirectUrl);
-  }
-);
+// *** שינוי לצורך בדיקה: שימוש בפונקציית callback מותאמת אישית ***
+app.get('/auth/google/callback', (req, res, next) => {
+    console.log("Callback route hit. Handing off to Passport...");
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+        if (err) {
+            console.error("Passport authentication error:", err);
+            return res.redirect(`${CLIENT_URL}?login_failed=true&error=${err.message}`);
+        }
+        if (!user) {
+            console.error("Passport authentication failed, no user returned. Info:", info);
+            const infoMessage = info ? info.message : "No user returned from Google.";
+            return res.redirect(`${CLIENT_URL}?login_failed=true&error=${encodeURIComponent(infoMessage)}`);
+        }
+        
+        console.log("Passport authentication successful. User:", user.displayName);
+        const payload = { id: user._id, name: user.displayName };
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+        const userString = encodeURIComponent(JSON.stringify(payload));
+        const redirectUrl = `${CLIENT_URL}?token=${token}&user=${userString}`;
+        
+        console.log("Redirecting to:", redirectUrl);
+        return res.redirect(redirectUrl);
+
+    })(req, res, next);
+});
+
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
