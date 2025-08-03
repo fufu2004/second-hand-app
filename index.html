@@ -83,7 +83,7 @@
 
     <script>
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
-        const ADMIN_USER_ID = 'YOUR_ADMIN_USER_ID_HERE'; // <-- יש להחליף למזהה הייחודי של המנהל. זיהוי לפי ID יציב יותר.
+        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
 
         // UI Elements
         const mainView = document.getElementById('main-view');
@@ -128,7 +128,7 @@
         let modalResolver;
         function showCustomModal({ title, message, buttons }) {
             document.getElementById('custom-modal-title').textContent = title;
-            document.getElementById('custom-modal-message').innerHTML = message; // Use innerHTML for potential line breaks
+            document.getElementById('custom-modal-message').innerHTML = message; 
             const buttonsContainer = document.getElementById('custom-modal-buttons');
             buttonsContainer.innerHTML = '';
             buttons.forEach(btn => {
@@ -225,17 +225,16 @@
         function createItemCard(item) {
             allItemsCache[item._id] = item;
             
-            // בדיקה משופרת לזיהוי בעלים, עובדת גם עם פריטים ישנים
             const ownerId = item.owner && (typeof item.owner === 'object' ? item.owner._id : item.owner);
             const isOwner = currentUser && ownerId && ownerId === currentUser.id;
             
-            const isAdmin = currentUser && currentUser.id === ADMIN_USER_ID; // <-- בדיקת מנהל לפי ID
+            const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
             const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
-            const soldButtonHtml = isOwner ? `<button data-id="${item._id}" class="sold-btn text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
-            const editButtonHtml = isOwner && !item.sold ? `<button data-id="${item._id}" class="edit-btn text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : '';
+            const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" class="sold-btn text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
+            const editButtonHtml = (isOwner || isAdmin) && !item.sold ? `<button data-id="${item._id}" class="edit-btn text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : '';
             const deleteButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" class="delete-btn text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : '';
             const date = new Date(item.createdAt);
             const dateString = date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -438,20 +437,7 @@
                                 const textError = await response.text();
                                 if (textError) { errorMessage = textError; }
                             }
-
-                            // WORKAROUND: Handle the specific server-side bug
-                            if (errorMessage.includes('item.remove is not a function')) {
-                                console.warn('Server-side bug detected. Assuming deletion was successful and updating UI manually.');
-                                const itemElementMain = document.getElementById(`item-${id}`);
-                                if (itemElementMain) itemElementMain.remove();
-                                const itemElementProfile = profileItemsFeed.querySelector(`#item-${id}`);
-                                if (itemElementProfile) itemElementProfile.remove();
-                                if (itemsFeed.childElementCount === 0 && mainView.classList.contains('active')) {
-                                    emptyState.classList.remove('hidden');
-                                }
-                            } else {
-                                throw new Error(errorMessage);
-                            }
+                            throw new Error(errorMessage);
                         }
                         // If response is ok, the 'itemDeleted' socket event will handle the UI update.
                     } catch (error) {
