@@ -420,7 +420,23 @@
         // --- Socket Listeners ---
         socket.on('newItem', (item) => { emptyState.classList.add('hidden'); displayItem(item, true, itemsFeed); applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
         socket.on('itemDeleted', (itemId) => { const itemElementMain = document.getElementById(`item-${itemId}`); if (itemElementMain) itemElementMain.remove(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); if (itemsFeed.childElementCount === 0) emptyState.classList.remove('hidden'); });
-        socket.on('itemUpdated', (updatedItem) => { const newCardHtml = createItemCard(updatedItem); const mainFeedCard = document.querySelector(`#items-feed #item-${updatedItem._id}`); if (updatedItem.sold) { if (mainFeedCard) mainFeedCard.remove(); if (itemsFeed.childElementCount === 0) emptyState.classList.remove('hidden'); } else { if (!mainFeedCard) { emptyState.classList.add('hidden'); displayItem(updatedItem, true, itemsFeed); applyFilters(); } } const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = newCardHtml; profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
+        socket.on('itemUpdated', (updatedItem) => { 
+            allItemsCache[updatedItem._id] = updatedItem;
+            const newCardHtml = createItemCard(updatedItem);
+            const mainFeedCard = document.querySelector(`#items-feed #item-${updatedItem._id}`);
+            const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`);
+
+            if (mainFeedCard) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newCardHtml;
+                mainFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true));
+            }
+            if (profileFeedCard) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newCardHtml;
+                profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true));
+            }
+        });
 
         // --- Image Preview Handler ---
         function handleImagePreview(event) {
