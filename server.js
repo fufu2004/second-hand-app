@@ -99,6 +99,12 @@ const authMiddleware = (req, res, next) => {
 };
 
 // --- נתיבים (Routes) ---
+
+// *** הוספת נתיב שורש לבדיקה ***
+app.get('/', (req, res) => {
+    res.send('<h1>שרת סטייל מתגלגל רץ בהצלחה!</h1>');
+});
+
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
     const payload = { id: req.user._id, name: req.user.displayName };
