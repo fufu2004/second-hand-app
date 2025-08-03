@@ -48,10 +48,53 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
 }
 
 // --- הגדרת מודלים למסד הנתונים ---
-const UserSchema = new mongoose.Schema({ googleId: { type: String, required: true }, displayName: String, email: String, image: String });
+const UserSchema = new mongoose.Schema({ 
+    googleId: { type: String, required: true }, 
+    displayName: String, 
+    email: String, 
+    image: String,
+    ratings: [{
+        rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, min: 1, max: 5 },
+        comment: String,
+        createdAt: { type: Date, default: Date.now }
+    }],
+    averageRating: { type: Number, default: 0 }
+});
 const User = mongoose.model('User', UserSchema);
-const ItemSchema = new mongoose.Schema({ title: String, description: String, price: Number, category: String, contact: String, imageUrls: [String], affiliateLink: { type: String, default: '' }, owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, sold: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } });
+
+const ItemSchema = new mongoose.Schema({ 
+    title: String, 
+    description: String, 
+    price: Number, 
+    category: String, 
+    contact: String, 
+    imageUrls: [String], 
+    affiliateLink: { type: String, default: '' },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+    sold: { type: Boolean, default: false }, 
+    isPromoted: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now } 
+});
 const Item = mongoose.model('Item', ItemSchema);
+
+const ConversationSchema = new mongoose.Schema({
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    lastMessage: { type: String },
+    updatedAt: { type: Date, default: Date.now }
+});
+const Conversation = mongoose.model('Conversation', ConversationSchema);
+
+const MessageSchema = new mongoose.Schema({
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const Message = mongoose.model('Message', MessageSchema);
+
 
 // --- הגדרות העלאת קבצים ---
 const storage = multer.memoryStorage();
@@ -125,11 +168,12 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// --- שינוי כאן: הוספנו 'email' לרשימת השדות ש-populate מחזיר ---
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+app.get('/users/:id/items', async (req, res) => { try { const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+app.get('/users/:id', async (req, res) => { try { const user = await User.findById(req.params.id).select('displayName image averageRating'); if (!user) return res.status(404).json({ message: 'User not found' }); res.json(user); } catch (err) { res.status(500).json({ message: err.message }); } });
 
-// --- נתיב POST מעודכן להעלאת תמונות אמיתיות ---
+
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
     try {
         const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
@@ -146,13 +190,13 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             owner: req.user.id 
         };
 
-        if (req.user.email === ADMIN_EMAIL && req.body.affiliateLink) {
-            newItemData.affiliateLink = req.body.affiliateLink;
+        if (req.user.email === ADMIN_EMAIL) {
+            if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
+            if (req.body.isPromoted) newItemData.isPromoted = req.body.isPromoted === 'true';
         }
         
         const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
-        // --- שינוי כאן: הוספנו 'email' ---
         const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email');
         io.emit('newItem', populatedItem);
         res.status(201).json(populatedItem);
@@ -162,7 +206,6 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
     }
 });
 
-// --- נתיב PATCH מעודכן לעריכת פריט עם תמונות אמיתיות ---
 app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => {
     try {
         const item = await Item.findById(req.params.id);
@@ -178,13 +221,14 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
             updateData.imageUrls = uploadResults.map(result => result.secure_url);
         }
 
-        if (isAdmin && req.body.affiliateLink) {
-            updateData.affiliateLink = req.body.affiliateLink;
-        } else if (!isAdmin) {
-            delete updateData.affiliateLink; // Make sure non-admins cannot set this
+        if (isAdmin) {
+             if (req.body.affiliateLink) updateData.affiliateLink = req.body.affiliateLink;
+             if (req.body.isPromoted) updateData.isPromoted = req.body.isPromoted === 'true';
+        } else {
+            delete updateData.affiliateLink;
+            delete updateData.isPromoted;
         }
 
-        // --- שינוי כאן: הוספנו 'email' ---
         const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email');
         io.emit('itemUpdated', updatedItem);
         res.json(updatedItem);
@@ -197,8 +241,74 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
 app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
+// --- Chat Routes ---
+app.post('/api/conversations', authMiddleware, async (req, res) => {
+    const { sellerId, itemId } = req.body;
+    const buyerId = req.user.id;
+
+    if (sellerId === buyerId) {
+        return res.status(400).json({ message: "You cannot start a conversation with yourself." });
+    }
+
+    try {
+        let conversation = await Conversation.findOne({
+            participants: { $all: [buyerId, sellerId] },
+            item: itemId
+        }).populate('participants', 'displayName email image').populate('item');
+
+        if (!conversation) {
+            conversation = new Conversation({
+                participants: [buyerId, sellerId],
+                item: itemId
+            });
+            await conversation.save();
+            conversation = await Conversation.findById(conversation._id).populate('participants', 'displayName email image').populate('item');
+        }
+        res.status(200).json(conversation);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
+    try {
+        const messages = await Message.find({ conversation: req.params.id }).populate('sender', 'displayName image').sort('createdAt');
+        res.json(messages);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // --- הגדרת Socket.io ---
-io.on('connection', (socket) => { console.log('a user connected'); socket.on('disconnect', () => { console.log('user disconnected'); }); });
+io.on('connection', (socket) => { 
+    console.log('a user connected:', socket.id);
+
+    socket.on('joinUserRoom', (userId) => {
+        socket.join(userId);
+        console.log(`User ${userId} joined their room.`);
+    });
+
+    socket.on('sendMessage', async (data) => {
+        try {
+            const { conversationId, senderId, receiverId, text } = data;
+            const message = new Message({
+                conversation: conversationId,
+                sender: senderId,
+                receiver: receiverId,
+                text: text
+            });
+            await message.save();
+            
+            const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
+            
+            io.to(senderId).to(receiverId).emit('newMessage', populatedMessage);
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    });
+
+    socket.on('disconnect', () => { console.log('user disconnected'); }); 
+});
 
 // --- חיבור למסד הנתונים והרצת השרת ---
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
