@@ -127,7 +127,7 @@
         let modalResolver;
         function showCustomModal({ title, message, buttons }) {
             document.getElementById('custom-modal-title').textContent = title;
-            document.getElementById('custom-modal-message').textContent = message;
+            document.getElementById('custom-modal-message').innerHTML = message; // Use innerHTML for potential line breaks
             const buttonsContainer = document.getElementById('custom-modal-buttons');
             buttonsContainer.innerHTML = '';
             buttons.forEach(btn => {
@@ -143,9 +143,9 @@
             showModal(customModal);
             return new Promise(resolve => { modalResolver = resolve; });
         }
-        async function showAlert(message) {
+        async function showAlert(message, title = 'הודעה') {
             await showCustomModal({
-                title: 'הודעה',
+                title: title,
                 message: message,
                 buttons: [{ text: 'הבנתי', class: 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }]
             });
@@ -154,7 +154,7 @@
         // --- View & Modal Management ---
         function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); }
         function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
-        function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
+        function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
         allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
@@ -226,7 +226,7 @@
         function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); if (isNew) { container.insertAdjacentHTML('afterbegin', itemCardHtml); } else { container.insertAdjacentHTML('beforeend', itemCardHtml); } }
         function generateContactHtml(contact, title, ownerName) { if (!contact) return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`; const phoneRegex = /^(05\d-?\d{7})$/; if (phoneRegex.test(contact.trim())) { let phoneNumber = contact.replace(/-/g, ''); if (phoneNumber.startsWith('0')) phoneNumber = `972${phoneNumber.substring(1)}`; const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`); const whatsappUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`; return `<div class="flex items-center gap-2"><p class="text-sm text-teal-700 font-semibold">${ownerName}</p><a href="${whatsappUrl}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="שלח הודעה בווטסאפ"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a></div>`; } return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`; }
         
-        // --- Filtering and State Management (FIXED) ---
+        // --- Filtering and State Management ---
         function applyFilters() {
             const searchTerm = filterInput.value.toLowerCase();
             const allItems = itemsFeed.querySelectorAll('.item-card');
@@ -255,7 +255,7 @@
             }
         }
 
-        // --- Data Fetching (FIXED) ---
+        // --- Data Fetching ---
         async function fetchHistory() {
             itemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
             emptyState.classList.add('hidden');
@@ -264,23 +264,23 @@
                 const items = await response.json();
                 
                 if (!response.ok) {
-                     console.error("Server response was not ok:", items);
-                     if (items && items.message && items.message.includes("timed out")) {
-                        itemsFeed.innerHTML = `
-                            <div class="text-center py-16 px-4 bg-white rounded-lg shadow-md">
-                                <h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3>
-                                <p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br>
-                                    יכולות להיות לכך שתי סיבות:</p>
-                                <div class="text-right mx-auto max-w-md mt-4 space-y-4">
-                                    <p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p>
-                                    <p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p>
-                                </div>
-                                <button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button>
-                            </div>`;
-                    } else {
-                        itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
-                    }
-                    return;
+                        console.error("Server response was not ok:", items);
+                        if (items && items.message && items.message.includes("timed out")) {
+                            itemsFeed.innerHTML = `
+                                <div class="text-center py-16 px-4 bg-white rounded-lg shadow-md">
+                                    <h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3>
+                                    <p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br>
+                                        יכולות להיות לכך שתי סיבות:</p>
+                                    <div class="text-right mx-auto max-w-md mt-4 space-y-4">
+                                        <p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p>
+                                        <p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p>
+                                    </div>
+                                    <button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button>
+                                </div>`;
+                        } else {
+                            itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
+                        }
+                        return;
                 }
                 
                 if (!Array.isArray(items)) {
@@ -318,14 +318,41 @@
         socket.on('itemDeleted', (itemId) => { const itemElementMain = document.getElementById(`item-${itemId}`); if (itemElementMain) itemElementMain.remove(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); if (itemsFeed.childElementCount === 0) emptyState.classList.remove('hidden'); });
         socket.on('itemUpdated', (updatedItem) => { const newCardHtml = createItemCard(updatedItem); const mainFeedCard = document.querySelector(`#items-feed #item-${updatedItem._id}`); if (updatedItem.sold) { if (mainFeedCard) mainFeedCard.remove(); if (itemsFeed.childElementCount === 0) emptyState.classList.remove('hidden'); } else { if (!mainFeedCard) { emptyState.classList.add('hidden'); displayItem(updatedItem, true, itemsFeed); applyFilters(); } } const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = newCardHtml; profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
 
+        // --- Image Preview Handler ---
+        function handleImagePreview(event) {
+            const previewContainer = document.getElementById('image-preview-container');
+            previewContainer.innerHTML = ''; // Clear previous previews
+            const files = event.target.files;
+
+            if (files.length > 6) {
+                showAlert('ניתן להעלות עד 6 תמונות בלבד.');
+                event.target.value = ''; // Clear the file input
+                return;
+            }
+
+            if (files) {
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'w-16 h-16 object-cover rounded-md';
+                        previewContainer.appendChild(img);
+                    }
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
         openModalBtn.addEventListener('click', () => { if (!currentUser) { showAlert('יש להתחבר או להירשם כדי להוסיף פריט.'); return; } uploadForm.reset(); editingItemIdInput.value = ''; uploadModalTitle.textContent = 'העלאת פריט חדש'; document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; document.getElementById('item-images').required = true; document.getElementById('image-preview-container').innerHTML = ''; showModal(uploadModal); });
-        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) return alert('יש להתחבר כדי לבצע פעולה זו.'); const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return alert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); alert(`שגיאה: ${error.message}`); } finally { submitBtn.disabled = false; } });
-        document.body.addEventListener('click', async (e) => { const editButton = e.target.closest('.edit-btn'); const deleteButton = e.target.closest('.delete-btn'); const soldButton = e.target.closest('.sold-btn'); if (soldButton) { const id = soldButton.dataset.id; await handleToggleSoldStatus(id); } if (editButton) { const id = editButton.dataset.id; const itemToEdit = allItemsCache[id]; if (!itemToEdit) return alert('שגיאה: לא ניתן למצוא את פרטי הפריט.'); uploadForm.reset(); editingItemIdInput.value = id; document.getElementById('item-title').value = itemToEdit.title; document.getElementById('item-description').value = itemToEdit.description; document.getElementById('item-category').value = itemToEdit.category; document.getElementById('item-contact').value = itemToEdit.contact; document.getElementById('item-price').value = itemToEdit.price; document.getElementById('item-images').required = false; uploadModalTitle.textContent = 'עריכת פריט'; document.getElementById('submit-btn').textContent = 'שמור שינויים'; const previewContainer = document.getElementById('image-preview-container'); previewContainer.innerHTML = ''; (itemToEdit.imageUrls || []).forEach(url => { const img = document.createElement('img'); img.src = url; img.className = 'w-16 h-16 object-cover rounded-md opacity-75'; previewContainer.appendChild(img); }); showModal(uploadModal); } if (deleteButton) { const id = deleteButton.dataset.id; const token = localStorage.getItem('authToken'); if (!token) return alert('שגיאת אימות למחיקה.'); if (confirm('האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.')) { try { const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Failed to delete'); } catch (error) { console.error('Delete failed:', error); alert('שגיאה במחיקת הפריט.'); } } } });
-        async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return alert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); alert('שגיאה בעדכון סטטוס הפריט.'); } }
+        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) { return showAlert('יש להתחבר כדי לבצע פעולה זו.'); } const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return showAlert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); } finally { submitBtn.disabled = false; } });
+        document.body.addEventListener('click', async (e) => { const editButton = e.target.closest('.edit-btn'); const deleteButton = e.target.closest('.delete-btn'); const soldButton = e.target.closest('.sold-btn'); if (soldButton) { const id = soldButton.dataset.id; await handleToggleSoldStatus(id); } if (editButton) { const id = editButton.dataset.id; const itemToEdit = allItemsCache[id]; if (!itemToEdit) return showAlert('שגיאה: לא ניתן למצוא את פרטי הפריט.'); uploadForm.reset(); editingItemIdInput.value = id; document.getElementById('item-title').value = itemToEdit.title; document.getElementById('item-description').value = itemToEdit.description; document.getElementById('item-category').value = itemToEdit.category; document.getElementById('item-contact').value = itemToEdit.contact; document.getElementById('item-price').value = itemToEdit.price; document.getElementById('item-images').required = false; uploadModalTitle.textContent = 'עריכת פריט'; document.getElementById('submit-btn').textContent = 'שמור שינויים'; const previewContainer = document.getElementById('image-preview-container'); previewContainer.innerHTML = ''; (itemToEdit.imageUrls || []).forEach(url => { const img = document.createElement('img'); img.src = url; img.className = 'w-16 h-16 object-cover rounded-md opacity-75'; previewContainer.appendChild(img); }); showModal(uploadModal); } if (deleteButton) { const id = deleteButton.dataset.id; const token = localStorage.getItem('authToken'); if (!token) return showAlert('שגיאת אימות למחיקה.'); const confirmed = await showCustomModal({ title: 'אישור מחיקה', message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.', buttons: [ { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition', resolves: false }, { text: 'מחק', class: 'bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true } ] }); if (confirmed) { try { const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Failed to delete'); } catch (error) { console.error('Delete failed:', error); showAlert('שגיאה במחיקת הפריט.'); } } } });
+        async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return showAlert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); showAlert('שגיאה בעדכון סטטוס הפריט.'); } }
         categoryFilters.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { currentCategory = e.target.dataset.category; categoryFilters.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); applyFilters(); } });
         filterInput.addEventListener('input', applyFilters);
+        document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
         // Initial Setup
         checkAuthState();
