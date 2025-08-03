@@ -25,6 +25,8 @@
         .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
         .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
         .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
+        .item-card.promoted { border: 2px solid #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
+        .promoted-badge { position: absolute; top: -10px; right: -10px; background-color: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -37,7 +39,7 @@
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
         <!-- Header -->
-        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-2">
+        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <div class="w-1/3 flex justify-start">
                     <div id="auth-container-desktop" class="hidden sm:flex"></div>
@@ -67,14 +69,20 @@
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                <div class="flex gap-2 justify-center">
-                    <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                         <!-- Options will be populated by JS -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
+                    <select id="sort-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                        <option value="newest">החדש ביותר</option>
+                        <option value="price_asc">מחיר: מהנמוך לגבוה</option>
+                        <option value="price_desc">מחיר: מהגבוה לנמוך</option>
                     </select>
-                    <button id="favorites-filter-btn" class="p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
-                    </button>
+                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                 </div>
+                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
+                    <span>הצג מועדפים בלבד</span>
+                </button>
             </div>
             <main id="items-feed" class="space-y-6"></main>
             <div id="empty-state" class="text-center py-16 px-4 hidden">
@@ -98,6 +106,9 @@
             </div>
             <main id="profile-items-feed" class="space-y-6"></main>
         </div>
+        
+        <!-- NEW: Chat View -->
+        <div id="chat-view" class="view"></div>
     </div>
 
     <!-- Floating Add Button -->
@@ -132,6 +143,10 @@
                         <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700">קישור אפילייט (מנהלים בלבד)</label> 
                         <input type="url" id="item-affiliate-link" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
                     </div> 
+                    <div id="promoted-container" class="hidden items-center">
+                        <input id="item-promoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900">קדם פריט זה (יוצג בראש העמוד)</label>
+                    </div>
                     <div> 
                         <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> 
                         <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
@@ -187,9 +202,13 @@
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
         const categorySelect = document.getElementById('category-select');
+        const sortSelect = document.getElementById('sort-select');
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
         const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
         const emptyState = document.getElementById('empty-state');
         const shareAppBtn = document.querySelectorAll('[id^="share-app-btn"]');
+        const chatView = document.getElementById('chat-view');
         
         // Modals & Forms
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -214,7 +233,7 @@
         
         // State
         let currentUser = null;
-        let currentFilter = { category: 'all', favorites: false };
+        let currentFilter = { category: 'all', favorites: false, minPrice: null, maxPrice: null, sort: 'newest' };
         let allItemsCache = {};
         let galleryImages = [];
         let currentImageIndex = 0;
@@ -299,12 +318,9 @@
         
         function showToast(message) {
             toastNotification.textContent = message;
-            toastNotification.classList.remove('hidden');
+            toastNotification.classList.remove('hidden', 'opacity-0');
             setTimeout(() => {
-                toastNotification.classList.remove('opacity-0', 'transform', 'translate-y-4');
-            }, 10);
-            setTimeout(() => {
-                toastNotification.classList.add('opacity-0', 'transform', 'translate-y-4');
+                toastNotification.classList.add('opacity-0');
                 setTimeout(() => {
                     toastNotification.classList.add('hidden');
                 }, 500);
@@ -525,31 +541,46 @@
         // --- Filtering and State Management ---
         function applyFilters() {
             const searchTerm = filterInput.value.toLowerCase();
-            const allItems = itemsFeed.querySelectorAll('.item-card');
+            const allItems = Object.values(allItemsCache);
             let itemsFound = false;
 
-            allItems.forEach(item => {
-                const title = item.querySelector('h2').textContent.toLowerCase();
-                const category = item.dataset.category;
+            let filteredItems = allItems.filter(item => {
+                const title = item.title.toLowerCase();
+                const category = item.category;
+                const price = item.price;
+
                 const categoryMatch = (currentFilter.category === 'all' || category === currentFilter.category);
                 const searchMatch = title.includes(searchTerm);
-                const favoritesMatch = !currentFilter.favorites || favorites.includes(item.id.replace('item-', ''));
+                const favoritesMatch = !currentFilter.favorites || favorites.includes(item._id);
+                const minPriceMatch = !currentFilter.minPrice || price >= currentFilter.minPrice;
+                const maxPriceMatch = !currentFilter.maxPrice || price <= currentFilter.maxPrice;
 
-                if (categoryMatch && searchMatch && favoritesMatch) {
-                    item.style.display = 'flex';
-                    itemsFound = true;
-                } else {
-                    item.style.display = 'none';
+                return categoryMatch && searchMatch && favoritesMatch && minPriceMatch && maxPriceMatch;
+            });
+
+            // Sorting
+            filteredItems.sort((a, b) => {
+                if (a.isPromoted && !b.isPromoted) return -1;
+                if (!a.isPromoted && b.isPromoted) return 1;
+
+                switch (currentFilter.sort) {
+                    case 'price_asc':
+                        return a.price - b.price;
+                    case 'price_desc':
+                        return b.price - a.price;
+                    case 'newest':
+                    default:
+                        return new Date(b.createdAt) - new Date(a.createdAt);
                 }
             });
 
-            if (itemsFound) {
-                emptyState.classList.add('hidden');
-            } else {
-                if (itemsFeed.childElementCount > 0) {
-                    emptyState.classList.remove('hidden');
-                }
+            itemsFeed.innerHTML = '';
+            if (filteredItems.length > 0) {
+                filteredItems.forEach(item => displayItem(item, false, itemsFeed));
+                itemsFound = true;
             }
+
+            emptyState.classList.toggle('hidden', itemsFound);
         }
 
         // --- Data Fetching ---
@@ -586,16 +617,9 @@
                     return;
                 }
 
-                itemsFeed.innerHTML = '';
                 allItemsCache = {};
-                const availableItems = items.filter(item => !item.sold);
-                if (availableItems.length === 0) {
-                    emptyState.classList.remove('hidden');
-                } else {
-                    availableItems.forEach(item => displayItem(item, false, itemsFeed));
-                    applyFilters();
-                }
                 items.forEach(item => allItemsCache[item._id] = item);
+                applyFilters();
             } catch (error) {
                 console.error('Failed to fetch history:', error);
                 itemsFeed.innerHTML = `
@@ -611,25 +635,9 @@
         }
         
         // --- Socket Listeners ---
-        socket.on('newItem', (item) => { emptyState.classList.add('hidden'); displayItem(item, true, itemsFeed); applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
-        socket.on('itemDeleted', (itemId) => { const itemElementMain = document.getElementById(`item-${itemId}`); if (itemElementMain) itemElementMain.remove(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); if (itemsFeed.childElementCount === 0) emptyState.classList.remove('hidden'); });
-        socket.on('itemUpdated', (updatedItem) => { 
-            allItemsCache[updatedItem._id] = updatedItem;
-            const newCardHtml = createItemCard(updatedItem);
-            const mainFeedCard = document.querySelector(`#items-feed #item-${updatedItem._id}`);
-            const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`);
-
-            if (mainFeedCard) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = newCardHtml;
-                mainFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true));
-            }
-            if (profileFeedCard) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = newCardHtml;
-                profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true));
-            }
-        });
+        socket.on('newItem', (item) => { allItemsCache[item._id] = item; applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
+        socket.on('itemDeleted', (itemId) => { delete allItemsCache[itemId]; applyFilters(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
+        socket.on('itemUpdated', (updatedItem) => { allItemsCache[updatedItem._id] = updatedItem; applyFilters(); const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = createItemCard(updatedItem); profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
 
         // --- Image Preview Handler ---
         function handleImagePreview(event) {
@@ -708,16 +716,20 @@
             document.getElementById('image-preview-container').innerHTML = ''; 
             
             const affiliateContainer = document.getElementById('affiliate-link-container');
+            const promotedContainer = document.getElementById('promoted-container');
             if (currentUser.email === ADMIN_EMAIL) {
                 affiliateContainer.classList.remove('hidden');
+                promotedContainer.classList.remove('hidden');
             } else {
                 affiliateContainer.classList.add('hidden');
+                promotedContainer.classList.add('hidden');
             }
             document.getElementById('item-affiliate-link').value = '';
+            document.getElementById('item-promoted').checked = false;
 
             showModal(uploadModal); 
         });
-        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) { return showAlert('יש להתחבר כדי לבצע פעולה זו.'); } const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const affiliateLink = document.getElementById('item-affiliate-link').value; if (currentUser && currentUser.email === ADMIN_EMAIL && affiliateLink) { formData.append('affiliateLink', affiliateLink); } const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return showAlert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); } finally { submitBtn.disabled = false; } });
+        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) { return showAlert('יש להתחבר כדי לבצע פעולה זו.'); } const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const affiliateLink = document.getElementById('item-affiliate-link').value; if (currentUser && currentUser.email === ADMIN_EMAIL && affiliateLink) { formData.append('affiliateLink', affiliateLink); } const isPromoted = document.getElementById('item-promoted').checked; if (currentUser && currentUser.email === ADMIN_EMAIL) { formData.append('isPromoted', isPromoted); } const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return showAlert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); } finally { submitBtn.disabled = false; } });
         document.body.addEventListener('click', async (e) => {
             const editButton = e.target.closest('.edit-btn');
             const deleteButton = e.target.closest('.delete-btn');
@@ -744,13 +756,20 @@
                 document.getElementById('submit-btn').textContent = 'שמור שינויים';
                 
                 const affiliateContainer = document.getElementById('affiliate-link-container');
+                const promotedContainer = document.getElementById('promoted-container');
                 const affiliateInput = document.getElementById('item-affiliate-link');
+                const promotedInput = document.getElementById('item-promoted');
+                
                 if (currentUser && currentUser.email === ADMIN_EMAIL) {
                     affiliateContainer.classList.remove('hidden');
+                    promotedContainer.classList.remove('hidden');
                     affiliateInput.value = itemToEdit.affiliateLink || '';
+                    promotedInput.checked = itemToEdit.isPromoted || false;
                 } else {
                     affiliateContainer.classList.add('hidden');
+                    promotedContainer.classList.add('hidden');
                     affiliateInput.value = '';
+                    promotedInput.checked = false;
                 }
 
                 const previewContainer = document.getElementById('image-preview-container');
@@ -806,6 +825,9 @@
         });
         async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return showAlert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); showAlert('שגיאה בעדכון סטטוס הפריט.'); } }
         categorySelect.addEventListener('change', (e) => { currentFilter.category = e.target.value; applyFilters(); });
+        sortSelect.addEventListener('change', (e) => { currentFilter.sort = e.target.value; applyFilters(); });
+        minPriceInput.addEventListener('input', (e) => { currentFilter.minPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
+        maxPriceInput.addEventListener('input', (e) => { currentFilter.maxPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
         favoritesFilterBtn.addEventListener('click', () => { currentFilter.favorites = !currentFilter.favorites; favoritesFilterBtn.classList.toggle('bg-red-100', currentFilter.favorites); favoritesFilterBtn.querySelector('svg').classList.toggle('text-red-500', currentFilter.favorites); applyFilters(); });
         filterInput.addEventListener('input', applyFilters);
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
