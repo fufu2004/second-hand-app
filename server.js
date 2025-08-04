@@ -417,17 +417,27 @@ io.on('connection', (socket) => {
                     }
 
                     const mailDetails = {
-                        from: EMAIL_USER,
+                        from: `"סטייל מתגלגל" <${EMAIL_USER}>`,
                         to: receiver.email,
-                        subject: `קיבלת הודעה חדשה בסטייל מתגלגל מ${sender.displayName}`,
+                        subject: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`,
                         html: `
-                            <div dir="rtl" style="font-family: Assistant, sans-serif; text-align: right;">
-                                <h2>היי ${receiver.displayName},</h2>
+                            <div dir="rtl" style="font-family: Assistant, sans-serif; text-align: right; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; margin: auto;">
+                                <h2 style="color: #14b8a6;">היי ${receiver.displayName},</h2>
                                 <p>קיבלת הודעה חדשה מ<strong>${sender.displayName}</strong> בנוגע לפריט "<strong>${conversation.item.title}</strong>".</p>
-                                <p>תוכן ההודעה: "${text}"</p>
-                                <p>כדי להשיב, היכנס/י לאתר:</p>
-                                <a href="${CLIENT_URL}" style="display: inline-block; padding: 10px 20px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px;">לכניסה לאתר</a>
+                                <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                                    <p style="margin: 0;"><strong>תוכן ההודעה:</strong> "${text}"</p>
+                                </div>
+                                <p>כדי להשיב, היכנס/י לאתר ולחצ/י על כפתור "הודעות":</p>
+                                <a href="${CLIENT_URL}" style="display: inline-block; padding: 12px 24px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">לצ'אט באתר</a>
+                                <hr style="margin-top: 20px; border: none; border-top: 1px solid #eee;">
+                                <p style="font-size: 12px; color: #888;">זוהי הודעה אוטומטית. אין להשיב למייל זה.</p>
                             </div>
+                        `,
+                        text: `
+                            היי ${receiver.displayName},\n\n
+                            קיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}".\n\n
+                            תוכן ההודעה: "${text}"\n\n
+                            כדי להשיב, היכנס/י לאתר: ${CLIENT_URL}
                         `
                     };
 
