@@ -82,8 +82,7 @@ const ConversationSchema = new mongoose.Schema({
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
     lastMessage: { type: String },
-    updatedAt: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 const Conversation = mongoose.model('Conversation', ConversationSchema);
 
 const MessageSchema = new mongoose.Schema({
@@ -291,6 +290,19 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/my-conversations', authMiddleware, async (req, res) => {
+    try {
+        const conversations = await Conversation.find({ participants: req.user.id })
+            .populate('participants', 'displayName email image')
+            .populate('item', 'title imageUrls')
+            .sort({ updatedAt: -1 });
+        
+        res.json(conversations);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
     try {
         const conversation = await Conversation.findById(req.params.id)
@@ -327,16 +339,14 @@ app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
-        // Allow connection even without token for non-authenticated users
         return next();
     }
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            // Invalid token, but still allow connection without user data
             console.log("Socket connection with invalid token.");
             return next();
         }
-        socket.user = user; // Attach user info to the socket
+        socket.user = user;
         next();
     });
 });
@@ -353,10 +363,8 @@ io.on('connection', (socket) => {
         try {
             const { conversationId, senderId, receiverId, text } = data;
             
-            // Security check: ensure the sender is who they say they are and is authenticated
             if (!socket.user || socket.user.id !== senderId) {
                 console.error("Socket user does not match senderId. Aborting message send.");
-                // Optionally, emit an error back to the sender
                 socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
                 return;
             }
@@ -368,10 +376,12 @@ io.on('connection', (socket) => {
                 text: text
             });
             await message.save();
+
+            // Update the conversation's timestamp to bring it to the top of the list
+            await Conversation.findByIdAndUpdate(conversationId, { updatedAt: new Date() });
             
             const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
             
-            // Emit to each room separately for reliability
             io.to(senderId).emit('newMessage', populatedMessage);
             io.to(receiverId).emit('newMessage', populatedMessage);
 
