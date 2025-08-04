@@ -737,6 +737,66 @@
             } 
             return ownerNameHtml;
         }
+
+        // --- Rating Logic ---
+        function renderStars(rating) {
+            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+            const fullStars = Math.floor(roundedRating);
+            const halfStar = roundedRating % 1 !== 0;
+            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+            let starsHtml = '';
+            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;'; // Full star
+            if (halfStar) starsHtml += '&#9734;'; // Using an empty star as a placeholder for half, can be improved with better icons
+            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>'; // Empty star
+            return starsHtml;
+        }
+
+        function openRatingModal(userId, userName) {
+            if (!currentUser) {
+                return showAlert('עליך להתחבר כדי לדרג משתמשים.');
+            }
+            document.getElementById('rating-modal-title').textContent = `דרג את ${userName}`;
+            document.getElementById('rated-user-id').value = userId;
+            ratingForm.reset();
+            showModal(ratingModal);
+        }
+
+        ratingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return showAlert('עליך להתחבר כדי לדרג.');
+            }
+
+            const ratedUserId = document.getElementById('rated-user-id').value;
+            const rating = ratingForm.elements.rating.value;
+            const comment = document.getElementById('rating-comment').value;
+
+            try {
+                const response = await fetch(`${SERVER_URL}/users/${ratedUserId}/rate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ rating: Number(rating), comment })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to submit rating.');
+                }
+
+                hideAllModals();
+                showToast('הדירוג שלך נשלח בהצלחה!');
+                // Refresh the profile view to show the new rating
+                showPublicProfile(ratedUserId);
+
+            } catch (error) {
+                console.error('Failed to submit rating:', error);
+                showAlert(`שגיאה בשליחת הדירוג: ${error.message}`);
+            }
+        });
         
         // --- Filtering and State Management ---
         function applyFilters() {
