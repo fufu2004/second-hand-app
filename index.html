@@ -85,15 +85,26 @@
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
+                    <select id="condition-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                        <option value="all">כל המצבים</option>
+                        <option value="new-with-tags">חדש עם טיקט</option>
+                        <option value="new-without-tags">חדש ללא טיקט</option>
+                        <option value="like-new">כמו חדש</option>
+                        <option value="good">במצב טוב</option>
+                        <option value="used">משומש</option>
+                    </select>
+                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                     <select id="sort-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                         <option value="newest">החדש ביותר</option>
                         <option value="price_asc">מחיר: מהנמוך לגבוה</option>
                         <option value="price_desc">מחיר: מהגבוה לנמוך</option>
                     </select>
-                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                 </div>
                 <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
                     <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
@@ -138,35 +149,46 @@
             <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> 
             <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
                 <div class="space-y-4"> 
-                    <input type="text" id="item-title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
-                    <textarea id="item-description" placeholder="תיאור קצר (מידה, מצב, בד, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
-                    <select id="item-category" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
-                        <option value="" disabled selected>בחרי קטגוריה</option> 
-                        <option value="pants">מכנסיים</option> 
-                        <option value="shirts">חולצות</option> 
-                        <option value="jackets">ג'קטים</option> 
-                        <option value="dresses">שמלות</option> 
-                        <option value="skirts">חצאיות</option> 
-                        <option value="top">טופ</option> 
-                        <option value="tank-tops">גופיות</option> 
-                        <option value="blazer">בלייזר</option> 
-                        <option value="accessories">אקססוריז</option> 
-                        <option value="general">כללי</option> 
-                    </select> 
-                    <input type="text" id="item-contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
-                    <input type="number" id="item-price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
+                    <div class="grid grid-cols-2 gap-4">
+                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                            <option value="" disabled selected>בחרי קטגוריה</option> 
+                            <option value="pants">מכנסיים</option> 
+                            <option value="shirts">חולצות</option> 
+                            <option value="jackets">ג'קטים</option> 
+                            <option value="dresses">שמלות</option> 
+                            <option value="skirts">חצאיות</option> 
+                            <option value="top">טופ</option> 
+                            <option value="tank-tops">גופיות</option> 
+                            <option value="blazer">בלייזר</option> 
+                            <option value="accessories">אקססוריז</option> 
+                            <option value="general">כללי</option> 
+                        </select>
+                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
+                            <option value="" disabled selected>מצב הפריט</option>
+                            <option value="new-with-tags">חדש עם טיקט</option>
+                            <option value="new-without-tags">חדש ללא טיקט</option>
+                            <option value="like-new">כמו חדש</option>
+                            <option value="good">במצב טוב</option>
+                            <option value="used">משומש</option>
+                        </select>
+                    </div>
+                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
                     <div id="affiliate-link-container" class="hidden"> 
                         <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700">קישור אפילייט (מנהלים בלבד)</label> 
-                        <input type="url" id="item-affiliate-link" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
+                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
                     </div> 
                     <div id="promoted-container" class="hidden items-center">
-                        <input id="item-promoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                        <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
                         <label for="item-promoted" class="ml-2 block text-sm text-gray-900">קדם פריט זה (יוצג בראש העמוד)</label>
                     </div>
                     <div> 
                         <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> 
                         <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
-                        <input type="file" id="item-images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple> 
+                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple> 
                         <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div> 
                     </div> 
                 </div> 
