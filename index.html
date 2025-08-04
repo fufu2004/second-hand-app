@@ -46,10 +46,8 @@
         <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <!-- Right Side (start in RTL) -->
-                <div class="flex-1 flex justify-start">
-                    <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
-                    </button>
+                <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
+                    <!-- Content injected by JS -->
                 </div>
 
                 <!-- Center: Logo -->
@@ -64,8 +62,8 @@
                 </div>
 
                 <!-- Left Side (end in RTL) -->
-                <div class="flex-1 flex justify-end">
-                    <div id="auth-container-desktop" class="hidden sm:flex"></div>
+                <div id="header-left-desktop" class="flex-1 flex justify-end">
+                    <!-- Content injected by JS -->
                 </div>
             </div>
         </header>
@@ -212,7 +210,8 @@
         const publicProfileView = document.getElementById('public-profile-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
-        const authContainerDesktop = document.getElementById('auth-container-desktop');
+        const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerLeftDesktop = document.getElementById('header-left-desktop');
         const authContainerMobile = document.getElementById('auth-container-mobile');
         const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
@@ -223,7 +222,6 @@
         const maxPriceInput = document.getElementById('max-price');
         const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
         const emptyState = document.getElementById('empty-state');
-        const shareAppBtn = document.querySelectorAll('[id^="share-app-btn"]');
         const chatView = document.getElementById('chat-view');
         
         // --- Modals & Forms Selectors ---
@@ -435,18 +433,29 @@
         }
 
         function updateUIForAuthState() {
+            const shareButtonHtml = `
+                <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
+                </button>
+            `;
+
             if (currentUser) {
-                // Desktop view - with alignment fixes
-                const loggedInHtmlDesktop = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm text-gray-700 py-2">שלום, ${currentUser.name}</span>
+                // --- Logged In State ---
+
+                // Desktop View
+                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name}</span>`;
+                headerRightDesktop.innerHTML = shareButtonHtml + usernameHtmlDesktop;
+
+                const actionButtonsHtml = `
+                    <div class="hidden sm:flex items-center gap-3">
                         <button id="chat-btn-desktop" class="text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                         <button id="profile-btn-desktop" class="text-sm bg-teal-500 text-white py-2 px-3 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
                         <button id="logout-btn-desktop" class="text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition">התנתקות</button>
                     </div>
                 `;
+                headerLeftDesktop.innerHTML = actionButtonsHtml;
                 
-                // Mobile view - original code, untouched
+                // Mobile View (Untouched)
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2">
                         <span class="text-sm text-gray-700 mb-2">שלום, ${currentUser.name}</span>
@@ -457,25 +466,40 @@
                         </div>
                     </div>
                 `;
-                authContainerDesktop.innerHTML = loggedInHtmlDesktop;
                 authContainerMobile.innerHTML = loggedInHtmlMobile;
-                
-                // Add event listeners using unique IDs
-                document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
-                document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
-                document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
 
             } else {
-                const loggedOutHtml = `
-                    <button id="google-login-btn" class="w-full sm:w-auto flex justify-center items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 text-base border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition">
+                // --- Logged Out State ---
+
+                // Desktop View
+                headerRightDesktop.innerHTML = shareButtonHtml;
+
+                const loginButtonHtml = `
+                    <div class="hidden sm:flex">
+                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 text-base border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition">
+                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                            <span>התחברות עם Google</span>
+                        </button>
+                    </div>
+                `;
+                headerLeftDesktop.innerHTML = loginButtonHtml;
+
+                // Mobile View (Untouched)
+                const loggedOutHtmlMobile = `
+                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 text-base border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                         <span>התחברות עם Google</span>
                     </button>
                 `;
-                authContainerDesktop.innerHTML = loggedOutHtml;
-                authContainerMobile.innerHTML = loggedOutHtml.replace('sm:w-auto', ''); // Make mobile button full width
-                document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+                authContainerMobile.innerHTML = loggedOutHtmlMobile;
             }
+
+            // Re-attach event listeners for all states
+            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
+            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
+            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
+            document.getElementById('share-app-btn').addEventListener('click', shareApp);
         }
         
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
@@ -846,7 +870,7 @@
 
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
-        shareAppBtn.forEach(btn => btn.addEventListener('click', shareApp));
+        
         openModalBtn.addEventListener('click', () => { 
             if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
             uploadForm.reset(); 
