@@ -657,6 +657,13 @@
         }
         
         // --- Socket Listeners ---
+        socket.on('connect', () => {
+            // On connection or reconnection, re-join the user's room
+            if (currentUser) {
+                socket.emit('joinUserRoom', currentUser.id);
+            }
+        });
+
         socket.on('newItem', (item) => { allItemsCache[item._id] = item; applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
         socket.on('itemDeleted', (itemId) => { delete allItemsCache[itemId]; applyFilters(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
         socket.on('itemUpdated', (updatedItem) => { allItemsCache[updatedItem._id] = updatedItem; applyFilters(); const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = createItemCard(updatedItem); profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
