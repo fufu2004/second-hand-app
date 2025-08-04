@@ -240,6 +240,8 @@
         let galleryImages = [];
         let currentImageIndex = 0;
         let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+        let currentConversationId = null;
+
         
         const categoryMap = { 
             'pants': 'מכנסיים', 
