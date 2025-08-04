@@ -328,7 +328,7 @@ io.on('connection', (socket) => {
 
     socket.on('joinUserRoom', (userId) => {
         socket.join(userId);
-        console.log(`User ${userId} joined their room.`);
+        console.log(`Socket ${socket.id} joined room ${userId}.`);
     });
 
     socket.on('sendMessage', async (data) => {
