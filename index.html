@@ -45,11 +45,15 @@
         <!-- Header -->
         <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <div class="w-1/3 flex justify-start">
-                    <div id="auth-container-desktop" class="hidden sm:flex"></div>
-                    <button id="share-app-btn-mobile" class="sm:hidden text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg></button>
+                <!-- Left side: Share Button -->
+                <div class="flex-1 flex justify-start">
+                    <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
+                    </button>
                 </div>
-                <div class="flex-shrink-0">
+
+                <!-- Center: Logo -->
+                <div class="flex-shrink-0 px-2">
                     <div class="flex flex-col items-center">
                         <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                             <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
@@ -60,14 +64,13 @@
                         </div>
                     </div>
                 </div>
-                <div class="w-1/3 flex justify-end">
-                    <button id="share-app-btn-desktop" class="hidden sm:block text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg></button>
+
+                <!-- Right side: Auth Container -->
+                <div class="flex-1 flex justify-end">
+                    <div id="auth-container"></div>
                 </div>
             </div>
         </header>
-
-        <!-- Mobile Auth Container -->
-        <div id="auth-container-mobile" class="my-2 flex justify-center sm:hidden"></div>
 
         <!-- Main Feed View -->
         <div id="main-view" class="view active">
@@ -203,8 +206,7 @@
         const publicProfileView = document.getElementById('public-profile-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
-        const authContainerDesktop = document.getElementById('auth-container-desktop');
-        const authContainerMobile = document.getElementById('auth-container-mobile');
+        const authContainer = document.getElementById('auth-container');
         const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
@@ -214,7 +216,7 @@
         const maxPriceInput = document.getElementById('max-price');
         const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
         const emptyState = document.getElementById('empty-state');
-        const shareAppBtn = document.querySelectorAll('[id^="share-app-btn"]');
+        const shareAppBtn = document.getElementById('share-app-btn');
         const chatView = document.getElementById('chat-view');
         
         // Modals & Forms
@@ -447,31 +449,21 @@
 
         function updateUIForAuthState() {
             if (currentUser) {
-                const loggedInHtmlDesktop = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700">שלום, ${currentUser.name}</span>
-                        <button id="chat-btn-desktop" class="text-sm bg-cyan-500 text-white py-1 px-2 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                        <button id="profile-btn-desktop" class="text-sm bg-teal-500 text-white py-1 px-2 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                        <button id="logout-btn-desktop" class="text-sm bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600 transition">התנתקות</button>
-                    </div>
-                `;
-                const loggedInHtmlMobile = `
-                    <div class="flex flex-col items-center gap-2">
-                        <span class="text-sm text-gray-700 mb-2">שלום, ${currentUser.name}</span>
+                const loggedInHtml = `
+                    <div class="flex flex-col sm:flex-row items-center gap-2">
+                        <span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name}</span>
                         <div class="flex gap-2">
-                            <button id="chat-btn-mobile" class="text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                            <button id="logout-btn-mobile" class="text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                            <button id="chat-btn" class="text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn" class="text-sm bg-teal-500 text-white py-2 px-3 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button id="logout-btn" class="text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition">התנתקות</button>
                         </div>
                     </div>
                 `;
-                authContainerDesktop.innerHTML = loggedInHtmlDesktop;
-                authContainerMobile.innerHTML = loggedInHtmlMobile;
+                authContainer.innerHTML = loggedInHtml;
                 
-                document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
-                document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
-                document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-
+                document.getElementById('chat-btn').addEventListener('click', () => showChatView());
+                document.getElementById('profile-btn').addEventListener('click', showProfileView);
+                document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
             } else {
                 const loggedOutHtml = `
@@ -480,9 +472,8 @@
                         <span>התחברות עם Google</span>
                     </button>
                 `;
-                authContainerDesktop.innerHTML = loggedOutHtml;
-                authContainerMobile.innerHTML = loggedOutHtml;
-                document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+                authContainer.innerHTML = loggedOutHtml;
+                document.getElementById('google-login-btn').addEventListener('click', handleGoogleLogin);
             }
         }
         
@@ -969,7 +960,7 @@
 
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
-        shareAppBtn.forEach(btn => btn.addEventListener('click', shareApp));
+        shareAppBtn.addEventListener('click', shareApp);
         openModalBtn.addEventListener('click', () => { 
             if (!currentUser) { 
                 showAlert('יש להתחבר או להירשם כדי להוסיף פריט.'); 
