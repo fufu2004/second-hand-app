@@ -463,32 +463,6 @@
             }
         }
         
-        // --- Dark Mode Logic ---
-        function applyInitialTheme() {
-            if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-            updateThemeToggleIcon();
-        }
-
-        function updateThemeToggleIcon() {
-            const isDarkMode = document.documentElement.classList.contains('dark');
-            const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-            const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-            if (themeToggleDarkIcon && themeToggleLightIcon) {
-                themeToggleDarkIcon.classList.toggle('hidden', !isDarkMode);
-                themeToggleLightIcon.classList.toggle('hidden', isDarkMode);
-            }
-        }
-
-        function toggleDarkMode() {
-            const isDarkMode = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', isDarkMode ? 'dark' : 'light');
-            updateThemeToggleIcon();
-        }
-
         // --- Authentication System ---
         async function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -517,24 +491,17 @@
 
         function updateUIForAuthState() {
             const shareButtonHtml = `
-                <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition p-2 rounded-full hover:bg-teal-100 dark:hover:bg-gray-700" title="שתף את האפליקציה">
+                <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
                 </button>
             `;
             
-            const darkModeToggleHtml = `
-                <button id="dark-mode-toggle" class="text-teal-500 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition p-2 rounded-full hover:bg-teal-100 dark:hover:bg-gray-700" title="שנה מצב תצוגה">
-                    <svg id="theme-toggle-dark-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                    <svg id="theme-toggle-light-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 10.607a1 1 0 011.414 0l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-                </button>
-            `;
-
             if (currentUser) {
                 // --- Logged In State ---
 
                 // Desktop View
-                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
-                headerRightDesktop.innerHTML = shareButtonHtml + darkModeToggleHtml + usernameHtmlDesktop;
+                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name}</span>`;
+                headerRightDesktop.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
                 const actionButtonsHtml = `
                     <div class="hidden sm:flex items-center gap-3">
@@ -548,7 +515,7 @@
                 // Mobile View (Untouched)
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2">
-                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
+                        <span class="text-sm text-gray-700 mb-2">שלום, ${currentUser.name}</span>
                         <div class="flex gap-2">
                             <button id="chat-btn-mobile" class="text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                             <button id="profile-btn-mobile" class="text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
@@ -562,7 +529,7 @@
                 // --- Logged Out State ---
 
                 // Desktop View
-                headerRightDesktop.innerHTML = shareButtonHtml + darkModeToggleHtml;
+                headerRightDesktop.innerHTML = shareButtonHtml;
 
                 const loginButtonHtml = `
                     <div class="hidden sm:flex">
@@ -590,8 +557,6 @@
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             document.getElementById('share-app-btn').addEventListener('click', shareApp);
-            document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
-            updateThemeToggleIcon();
         }
         
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
@@ -671,23 +636,23 @@
                 if (ratings.length > 0) {
                     ratings.forEach(rating => {
                         ratingsHtml += `
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
                                 <div class="flex items-center mb-2">
                                     <img src="${rating.rater.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${rating.rater.displayName}" class="w-10 h-10 rounded-full mr-3">
                                     <div>
                                         <p class="font-bold">${rating.rater.displayName}</p>
-                                        <div class="text-sm text-gray-500 dark:text-gray-400">${new Date(rating.createdAt).toLocaleDateString('he-IL')}</div>
+                                        <div class="text-sm text-gray-500">${new Date(rating.createdAt).toLocaleDateString('he-IL')}</div>
                                     </div>
                                 </div>
                                 <div class="flex items-center mb-2">
                                     ${renderStars(rating.rating)}
                                 </div>
-                                <p class="text-gray-700 dark:text-gray-300">${rating.comment || ''}</p>
+                                <p class="text-gray-700">${rating.comment || ''}</p>
                             </div>
                         `;
                     });
                 } else {
-                    ratingsHtml = `<div class="text-center py-8 px-4"><p class="text-gray-500 dark:text-gray-400">עדיין אין דירוגים עבור מוכר זה.</p></div>`;
+                    ratingsHtml = `<div class="text-center py-8 px-4"><p class="text-gray-500">עדיין אין דירוגים עבור מוכר זה.</p></div>`;
                 }
 
                 const rateButtonHtml = (currentUser && currentUser.id !== userId) ? 
@@ -695,13 +660,13 @@
 
                 publicProfileView.innerHTML = `
                     <div class="my-6">
-                        <button onclick="showView('main-view')" class="mb-4 text-teal-500 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300">&larr; חזרה לפיד הראשי</button>
-                        <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                        <button onclick="showView('main-view')" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
+                        <div class="flex flex-col items-center gap-4 p-6 bg-white rounded-lg shadow-md">
                             <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200">
-                            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200">${user.displayName}</h2>
+                            <h2 class="text-3xl font-bold text-gray-800">${user.displayName}</h2>
                             <div class="flex items-center gap-2 text-lg">
                                 <div class="static-stars">${renderStars(user.averageRating)}</div>
-                                <span class="text-gray-600 dark:text-gray-400">(${ratings.length} דירוגים)</span>
+                                <span class="text-gray-600">(${ratings.length} דירוגים)</span>
                             </div>
                             ${rateButtonHtml}
                         </div>
@@ -709,11 +674,11 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">פריטים למכירה</h3>
+                            <h3 class="text-xl font-bold text-gray-700 mb-4">פריטים למכירה</h3>
                             <div class="space-y-6">${itemsHtml}</div>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">ביקורות אחרונות</h3>
+                            <h3 class="text-xl font-bold text-gray-700 mb-4">ביקורות אחרונות</h3>
                             <div class="space-y-4">${ratingsHtml}</div>
                         </div>
                     </div>
@@ -768,7 +733,7 @@
             const imageUrlsJson = JSON.stringify(item.imageUrls || []);
             const thumbnailsHtml = (item.imageUrls || []).map((url, index) => `<img src="${url}" class="thumbnail w-12 h-12 object-cover rounded-md" onclick='openGallery(${imageUrlsJson}, ${index})'>`).join('');
             const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
-            const categoryHtml = `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
+            const categoryHtml = `<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
             
             let purchaseButtonHtml = '';
             const purchaseButtonClasses = "purchase-btn mt-2 block w-1/2 mx-auto text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
@@ -786,15 +751,15 @@
                 purchaseButtonHtml = `<button onclick="startOrOpenChat('${item.owner._id}', '${item._id}')" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></button>`;
             }
             
-            return `<div id="item-${item._id}" class="item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}"><div class="md:w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>${soldStampHtml}<img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 dark:bg-gray-700 md:h-full md:object-cover"></div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><div class="flex-grow my-3"><p class="text-gray-600 dark:text-gray-300">${item.description || ''}</p></div><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">${!item.sold ? purchaseButtonHtml : ''}<div class="flex justify-between items-center"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-2"> <p class="text-xs text-gray-400 dark:text-gray-500">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div></div>`;
+            return `<div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}"><div class="md:w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>${soldStampHtml}<img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover"></div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><div class="flex-grow my-3"><p class="text-gray-600">${item.description || ''}</p></div><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="mt-auto pt-4 border-t border-gray-200 space-y-3">${!item.sold ? purchaseButtonHtml : ''}<div class="flex justify-between items-center"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-2"> <p class="text-xs text-gray-400">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div></div>`;
         }
 
-        function createSkeletonCard() { return `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
+        function createSkeletonCard() { return `<div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
         function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
         
         function generateContactHtml(item, ownerName) {
             if (!item || !item.owner) return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`;
-            const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" onclick="showPublicProfile('${item.owner._id}')">${ownerName}</p>`;
+            const ownerNameHtml = `<p class="text-sm text-teal-700 font-semibold cursor-pointer hover:underline" onclick="showPublicProfile('${item.owner._id}')">${ownerName}</p>`;
             const whatsappUrl = getWhatsAppLink(item.contact, item.title);
             if (whatsappUrl) {
                 return `<div class="flex items-center gap-2">${ownerNameHtml}<a href="${whatsappUrl}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="שלח הודעה בווטסאפ"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a></div>`;
@@ -1319,7 +1284,6 @@
         }
 
         // --- Initial Application Setup ---
-        applyInitialTheme();
         populateCategoryFilter();
         checkAuthState();
     </script>
