@@ -66,7 +66,7 @@ const UserSchema = new mongoose.Schema({
     image: String,
     ratings: [{
         rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, min: 1, max: 5 },
+        rating: { type: Number, min: 1, max: 5, required: true },
         comment: String,
         createdAt: { type: Date, default: Date.now }
     }],
@@ -181,7 +181,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
-// --- נתיבים חדשים לפרופיל ציבורי ---
+// --- נתיבים לפרופיל ציבורי ודירוגים ---
 app.get('/users/:id/items', async (req, res) => { 
     try { 
         const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); 
@@ -199,6 +199,61 @@ app.get('/users/:id', async (req, res) => {
     } catch (err) { 
         res.status(500).json({ message: err.message }); 
     } 
+});
+
+app.get('/users/:id/ratings', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+            .populate({
+                path: 'ratings',
+                populate: {
+                    path: 'rater',
+                    select: 'displayName image' // Select fields from the rater
+                }
+            });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.json(user.ratings.sort((a, b) => b.createdAt - a.createdAt)); // Send sorted ratings
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/users/:id/rate', authMiddleware, async (req, res) => {
+    const { rating, comment } = req.body;
+    const raterId = req.user.id;
+    const ratedUserId = req.params.id;
+
+    if (raterId === ratedUserId) {
+        return res.status(400).json({ message: "You cannot rate yourself." });
+    }
+
+    try {
+        const userToRate = await User.findById(ratedUserId);
+        if (!userToRate) return res.status(404).json({ message: "User to be rated not found." });
+
+        // Find if the user has already rated and remove the old rating
+        const existingRatingIndex = userToRate.ratings.findIndex(r => r.rater.toString() === raterId);
+        if (existingRatingIndex > -1) {
+            userToRate.ratings.splice(existingRatingIndex, 1);
+        }
+
+        // Add the new rating
+        userToRate.ratings.push({ rater: raterId, rating, comment });
+
+        // Recalculate average rating
+        if (userToRate.ratings.length > 0) {
+            const totalRating = userToRate.ratings.reduce((acc, r) => acc + r.rating, 0);
+            userToRate.averageRating = totalRating / userToRate.ratings.length;
+        } else {
+            userToRate.averageRating = 0;
+        }
+        
+        await userToRate.save();
+        res.status(201).json({ message: "Rating submitted successfully", averageRating: userToRate.averageRating });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 // --- סוף נתיבים חדשים ---
 
