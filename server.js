@@ -13,6 +13,7 @@ const session = require('express-session');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
+const nodemailer = require('nodemailer'); // ייבוא הספרייה לשליחת מיילים
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -33,6 +34,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
 const SERVER_URL = process.env.SERVER_URL;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+// משתני סביבה חדשים עבור שירות המייל
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE; // למשל 'gmail'
+const EMAIL_USER = process.env.EMAIL_USER; // כתובת המייל השולח
+const EMAIL_PASS = process.env.EMAIL_PASS; // סיסמת האפליקציה של המייל
 
 // --- הגדרת Cloudinary ---
 cloudinary.config({ 
@@ -40,6 +45,22 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY, 
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
+
+// --- הגדרת שירות המייל (Nodemailer) ---
+let mailTransporter;
+if (EMAIL_SERVICE && EMAIL_USER && EMAIL_PASS) {
+    mailTransporter = nodemailer.createTransport({
+        service: EMAIL_SERVICE,
+        auth: {
+            user: EMAIL_USER,
+            pass: EMAIL_PASS
+        }
+    });
+    console.log("Nodemailer configured successfully.");
+} else {
+    console.warn("Email service is not configured. Missing EMAIL_SERVICE, EMAIL_USER, or EMAIL_PASS environment variables. Email notifications will be disabled.");
+}
+
 
 // --- בדיקת משתני סביבה חיוניים ---
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
@@ -377,13 +398,52 @@ io.on('connection', (socket) => {
             });
             await message.save();
 
-            // Update the conversation's timestamp to bring it to the top of the list
             await Conversation.findByIdAndUpdate(conversationId, { updatedAt: new Date() });
             
             const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
             
             io.to(senderId).emit('newMessage', populatedMessage);
             io.to(receiverId).emit('newMessage', populatedMessage);
+
+            // --- שליחת התראה במייל ---
+            if (mailTransporter) {
+                try {
+                    const receiver = await User.findById(receiverId);
+                    const sender = await User.findById(senderId);
+                    const conversation = await Conversation.findById(conversationId).populate('item', 'title');
+
+                    if (!receiver || !sender || !conversation) {
+                        throw new Error("Could not find all details for email notification.");
+                    }
+
+                    const mailDetails = {
+                        from: EMAIL_USER,
+                        to: receiver.email,
+                        subject: `קיבלת הודעה חדשה בסטייל מתגלגל מ${sender.displayName}`,
+                        html: `
+                            <div dir="rtl" style="font-family: Assistant, sans-serif; text-align: right;">
+                                <h2>היי ${receiver.displayName},</h2>
+                                <p>קיבלת הודעה חדשה מ<strong>${sender.displayName}</strong> בנוגע לפריט "<strong>${conversation.item.title}</strong>".</p>
+                                <p>תוכן ההודעה: "${text}"</p>
+                                <p>כדי להשיב, היכנס/י לאתר:</p>
+                                <a href="${CLIENT_URL}" style="display: inline-block; padding: 10px 20px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px;">לכניסה לאתר</a>
+                            </div>
+                        `
+                    };
+
+                    mailTransporter.sendMail(mailDetails, (err, data) => {
+                        if (err) {
+                            console.error('Error sending email:', err);
+                        } else {
+                            console.log(`Email sent successfully to ${receiver.email}`);
+                        }
+                    });
+
+                } catch (emailError) {
+                    console.error("Failed to send email notification:", emailError);
+                }
+            }
+            // --- סוף קוד שליחת התראה ---
 
         } catch (error) {
             console.error('Error sending message:', error);
