@@ -13,7 +13,7 @@ const session = require('express-session');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
-const nodemailer = require('nodemailer'); // ייבוא הספרייה לשליחת מיילים
+const sgMail = require('@sendgrid/mail'); // ייבוא הספרייה של SendGrid
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -34,10 +34,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
 const SERVER_URL = process.env.SERVER_URL;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-// משתני סביבה חדשים עבור שירות המייל
-const EMAIL_SERVICE = process.env.EMAIL_SERVICE; // למשל 'gmail'
-const EMAIL_USER = process.env.EMAIL_USER; // כתובת המייל השולח
-const EMAIL_PASS = process.env.EMAIL_PASS; // סיסמת האפליקציה של המייל
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS; // המייל שאומת ב-SendGrid
 
 // --- הגדרת Cloudinary ---
 cloudinary.config({ 
@@ -46,21 +44,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-// --- הגדרת שירות המייל (Nodemailer) ---
-let mailTransporter;
-if (EMAIL_SERVICE && EMAIL_USER && EMAIL_PASS) {
-    mailTransporter = nodemailer.createTransport({
-        service: EMAIL_SERVICE,
-        auth: {
-            user: EMAIL_USER,
-            pass: EMAIL_PASS
-        }
-    });
-    console.log("Nodemailer configured successfully.");
+// --- הגדרת שירות המייל (SendGrid) ---
+if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    console.log("SendGrid configured successfully.");
 } else {
-    console.warn("Email service is not configured. Missing EMAIL_SERVICE, EMAIL_USER, or EMAIL_PASS environment variables. Email notifications will be disabled.");
+    console.warn("SendGrid is not configured. Missing SENDGRID_API_KEY or SENDER_EMAIL_ADDRESS environment variables. Email notifications will be disabled.");
 }
-
 
 // --- בדיקת משתני סביבה חיוניים ---
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
@@ -405,8 +395,8 @@ io.on('connection', (socket) => {
             io.to(senderId).emit('newMessage', populatedMessage);
             io.to(receiverId).emit('newMessage', populatedMessage);
 
-            // --- שליחת התראה במייל ---
-            if (mailTransporter) {
+            // --- שליחת התראה במייל עם SendGrid ---
+            if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
                 try {
                     const receiver = await User.findById(receiverId);
                     const sender = await User.findById(senderId);
@@ -416,9 +406,12 @@ io.on('connection', (socket) => {
                         throw new Error("Could not find all details for email notification.");
                     }
 
-                    const mailDetails = {
-                        from: `"סטייל מתגלגל" <${EMAIL_USER}>`,
+                    const msg = {
                         to: receiver.email,
+                        from: {
+                            email: SENDER_EMAIL_ADDRESS,
+                            name: 'סטייל מתגלגל'
+                        },
                         subject: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`,
                         html: `
                             <div dir="rtl" style="font-family: Assistant, sans-serif; text-align: right; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; margin: auto;">
@@ -433,24 +426,14 @@ io.on('connection', (socket) => {
                                 <p style="font-size: 12px; color: #888;">זוהי הודעה אוטומטית. אין להשיב למייל זה.</p>
                             </div>
                         `,
-                        text: `
-                            היי ${receiver.displayName},\n\n
-                            קיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}".\n\n
-                            תוכן ההודעה: "${text}"\n\n
-                            כדי להשיב, היכנס/י לאתר: ${CLIENT_URL}
-                        `
+                        text: `היי ${receiver.displayName},\n\nקיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}".\n\nתוכן ההודעה: "${text}"\n\nכדי להשיב, היכנס/י לאתר: ${CLIENT_URL}`
                     };
 
-                    mailTransporter.sendMail(mailDetails, (err, data) => {
-                        if (err) {
-                            console.error('Error sending email:', err);
-                        } else {
-                            console.log(`Email sent successfully to ${receiver.email}`);
-                        }
-                    });
+                    await sgMail.send(msg);
+                    console.log(`Email sent successfully to ${receiver.email}`);
 
                 } catch (emailError) {
-                    console.error("Failed to send email notification:", emailError);
+                    console.error("Failed to send email notification via SendGrid:", emailError.response ? emailError.response.body : emailError);
                 }
             }
             // --- סוף קוד שליחת התראה ---
