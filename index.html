@@ -236,7 +236,52 @@
         
         const toastNotification = document.getElementById('toast-notification');
 
-        const socket = io(SERVER_URL);
+        // Initialize socket variable
+        let socket;
+
+        function initializeSocket(token) {
+            // Disconnect previous socket if it exists to prevent multiple connections
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            // Create a new socket connection with the auth token
+            socket = io(SERVER_URL, {
+                auth: {
+                    token: token
+                }
+            });
+
+            // --- Centralized Socket Listeners ---
+            // Remove all previous listeners to avoid duplication on re-initialization
+            socket.off('connect');
+            socket.off('newItem');
+            socket.off('itemDeleted');
+            socket.off('itemUpdated');
+            socket.off('newMessage');
+            socket.off('newConversation');
+
+            socket.on('connect', () => {
+                console.log('Connected to server with socket ID:', socket.id);
+                // The server's auth middleware now handles joining the room.
+            });
+
+            socket.on('newItem', (item) => { allItemsCache[item._id] = item; applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
+            socket.on('itemDeleted', (itemId) => { delete allItemsCache[itemId]; applyFilters(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
+            socket.on('itemUpdated', (updatedItem) => { allItemsCache[updatedItem._id] = updatedItem; applyFilters(); const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = createItemCard(updatedItem); profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
+            
+            socket.on('newMessage', (message) => {
+                if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
+                    appendMessage(message);
+                } else {
+                    showToast(`הודעה חדשה מ-${message.sender.displayName}`);
+                }
+            });
+
+            socket.on('newConversation', (data) => {
+                showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
+            });
+        }
         
         // State
         let currentUser = null;
@@ -393,9 +438,8 @@
                 currentUser = null;
             }
             
-            if (currentUser) {
-                socket.emit('joinUserRoom', currentUser.id);
-            }
+            // Initialize socket with the current auth state (token or null)
+            initializeSocket(storedToken);
 
             updateUIForAuthState();
             fetchHistory();
@@ -446,6 +490,8 @@
         function handleLogout() { 
             localStorage.removeItem('authToken'); 
             currentUser = null; 
+            // Re-initialize socket without a token to disconnect the authenticated user
+            initializeSocket(null);
             showView('main-view'); 
             updateUIForAuthState(); 
             fetchHistory(); 
@@ -656,30 +702,6 @@
             }
         }
         
-        // --- Socket Listeners ---
-        socket.on('connect', () => {
-            // On connection or reconnection, re-join the user's room
-            if (currentUser) {
-                socket.emit('joinUserRoom', currentUser.id);
-            }
-        });
-
-        socket.on('newItem', (item) => { allItemsCache[item._id] = item; applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
-        socket.on('itemDeleted', (itemId) => { delete allItemsCache[itemId]; applyFilters(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
-        socket.on('itemUpdated', (updatedItem) => { allItemsCache[updatedItem._id] = updatedItem; applyFilters(); const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = createItemCard(updatedItem); profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
-        
-        socket.on('newMessage', (message) => {
-            if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
-                appendMessage(message);
-            } else {
-                showToast(`הודעה חדשה מ-${message.sender.displayName}`);
-            }
-        });
-
-        socket.on('newConversation', (data) => {
-            showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
-        });
-
         // --- Image Preview Handler ---
         function handleImagePreview(event) {
             const previewContainer = document.getElementById('image-preview-container');
