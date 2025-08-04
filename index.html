@@ -7,14 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
-    <script>
-        // Tailwind dark mode configuration
-        tailwind.config = {
-            darkMode: 'class',
-        }
-    </script>
     <style>
-        body { font-family: 'Assistant', sans-serif; }
+        body { font-family: 'Assistant', sans-serif; background-color: #f0f5f5; }
         .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
         .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
         .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
@@ -36,14 +30,11 @@
         /* Chat Styles */
         .message-bubble { max-width: 75%; }
         .message-bubble.sent { background-color: #dcf8c6; }
-        .dark .message-bubble.sent { background-color: #22511f; }
         .message-bubble.received { background-color: #ffffff; }
-        .dark .message-bubble.received { background-color: #374151; }
         /* Star Rating Styles */
         .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; }
         .star-rating input { display: none; }
         .star-rating label { font-size: 2.5rem; color: #ddd; cursor: pointer; transition: color 0.2s; }
-        .dark .star-rating label { color: #4a5568; }
         .star-rating input:checked ~ label,
         .star-rating label:hover,
         .star-rating label:hover ~ label { color: #f59e0b; }
@@ -52,7 +43,7 @@
         #announcement-bar span { transition: opacity 0.5s ease-in-out; }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-gray-100">
 
     <!-- Announcement Bar -->
     <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
@@ -62,7 +53,7 @@
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
         <!-- Header -->
-        <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-700 py-1 transition-colors duration-300">
+        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <!-- Right Side (start in RTL) -->
                 <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
@@ -74,8 +65,8 @@
                     <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
                         <div>
-                            <h1 class="text-xl sm:text-3xl font-bold text-teal-700 dark:text-teal-400 whitespace-nowrap">סטייל מתגלגל</h1>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה <span class="blinking-dot"></span> LIVE</p>
+                            <h1 class="text-xl sm:text-3xl font-bold text-teal-700 whitespace-nowrap">סטייל מתגלגל</h1>
+                            <p class="text-gray-500 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה <span class="blinking-dot"></span> LIVE</p>
                         </div>
                     </div>
                 </div>
@@ -93,10 +84,10 @@
         <!-- Main Feed View -->
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
-                <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <select id="category-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
-                    <select id="condition-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
+                    <select id="condition-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                         <option value="all">כל המצבים</option>
                         <option value="new-with-tags">חדש עם טיקט</option>
                         <option value="new-without-tags">חדש ללא טיקט</option>
@@ -104,18 +95,18 @@
                         <option value="good">במצב טוב</option>
                         <option value="used">משומש</option>
                     </select>
-                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                    <select id="sort-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <select id="sort-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
                         <option value="newest">החדש ביותר</option>
                         <option value="price_asc">מחיר: מהנמוך לגבוה</option>
                         <option value="price_desc">מחיר: מהגבוה לנמוך</option>
                     </select>
                 </div>
-                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20" title="הצג מועדפים">
+                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
                     <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
                     <span>הצג מועדפים בלבד</span>
                 </button>
@@ -123,8 +114,8 @@
             <main id="items-feed" class="space-y-6"></main>
             <div id="empty-state" class="text-center py-16 px-4 hidden">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">נסה לשנות את תנאי החיפוש.</p>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">לא נמצאו פריטים</h3>
+                <p class="mt-1 text-sm text-gray-500">נסה לשנות את תנאי החיפוש.</p>
             </div>
         </div>
 
@@ -134,8 +125,8 @@
         <!-- Profile View -->
         <div id="profile-view" class="view">
             <div class="my-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">הפריטים שלי</h2>
-                <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
+                <h2 class="text-2xl font-bold text-gray-800">הפריטים שלי</h2>
+                <p class="text-gray-500">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
             </div>
             <main id="profile-items-feed" class="space-y-6"></main>
         </div>
@@ -154,14 +145,14 @@
 
     <!-- Modals -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
-            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2> 
+        <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
+            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> 
             <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
                 <div class="space-y-4"> 
-                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" required> 
-                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3" required></textarea> 
+                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
                     <div class="grid grid-cols-2 gap-4">
-                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
                             <option value="" disabled selected>בחרי קטגוריה</option> 
                             <option value="pants">מכנסיים</option> 
                             <option value="shirts">חולצות</option> 
@@ -174,7 +165,7 @@
                             <option value="accessories">אקססוריז</option> 
                             <option value="general">כללי</option> 
                         </select>
-                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
+                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
                             <option value="" disabled selected>מצב הפריט</option>
                             <option value="new-with-tags">חדש עם טיקט</option>
                             <option value="new-without-tags">חדש ללא טיקט</option>
@@ -183,36 +174,36 @@
                             <option value="used">משומש</option>
                         </select>
                     </div>
-                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" required> 
-                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" required> 
+                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
                     <div id="affiliate-link-container" class="hidden"> 
-                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300">קישור אפילייט (מנהלים בלבד)</label> 
-                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"> 
+                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700">קישור אפילייט (מנהלים בלבד)</label> 
+                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
                     </div> 
                     <div id="promoted-container" class="hidden items-center">
                         <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
-                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">קדם פריט זה (יוצג בראש העמוד)</label>
+                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900">קדם פריט זה (יוצג בראש העמוד)</label>
                     </div>
                     <div> 
-                        <label for="item-images" class="block text-sm font-medium text-gray-700 dark:text-gray-300">העלאת תמונות (עד 6)</label> 
-                        <p class="text-xs text-gray-500 dark:text-gray-400">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
-                        <input type="file" id="item-images" name="images" class="mt-1 text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-teal-800 dark:file:text-teal-200 dark:hover:file:bg-teal-700" accept="image/*" multiple> 
+                        <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> 
+                        <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
+                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple> 
                         <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div> 
                     </div> 
                 </div> 
                 <div class="mt-6 flex justify-end gap-4"> 
-                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button> 
+                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button> 
                     <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button> 
                 </div> 
             </form> 
         </div> 
     </div>
     <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
-    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
+    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">שתפי את האפליקציה</h3>
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">שתפי את האפליקציה</h3>
             <div class="space-y-3">
                 <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
@@ -223,14 +214,14 @@
                     <span>העתקת קישור</span>
                 </button>
             </div>
-            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">&times;</button>
+            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
         </div>
     </div>
     
     <!-- NEW: Rating Modal -->
     <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
-            <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">דרג את המוכר</h2>
+        <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
+            <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800">דרג את המוכר</h2>
             <form id="rating-form">
                 <input type="hidden" id="rated-user-id">
                 <div class="star-rating mb-4">
@@ -240,9 +231,9 @@
                     <input type="radio" id="star2" name="rating" value="2" required/><label for="star2" title="2 כוכבים">&#9733;</label>
                     <input type="radio" id="star1" name="rating" value="1" required/><label for="star1" title="כוכב 1">&#9733;</label>
                 </div>
-                <textarea id="rating-comment" placeholder="ספר/י על חווית הקנייה... (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
+                <textarea id="rating-comment" placeholder="ספר/י על חווית הקנייה... (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3"></textarea>
                 <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
                     <button type="submit" id="submit-rating-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דירוג</button>
                 </div>
             </form>
