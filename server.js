@@ -254,7 +254,7 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
         let conversation = await Conversation.findOne({
             participants: { $all: [buyerId, sellerId] },
             item: itemId
-        }).populate('participants', 'displayName email image').populate('item');
+        });
 
         if (!conversation) {
             conversation = new Conversation({
@@ -262,9 +262,30 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
                 item: itemId
             });
             await conversation.save();
-            conversation = await Conversation.findById(conversation._id).populate('participants', 'displayName email image').populate('item');
+            
+            // Populate after saving to get all details for the notification
+            const newConversation = await Conversation.findById(conversation._id)
+                .populate('participants', 'displayName email image')
+                .populate('item', 'title');
+
+            const seller = newConversation.participants.find(p => p._id.toString() === sellerId);
+            const buyer = newConversation.participants.find(p => p._id.toString() === buyerId);
+
+            if (seller && buyer) {
+                 io.to(sellerId).emit('newConversation', {
+                    conversationId: newConversation._id,
+                    buyerName: buyer.displayName,
+                    itemName: newConversation.item.title
+                });
+            }
+            return res.status(201).json(newConversation);
         }
-        res.status(200).json(conversation);
+        
+        const existingConversation = await Conversation.findById(conversation._id)
+            .populate('participants', 'displayName email image')
+            .populate('item');
+
+        res.status(200).json(existingConversation);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
