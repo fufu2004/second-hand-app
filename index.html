@@ -786,20 +786,23 @@
         async function renderFullChatInterface(conversationId) {
             const token = localStorage.getItem('authToken');
             try {
-                // Fetch messages for the conversation
+                // 1. Fetch conversation details first
+                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!convoResponse.ok) {
+                    const errData = await convoResponse.json();
+                    throw new Error(errData.message || 'Failed to fetch conversation details');
+                }
+                const conversation = await convoResponse.json();
+                currentConversationDetails = conversation; // Store for sending messages
+
+                // 2. Fetch messages for the conversation
                 const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
                 const messages = await messagesResponse.json();
-                
-                // Fetch conversation details to get participants
-                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, { 
-                    headers: {'Authorization': `Bearer ${token}`} 
-                });
-                if (!convoResponse.ok) throw new Error('Failed to fetch conversation details');
-                const conversation = await convoResponse.json();
-                currentConversationDetails = conversation; // Store for sending messages
 
                 const otherParticipant = conversation.participants.find(p => p._id !== currentUser.id);
                 if (!otherParticipant) throw new Error("Could not identify the other participant in the chat.");
