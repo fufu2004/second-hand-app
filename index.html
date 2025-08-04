@@ -39,13 +39,15 @@
         .star-rating label:hover,
         .star-rating label:hover ~ label { color: #f59e0b; }
         .static-stars { color: #f59e0b; }
+        /* Announcement Bar Animation */
+        #announcement-bar span { transition: opacity 0.5s ease-in-out; }
     </style>
 </head>
 <body class="bg-gray-100">
 
     <!-- Announcement Bar -->
     <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
-        <span>זוהי הודעת בדיקה! ניתן לערוך את התוכן כאן.</span>
+        <span></span>
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
@@ -1207,9 +1209,42 @@
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
         // --- Announcement Bar Logic ---
-        document.getElementById('close-announcement')?.addEventListener('click', () => {
-            document.getElementById('announcement-bar').style.display = 'none';
-        });
+        const announcementBar = document.getElementById('announcement-bar');
+        const closeAnnouncementBtn = document.getElementById('close-announcement');
+        const announcementSpan = announcementBar.querySelector('span');
+
+        const announcements = [
+            "פריטים חדשים עולים כל שעה! אל תפספסו את המציאה הבאה שלכם.",
+            "קונים חכם, מוכרים בקלות. ברוכים הבאים לקהילת האופנה שלנו!",
+            "הצטרפו למהפכת האופנה המעגלית - תנו לבגדים שלכם חיים חדשים!",
+            "מצאתם פריט שאהבתם? שלחו הודעה למוכר/ת ותתחדשו!"
+        ];
+        let currentAnnouncementIndex = 0;
+        let announcementInterval;
+
+        function changeAnnouncement() {
+            if (!announcementSpan) return;
+            // Fade out
+            announcementSpan.style.opacity = '0';
+
+            setTimeout(() => {
+                // Change text
+                currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
+                announcementSpan.textContent = announcements[currentAnnouncementIndex];
+                // Fade in
+                announcementSpan.style.opacity = '1';
+            }, 500); // Wait for fade out to complete
+        }
+
+        if (announcementBar && closeAnnouncementBtn && announcementSpan) {
+            closeAnnouncementBtn.addEventListener('click', () => {
+                announcementBar.style.display = 'none';
+                if(announcementInterval) clearInterval(announcementInterval);
+            });
+            
+            announcementSpan.textContent = announcements[0];
+            announcementInterval = setInterval(changeAnnouncement, 5000); // Change every 5 seconds
+        }
         
         function populateCategoryFilter() {
             categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
