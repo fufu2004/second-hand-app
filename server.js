@@ -270,7 +270,6 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
     }
 });
 
-// NEW ROUTE to get a single conversation's details
 app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
     try {
         const conversation = await Conversation.findById(req.params.id)
@@ -324,7 +323,10 @@ io.on('connection', (socket) => {
             
             const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
             
-            io.to(senderId).to(receiverId).emit('newMessage', populatedMessage);
+            // Emit to each room separately for reliability
+            io.to(senderId).emit('newMessage', populatedMessage);
+            io.to(receiverId).emit('newMessage', populatedMessage);
+
         } catch (error) {
             console.error('Error sending message:', error);
         }
