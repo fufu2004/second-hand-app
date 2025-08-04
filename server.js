@@ -14,6 +14,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail'); // ייבוא הספרייה של SendGrid
+const path = require('path'); // הוספת המודול 'path'
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -117,6 +118,10 @@ const upload = multer({ storage: storage });
 // --- הגדרת Middleware ---
 app.use(cors());
 app.use(express.json());
+
+// --- הוספת הקוד להגשת קבצים סטטיים ---
+app.use(express.static(path.join(__dirname)));
+
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
