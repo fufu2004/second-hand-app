@@ -180,8 +180,27 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
 
 app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
-app.get('/users/:id/items', async (req, res) => { try { const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
-app.get('/users/:id', async (req, res) => { try { const user = await User.findById(req.params.id).select('displayName image averageRating'); if (!user) return res.status(404).json({ message: 'User not found' }); res.json(user); } catch (err) { res.status(500).json({ message: err.message }); } });
+
+// --- נתיבים חדשים לפרופיל ציבורי ---
+app.get('/users/:id/items', async (req, res) => { 
+    try { 
+        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); 
+        res.json(items); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
+});
+
+app.get('/users/:id', async (req, res) => { 
+    try { 
+        const user = await User.findById(req.params.id).select('displayName image averageRating'); 
+        if (!user) return res.status(404).json({ message: 'User not found' }); 
+        res.json(user); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
+});
+// --- סוף נתיבים חדשים ---
 
 
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
