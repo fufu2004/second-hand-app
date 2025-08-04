@@ -384,6 +384,10 @@
             } else {
                 currentUser = null;
             }
+            
+            if (currentUser) {
+                socket.emit('joinUserRoom', currentUser.id);
+            }
 
             updateUIForAuthState();
             fetchHistory();
