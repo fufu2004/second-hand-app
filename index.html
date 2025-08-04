@@ -196,11 +196,16 @@
 
 
     <script>
+        // This script contains the client-side logic for the application.
+        // It handles user authentication, item display, filtering, uploading, editing, deleting,
+        // real-time updates via WebSockets, and the chat functionality.
+
+        // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
         const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
         const CLIENT_URL = window.location.origin;
 
-        // UI Elements
+        // --- UI Element Selectors ---
         const mainView = document.getElementById('main-view');
         const profileView = document.getElementById('profile-view');
         const itemDetailView = document.getElementById('item-detail-view');
@@ -221,7 +226,7 @@
         const shareAppBtn = document.querySelectorAll('[id^="share-app-btn"]');
         const chatView = document.getElementById('chat-view');
         
-        // Modals & Forms
+        // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
         const uploadModal = document.getElementById('upload-modal');
         const galleryModal = document.getElementById('gallery-modal');
@@ -231,7 +236,7 @@
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
-        // Gallery Elements
+        // --- Gallery Elements Selectors ---
         const galleryImage = document.getElementById('gallery-image');
         const galleryClose = document.getElementById('gallery-close');
         const galleryPrev = document.getElementById('gallery-prev');
@@ -240,24 +245,45 @@
         
         const toastNotification = document.getElementById('toast-notification');
 
-        // Initialize socket variable
+        // --- Global State ---
         let socket;
+        let currentUser = null;
+        let currentFilter = { category: 'all', favorites: false, minPrice: null, maxPrice: null, sort: 'newest' };
+        let allItemsCache = {};
+        let galleryImages = [];
+        let currentImageIndex = 0;
+        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+        let currentConversationId = null;
+        let currentConversationDetails = null;
 
+        // --- Category Mapping ---
+        const categoryMap = { 
+            'pants': 'מכנסיים', 
+            'shirts': 'חולצות', 
+            'jackets': 'ג\'קטים', 
+            'dresses': 'שמלות', 
+            'skirts': 'חצאיות', 
+            'top': 'טופ', 
+            'tank-tops': 'גופיות', 
+            'blazer': 'בלייזר', 
+            'accessories': 'אקססוריז', 
+            'general': 'כללי' 
+        };
+        
+        /**
+         * Initializes or re-initializes the Socket.IO connection.
+         * @param {string | null} token - The JWT for authentication.
+         */
         function initializeSocket(token) {
-            // Disconnect previous socket if it exists to prevent multiple connections
             if (socket) {
                 socket.disconnect();
             }
             
-            // Create a new socket connection with the auth token
             socket = io(SERVER_URL, {
-                auth: {
-                    token: token
-                }
+                auth: { token: token }
             });
 
-            // --- Centralized Socket Listeners ---
-            // Remove all previous listeners to avoid duplication on re-initialization
+            // --- Centralized Socket Event Listeners ---
             socket.off('connect');
             socket.off('newItem');
             socket.off('itemDeleted');
@@ -267,12 +293,33 @@
 
             socket.on('connect', () => {
                 console.log('Connected to server with socket ID:', socket.id);
-                // The server's auth middleware now handles joining the room.
             });
 
-            socket.on('newItem', (item) => { allItemsCache[item._id] = item; applyFilters(); if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { const profileEmptyState = profileItemsFeed.querySelector('.text-center'); if (profileEmptyState) profileEmptyState.remove(); displayItem(item, true, profileItemsFeed); } });
-            socket.on('itemDeleted', (itemId) => { delete allItemsCache[itemId]; applyFilters(); const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); if (itemElementProfile) itemElementProfile.remove(); });
-            socket.on('itemUpdated', (updatedItem) => { allItemsCache[updatedItem._id] = updatedItem; applyFilters(); const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); if (profileFeedCard) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = createItemCard(updatedItem); profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); } });
+            socket.on('newItem', (item) => { 
+                allItemsCache[item._id] = item; 
+                applyFilters(); 
+                if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { 
+                    const profileEmptyState = profileItemsFeed.querySelector('.text-center'); 
+                    if (profileEmptyState) profileEmptyState.remove(); 
+                    displayItem(item, true, profileItemsFeed); 
+                } 
+            });
+            socket.on('itemDeleted', (itemId) => { 
+                delete allItemsCache[itemId]; 
+                applyFilters(); 
+                const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); 
+                if (itemElementProfile) itemElementProfile.remove(); 
+            });
+            socket.on('itemUpdated', (updatedItem) => { 
+                allItemsCache[updatedItem._id] = updatedItem; 
+                applyFilters(); 
+                const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); 
+                if (profileFeedCard) { 
+                    const tempDiv = document.createElement('div'); 
+                    tempDiv.innerHTML = createItemCard(updatedItem); 
+                    profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); 
+                } 
+            });
             
             socket.on('newMessage', (message) => {
                 if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
@@ -287,30 +334,6 @@
             });
         }
         
-        // State
-        let currentUser = null;
-        let currentFilter = { category: 'all', favorites: false, minPrice: null, maxPrice: null, sort: 'newest' };
-        let allItemsCache = {};
-        let galleryImages = [];
-        let currentImageIndex = 0;
-        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-        let currentConversationId = null;
-        let currentConversationDetails = null;
-
-        
-        const categoryMap = { 
-            'pants': 'מכנסיים', 
-            'shirts': 'חולצות', 
-            'jackets': 'ג\'קטים', 
-            'dresses': 'שמלות', 
-            'skirts': 'חצאיות', 
-            'top': 'טופ', 
-            'tank-tops': 'גופיות', 
-            'blazer': 'בלייזר', 
-            'accessories': 'אקססוריז', 
-            'general': 'כללי' 
-        };
-
         // --- Custom Modal System ---
         let modalResolver;
         function showCustomModal({ title, message, buttons }) {
@@ -332,41 +355,6 @@
             return new Promise(resolve => { modalResolver = resolve; });
         }
         
-        function showOverlayAlert(message, title = 'הודעה') {
-            const modal = document.getElementById('custom-modal');
-            document.getElementById('custom-modal-title').textContent = title;
-            document.getElementById('custom-modal-message').innerHTML = message;
-            const buttonsContainer = document.getElementById('custom-modal-buttons');
-            buttonsContainer.innerHTML = '';
-            
-            const buttonEl = document.createElement('button');
-            buttonEl.textContent = 'הבנתי';
-            buttonEl.className = 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition';
-            
-            const hideThisModal = () => {
-                modal.classList.add('opacity-0');
-                const content = modal.querySelector('.modal-content');
-                if (content) {
-                    content.classList.add('opacity-0', '-translate-y-10');
-                }
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                }, 300);
-            };
-            
-            buttonEl.onclick = hideThisModal;
-            buttonsContainer.appendChild(buttonEl);
-
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                const content = modal.querySelector('.modal-content');
-                if (content) {
-                    content.classList.remove('opacity-0', '-translate-y-10');
-                }
-            }, 10);
-        }
-
         async function showAlert(message, title = 'הודעה') {
             await showCustomModal({
                 title: title,
@@ -394,15 +382,19 @@
         allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
         // --- Gallery (Lightbox) System ---
-        function openGallery(images, startIndex = 0) { if (!images || images.length === 0) return; galleryImages = images; galleryModal.classList.remove('hidden'); setTimeout(() => galleryModal.classList.remove('opacity-0'), 10); document.body.style.overflow = 'hidden'; updateGalleryImage(startIndex); }
-        function closeGallery() { galleryModal.classList.add('opacity-0'); setTimeout(() => galleryModal.classList.add('hidden'), 300); document.body.style.overflow = ''; }
+        function openGallery(images, startIndex = 0) { if (!images || images.length === 0) return; galleryImages = images; showModal(galleryModal); document.body.style.overflow = 'hidden'; updateGalleryImage(startIndex); }
+        function closeGallery() { hideAllModals(); document.body.style.overflow = ''; }
         function updateGalleryImage(index) { currentImageIndex = index; galleryImage.src = galleryImages[index]; galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`; galleryPrev.disabled = index === 0; galleryNext.disabled = index === galleryImages.length - 1; }
         galleryPrev.addEventListener('click', () => { if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1); });
         galleryNext.addEventListener('click', () => { if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1); });
         galleryClose.addEventListener('click', closeGallery);
         document.addEventListener('keydown', (e) => { if (galleryModal.classList.contains('hidden')) return; if (e.key === 'Escape') closeGallery(); if (e.key === 'ArrowRight') galleryNext.click(); if (e.key === 'ArrowLeft') galleryPrev.click(); });
 
-        // --- JWT Parser ---
+        /**
+         * Parses a JWT token to extract its payload.
+         * @param {string} token - The JWT string.
+         * @returns {object|null} The decoded payload or null if parsing fails.
+         */
         function parseJwt (token) {
             try {
                 const base64Url = token.split('.')[1];
@@ -410,7 +402,6 @@
                 const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
-
                 return JSON.parse(jsonPayload);
             } catch (e) {
                 console.error("Invalid token:", e);
@@ -418,7 +409,7 @@
             }
         }
 
-        // --- Auth System ---
+        // --- Authentication System ---
         function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
@@ -432,33 +423,30 @@
             
             if (storedToken) {
                 const decodedUser = parseJwt(storedToken);
-                if (decodedUser && decodedUser.id) {
-                    currentUser = decodedUser;
-                } else {
-                    currentUser = null;
-                    localStorage.removeItem('authToken');
-                }
+                currentUser = (decodedUser && decodedUser.id) ? decodedUser : null;
+                if (!currentUser) localStorage.removeItem('authToken');
             } else {
                 currentUser = null;
             }
             
-            // Initialize socket with the current auth state (token or null)
             initializeSocket(storedToken);
-
             updateUIForAuthState();
             fetchHistory();
         }
 
         function updateUIForAuthState() {
             if (currentUser) {
+                // Desktop view - with alignment fixes
                 const loggedInHtmlDesktop = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-700">שלום, ${currentUser.name}</span>
-                        <button id="chat-btn-desktop" class="text-sm bg-cyan-500 text-white py-1 px-2 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                        <button id="profile-btn-desktop" class="text-sm bg-teal-500 text-white py-1 px-2 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                        <button id="logout-btn-desktop" class="text-sm bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-700 py-2">שלום, ${currentUser.name}</span>
+                        <button id="chat-btn-desktop" class="text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                        <button id="profile-btn-desktop" class="text-sm bg-teal-500 text-white py-2 px-3 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                        <button id="logout-btn-desktop" class="text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition">התנתקות</button>
                     </div>
                 `;
+                
+                // Mobile view - original code, untouched
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2">
                         <span class="text-sm text-gray-700 mb-2">שלום, ${currentUser.name}</span>
@@ -472,10 +460,10 @@
                 authContainerDesktop.innerHTML = loggedInHtmlDesktop;
                 authContainerMobile.innerHTML = loggedInHtmlMobile;
                 
+                // Add event listeners using unique IDs
                 document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
                 document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
                 document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-
 
             } else {
                 const loggedOutHtml = `
@@ -494,7 +482,6 @@
         function handleLogout() { 
             localStorage.removeItem('authToken'); 
             currentUser = null; 
-            // Re-initialize socket without a token to disconnect the authenticated user
             initializeSocket(null);
             showView('main-view'); 
             updateUIForAuthState(); 
@@ -502,26 +489,42 @@
         }
 
         // --- Profile View Logic ---
-        async function showProfileView() { showView('profile-view'); profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); const token = localStorage.getItem('authToken'); if (!token) { profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; return; } try { const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) throw new Error('Could not fetch user items'); const items = await response.json(); profileItemsFeed.innerHTML = ''; allItemsCache = {}; if (items.length === 0) { profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; } else { items.forEach(item => { const cardHtml = createItemCard(item); profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); }); } } catch (error) { console.error('Failed to fetch profile items:', error); profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; } }
+        async function showProfileView() { 
+            showView('profile-view'); 
+            profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) { 
+                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; 
+                return; 
+            } 
+            try { 
+                const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); 
+                if (!response.ok) throw new Error('Could not fetch user items'); 
+                const items = await response.json(); 
+                profileItemsFeed.innerHTML = ''; 
+                allItemsCache = {}; 
+                if (items.length === 0) { 
+                    profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; 
+                } else { 
+                    items.forEach(item => { 
+                        const cardHtml = createItemCard(item); 
+                        profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); 
+                    }); 
+                } 
+            } catch (error) { 
+                console.error('Failed to fetch profile items:', error); 
+                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; 
+            } 
+        }
 
         // --- Item Card Creation & Helpers ---
         function getWhatsAppLink(contact, title) {
             if (!contact) return null;
-            
             let digits = String(contact).replace(/\D/g, '');
-            
-            if (digits.startsWith('9725')) {
-                // Already correct
-            } else if (digits.startsWith('05')) {
-                digits = '972' + digits.substring(1);
-            } else {
-                return null;
-            }
-
-            if (digits.length !== 12) {
-                return null;
-            }
-
+            if (digits.startsWith('9725')) { /* Correct format */ } 
+            else if (digits.startsWith('05')) { digits = '972' + digits.substring(1); } 
+            else { return null; }
+            if (digits.length !== 12) return null;
             const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`);
             return `https://wa.me/${digits}?text=${whatsappMessage}`;
         }
@@ -529,15 +532,13 @@
         function createItemCard(item) {
             if (!item || !item.owner) {
                 console.error("Attempting to render an item with a missing owner. Skipping.", item);
-                return ''; // Return an empty string so nothing is rendered for this broken item.
+                return '';
             }
             allItemsCache[item._id] = item;
             
-            const ownerId = item.owner._id;
-            const isOwner = currentUser && ownerId && ownerId === currentUser.id;
+            const isOwner = currentUser && item.owner._id === currentUser.id;
             const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
-            
-            const isPostByAdmin = (item.affiliateLink && item.affiliateLink.length > 0);
+            const isPostByAdmin = item.affiliateLink && item.affiliateLink.length > 0;
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
@@ -548,8 +549,8 @@
             const date = new Date(item.createdAt);
             const dateString = date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             
-            let ownerName = (item.owner && item.owner.displayName) ? item.owner.displayName : 'אנונימי';
-            if (item.owner && item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+            let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
+            if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 ownerName = 'מנהל';
             }
 
@@ -565,21 +566,11 @@
             
             if (isPostByAdmin) {
                 const buttonText = 'לרכישה';
-                const link = item.affiliateLink;
+                const link = item.affiliateLink || getWhatsAppLink(item.contact, item.title);
                 const colorClasses = 'bg-amber-500 hover:bg-amber-600';
                 const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
-
-                if (link) {
-                    purchaseButtonHtml = `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>`;
-                } else { 
-                     const fallbackLink = getWhatsAppLink(item.contact, item.title);
-                     if(fallbackLink) {
-                        purchaseButtonHtml = `<a href="${fallbackLink}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>`;
-                     } else {
-                        purchaseButtonHtml = `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
-                     }
-                }
-            } else if (!isOwner) { // Show message button only if not the owner
+                purchaseButtonHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>` : `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
+            } else if (!isOwner) {
                 const buttonText = 'שלחי הודעה';
                 const colorClasses = 'bg-green-500 hover:bg-green-600';
                 const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>`;
@@ -588,24 +579,17 @@
             
             return `<div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}"><div class="md:w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>${soldStampHtml}<img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover"></div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><div class="flex-grow my-3"><p class="text-gray-600">${item.description || ''}</p></div><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="mt-auto pt-4 border-t border-gray-200 space-y-3">${!item.sold ? purchaseButtonHtml : ''}<div class="flex justify-between items-center"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-2"> <p class="text-xs text-gray-400">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div></div>`;
         }
+
         function createSkeletonCard() { return `<div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
-        function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); if (isNew) { container.insertAdjacentHTML('afterbegin', itemCardHtml); } else { container.insertAdjacentHTML('beforeend', itemCardHtml); } }
+        function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
         
         function generateContactHtml(item, ownerName) {
             if (!item || !item.owner) return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`;
-            
-            const contact = item.contact;
-            const title = item.title;
-            const ownerId = item.owner._id;
-
-            const ownerNameHtml = `<p class="text-sm text-teal-700 font-semibold cursor-pointer" onclick="showPublicProfile('${ownerId}')">${ownerName}</p>`;
-
-            // We keep the WhatsApp link as a fallback if needed, but the primary contact method will be the in-app chat.
-            const whatsappUrl = getWhatsAppLink(contact, title);
+            const ownerNameHtml = `<p class="text-sm text-teal-700 font-semibold cursor-pointer" onclick="showPublicProfile('${item.owner._id}')">${ownerName}</p>`;
+            const whatsappUrl = getWhatsAppLink(item.contact, item.title);
             if (whatsappUrl) {
                 return `<div class="flex items-center gap-2">${ownerNameHtml}<a href="${whatsappUrl}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="שלח הודעה בווטסאפ"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a></div>`;
             } 
-            
             return ownerNameHtml;
         }
         
@@ -613,22 +597,17 @@
         function applyFilters() {
             const searchTerm = (filterInput.value || '').toLowerCase().trim();
             const allItems = Object.values(allItemsCache);
-            let itemsFound = false;
-
+            
             let filteredItems = allItems.filter(item => {
-                // FIX: Ensure item and item.title exist before trying to access properties.
                 if (!item || !item.owner) return false; 
                 const title = (item.title || '').toLowerCase().trim();
-                const category = item.category;
-                const price = item.price;
-                const categoryName = (categoryMap[item.category] || '').toLowerCase(); // Get category name
+                const categoryName = (categoryMap[item.category] || '').toLowerCase();
 
-                const categoryMatch = (currentFilter.category === 'all' || category === currentFilter.category);
-                // FIX: Search in title AND category name
+                const categoryMatch = (currentFilter.category === 'all' || item.category === currentFilter.category);
                 const searchMatch = title.includes(searchTerm) || categoryName.includes(searchTerm);
                 const favoritesMatch = !currentFilter.favorites || favorites.includes(item._id);
-                const minPriceMatch = currentFilter.minPrice === null || !currentFilter.minPrice || price >= currentFilter.minPrice;
-                const maxPriceMatch = currentFilter.maxPrice === null || !currentFilter.maxPrice || price <= currentFilter.maxPrice;
+                const minPriceMatch = currentFilter.minPrice === null || !currentFilter.minPrice || item.price >= currentFilter.minPrice;
+                const maxPriceMatch = currentFilter.maxPrice === null || !currentFilter.maxPrice || item.price <= currentFilter.maxPrice;
 
                 return categoryMatch && searchMatch && favoritesMatch && minPriceMatch && maxPriceMatch;
             });
@@ -637,25 +616,18 @@
             filteredItems.sort((a, b) => {
                 if (a.isPromoted && !b.isPromoted) return -1;
                 if (!a.isPromoted && b.isPromoted) return 1;
-
                 switch (currentFilter.sort) {
-                    case 'price_asc':
-                        return a.price - b.price;
-                    case 'price_desc':
-                        return b.price - a.price;
-                    case 'newest':
-                    default:
-                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    case 'price_asc': return a.price - b.price;
+                    case 'price_desc': return b.price - a.price;
+                    default: return new Date(b.createdAt) - new Date(a.createdAt);
                 }
             });
 
             itemsFeed.innerHTML = '';
             if (filteredItems.length > 0) {
                 filteredItems.forEach(item => displayItem(item, false, itemsFeed));
-                itemsFound = true;
             }
-
-            emptyState.classList.toggle('hidden', itemsFound);
+            emptyState.classList.toggle('hidden', filteredItems.length > 0);
         }
 
         // --- Data Fetching ---
@@ -667,23 +639,12 @@
                 const items = await response.json();
                 
                 if (!response.ok) {
-                        console.error("Server response was not ok:", items);
-                        if (items && items.message && items.message.includes("timed out")) {
-                            itemsFeed.innerHTML = `
-                                <div class="text-center py-16 px-4 bg-white rounded-lg shadow-md">
-                                    <h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3>
-                                    <p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br>
-                                        יכולות להיות לכך שתי סיבות:</p>
-                                    <div class="text-right mx-auto max-w-md mt-4 space-y-4">
-                                        <p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p>
-                                        <p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p>
-                                    </div>
-                                    <button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button>
-                                </div>`;
-                        } else {
-                            itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
-                        }
-                        return;
+                    if (items && items.message && items.message.includes("timed out")) {
+                        itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3><p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br> יכולות להיות לכך שתי סיבות:</p><div class="text-right mx-auto max-w-md mt-4 space-y-4"><p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p><p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p></div><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
+                    } else {
+                        itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
+                    }
+                    return;
                 }
                 
                 if (!Array.isArray(items)) {
@@ -697,107 +658,77 @@
                 applyFilters();
             } catch (error) {
                 console.error('Failed to fetch history:', error);
-                itemsFeed.innerHTML = `
-                    <div class="text-center py-16 px-4 bg-white rounded-lg shadow-md">
-                        <h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3>
-                        <p class="mt-2 text-sm text-gray-600">
-                            לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.
-                        </p>
-                        <p class="mt-2 text-xs text-gray-500">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p>
-                        <button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button>
-                    </div>`;
+                itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3><p class="mt-2 text-sm text-gray-600">לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.</p><p class="mt-2 text-xs text-gray-500">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
             }
         }
         
         // --- Image Preview Handler ---
         function handleImagePreview(event) {
             const previewContainer = document.getElementById('image-preview-container');
-            previewContainer.innerHTML = ''; // Clear previous previews
+            previewContainer.innerHTML = '';
             const files = event.target.files;
 
             if (files.length > 6) {
-                showOverlayAlert('ניתן להעלות עד 6 תמונות בלבד.');
-                event.target.value = ''; // Clear the file input
+                showAlert('ניתן להעלות עד 6 תמונות בלבד.');
+                event.target.value = '';
                 return;
             }
 
-            if (files) {
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.className = 'w-16 h-16 object-cover rounded-md';
-                        previewContainer.appendChild(img);
-                    }
-                    reader.readAsDataURL(file);
-                });
-            }
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-16 h-16 object-cover rounded-md';
+                    previewContainer.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            });
         }
         
         // --- Share Logic ---
         function showShareModal(shareData) {
-            const whatsappShareLink = document.getElementById('whatsapp-share-link');
-            const copyLinkBtn = document.getElementById('copy-link-btn');
-            
-            whatsappShareLink.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
-            
-            copyLinkBtn.onclick = () => {
+            document.getElementById('whatsapp-share-link').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
+            document.getElementById('copy-link-btn').onclick = () => {
                 navigator.clipboard.writeText(shareData.url).then(() => {
                     showToast('הקישור הועתק!');
                     hideAllModals();
                 }).catch(err => console.error('Failed to copy text: ', err));
             };
-
             showModal(shareModal);
         }
 
         async function shareApp() {
-            const shareData = {
-                title: 'סטייל מתגלגל',
-                text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!',
-                url: CLIENT_URL,
-            };
-
-            if (navigator.share) {
-                try {
+            const shareData = { title: 'סטייל מתגלגל', text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!', url: CLIENT_URL };
+            try {
+                if (navigator.share) {
                     await navigator.share(shareData);
-                } catch (err) {
-                    console.error('Error sharing:', err);
+                } else {
+                    showShareModal(shareData);
                 }
-            } else {
-                showShareModal(shareData);
+            } catch (err) {
+                console.error('Error sharing:', err);
             }
         }
 
         // --- Chat Logic ---
         async function startOrOpenChat(sellerId, itemId) {
-            if (!currentUser) {
-                return showAlert('עליך להתחבר כדי לשלוח הודעה.');
-            }
-            if (currentUser.id === sellerId) {
-                return showAlert('לא ניתן לשלוח הודעה לעצמך.');
-            }
+            if (!currentUser) return showAlert('עליך להתחבר כדי לשלוח הודעה.');
+            if (currentUser.id === sellerId) return showAlert('לא ניתן לשלוח הודעה לעצמך.');
 
             const token = localStorage.getItem('authToken');
             try {
                 const response = await fetch(`${SERVER_URL}/api/conversations`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ sellerId, itemId })
                 });
-
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.message || 'Failed to start conversation');
                 }
-
                 const conversation = await response.json();
                 await showChatView(conversation._id);
-
             } catch (error) {
                 console.error('Error starting chat:', error);
                 showAlert(`שגיאה בפתיחת הצ'אט: ${error.message}`);
@@ -825,18 +756,11 @@
             }
 
             try {
-                const response = await fetch(`${SERVER_URL}/api/my-conversations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(`${SERVER_URL}/api/my-conversations`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) throw new Error('Failed to fetch conversations');
                 const conversations = await response.json();
 
-                let conversationsHtml = `
-                    <div class="p-4">
-                        <h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2>
-                        <button onclick="showView('main-view')" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>
-                `;
-
+                let conversationsHtml = `<div class="p-4"><h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2><button onclick="showView('main-view')" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>`;
                 if (conversations.length === 0) {
                     conversationsHtml += `<p class="text-center text-gray-500 mt-8">אין לך שיחות עדיין.</p>`;
                 } else {
@@ -844,16 +768,7 @@
                     conversations.forEach(convo => {
                         const otherParticipant = convo.participants.find(p => p._id !== currentUser.id);
                         if (otherParticipant) {
-                            conversationsHtml += `
-                                <div class="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition" onclick="showChatView('${convo._id}')">
-                                    <img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4">
-                                    <div class="flex-grow">
-                                        <p class="font-bold text-gray-800">${otherParticipant.displayName}</p>
-                                        <p class="text-sm text-gray-600">לגבי: ${convo.item.title}</p>
-                                    </div>
-                                    <img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover">
-                                </div>
-                            `;
+                            conversationsHtml += `<div class="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition" onclick="showChatView('${convo._id}')"><img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4"><div class="flex-grow"><p class="font-bold text-gray-800">${otherParticipant.displayName}</p><p class="text-sm text-gray-600">לגבי: ${convo.item.title}</p></div><img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover"></div>`;
                         }
                     });
                     conversationsHtml += `</div>`;
@@ -870,55 +785,23 @@
         async function renderFullChatInterface(conversationId) {
             const token = localStorage.getItem('authToken');
             try {
-                // 1. Fetch conversation details first
-                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!convoResponse.ok) {
                     const errData = await convoResponse.json();
                     throw new Error(errData.message || 'Failed to fetch conversation details');
                 }
-                const conversation = await convoResponse.json();
-                currentConversationDetails = conversation; // Store for sending messages
+                currentConversationDetails = await convoResponse.json();
 
-                // 2. Fetch messages for the conversation
-                const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
                 const messages = await messagesResponse.json();
 
-                const otherParticipant = conversation.participants.find(p => p._id !== currentUser.id);
+                const otherParticipant = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
                 if (!otherParticipant) throw new Error("Could not identify the other participant in the chat.");
 
-                chatView.innerHTML = `
-                    <div class="flex flex-col h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg">
-                        <!-- Chat Header -->
-                        <div class="flex items-center p-3 border-b">
-                            <button onclick="showChatView()" class="text-teal-500 p-2 rounded-full hover:bg-gray-100">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3">
-                            <span class="font-bold">${otherParticipant.displayName}</span>
-                        </div>
-                        <!-- Messages Container -->
-                        <div id="messages-container" class="flex-grow p-4 space-y-4 overflow-y-auto">
-                            <!-- Messages will be appended here -->
-                        </div>
-                        <!-- Message Input Form -->
-                        <div class="p-4 border-t">
-                            <form id="message-form" class="flex items-center gap-2">
-                                <input type="text" id="message-input" placeholder="כתוב הודעה..." class="flex-grow p-2 border rounded-full focus:ring-2 focus:ring-teal-400" autocomplete="off" required>
-                                <button type="submit" class="bg-teal-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" transform="rotate(180)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                `;
+                chatView.innerHTML = `<div class="flex flex-col h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg"><div class="flex items-center p-3 border-b"><button onclick="showChatView()" class="text-teal-500 p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button><img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3"><span class="font-bold">${otherParticipant.displayName}</span></div><div id="messages-container" class="flex-grow p-4 space-y-4 overflow-y-auto"></div><div class="p-4 border-t"><form id="message-form" class="flex items-center gap-2"><input type="text" id="message-input" placeholder="כתוב הודעה..." class="flex-grow p-2 border rounded-full focus:ring-2 focus:ring-teal-400" autocomplete="off" required><button type="submit" class="bg-teal-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" transform="rotate(180)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button></form></div></div>`;
 
                 messages.forEach(appendMessage);
-
                 document.getElementById('message-form').addEventListener('submit', handleSendMessage);
 
             } catch (error) {
@@ -932,9 +815,7 @@
             if (!messagesContainer) return;
 
             const isSent = message.sender._id === currentUser.id;
-            const bubbleClasses = isSent 
-                ? 'message-bubble sent self-end rounded-lg p-3' 
-                : 'message-bubble received self-start rounded-lg p-3 border';
+            const bubbleClasses = isSent ? 'message-bubble sent self-end rounded-lg p-3' : 'message-bubble received self-start rounded-lg p-3 border';
             
             const messageEl = document.createElement('div');
             messageEl.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
@@ -951,37 +832,23 @@
 
             if (text && currentConversationDetails && currentUser) {
                 const receiver = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
-
-                if (!receiver) {
-                    console.error("Error: Could not find receiver in the current conversation.");
-                    showAlert("שגיאה: לא ניתן היה למצוא את הנמען בשיחה.");
-                    return;
-                }
-
-                const messageData = {
+                if (!receiver) return showAlert("שגיאה: לא ניתן היה למצוא את הנמען בשיחה.");
+                
+                socket.emit('sendMessage', {
                     conversationId: currentConversationDetails._id,
                     senderId: currentUser.id,
                     receiverId: receiver._id,
                     text: text
-                };
-                socket.emit('sendMessage', messageData);
-                
-                // The message will be appended when it's received back from the server via the 'newMessage' socket event
-                // This prevents message duplication.
-
+                });
                 input.value = '';
             }
         }
-
 
         // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); });
         shareAppBtn.forEach(btn => btn.addEventListener('click', shareApp));
         openModalBtn.addEventListener('click', () => { 
-            if (!currentUser) { 
-                showAlert('יש להתחבר או להירשם כדי להוסיף פריט.'); 
-                return; 
-            } 
+            if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
             uploadForm.reset(); 
             editingItemIdInput.value = ''; 
             uploadModalTitle.textContent = 'העלאת פריט חדש'; 
@@ -1003,23 +870,54 @@
 
             showModal(uploadModal); 
         });
-        uploadForm.addEventListener('submit', async (e) => { e.preventDefault(); const token = localStorage.getItem('authToken'); if (!token) { return showAlert('יש להתחבר כדי לבצע פעולה זו.'); } const editingId = editingItemIdInput.value; const isEditing = !!editingId; const formData = new FormData(); formData.append('title', document.getElementById('item-title').value); formData.append('description', document.getElementById('item-description').value); formData.append('contact', document.getElementById('item-contact').value); formData.append('price', document.getElementById('item-price').value); formData.append('category', document.getElementById('item-category').value); const affiliateLink = document.getElementById('item-affiliate-link').value; if (currentUser && currentUser.email === ADMIN_EMAIL && affiliateLink) { formData.append('affiliateLink', affiliateLink); } const isPromoted = document.getElementById('item-promoted').checked; if (currentUser && currentUser.email === ADMIN_EMAIL) { formData.append('isPromoted', isPromoted); } const imageFiles = document.getElementById('item-images').files; if (!isEditing && imageFiles.length === 0) { return showAlert('יש להעלות לפחות תמונה אחת.'); } if (imageFiles.length > 0) { for (let i = 0; i < imageFiles.length; i++) { formData.append('images', imageFiles[i]); } } const submitBtn = document.getElementById('submit-btn'); submitBtn.disabled = true; submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; const url = isEditing ? `${SERVER_URL}/items/${editingId}` : `${SERVER_URL}/items`; const method = isEditing ? 'PATCH' : 'POST'; try { const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); if (!response.ok) { const errData = await response.json(); throw new Error(errData.message || 'Server responded with an error'); } hideAllModals(); } catch (error) { console.error('Upload/Edit failed:', error); showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); } finally { submitBtn.disabled = false; } });
+
+        uploadForm.addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
+            const isEditing = !!editingItemIdInput.value;
+            const formData = new FormData(uploadForm);
+            
+            const imageFiles = document.getElementById('item-images').files;
+            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
+            
+            const submitBtn = document.getElementById('submit-btn'); 
+            submitBtn.disabled = true; 
+            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
+            
+            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
+            const method = isEditing ? 'PATCH' : 'POST'; 
+            
+            try { 
+                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
+                if (!response.ok) { 
+                    const errData = await response.json(); 
+                    throw new Error(errData.message || 'Server responded with an error'); 
+                } 
+                hideAllModals(); 
+            } catch (error) { 
+                console.error('Upload/Edit failed:', error); 
+                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
+            } finally { 
+                submitBtn.disabled = false; 
+            } 
+        });
+
         document.body.addEventListener('click', async (e) => {
             const editButton = e.target.closest('.edit-btn');
             const deleteButton = e.target.closest('.delete-btn');
             const soldButton = e.target.closest('.sold-btn');
 
             if (soldButton) {
-                const id = soldButton.dataset.id;
-                await handleToggleSoldStatus(id);
+                await handleToggleSoldStatus(soldButton.dataset.id);
             }
 
             if (editButton) {
-                const id = editButton.dataset.id;
-                const itemToEdit = allItemsCache[id];
+                const itemToEdit = allItemsCache[editButton.dataset.id];
                 if (!itemToEdit) return showAlert('שגיאה: לא ניתן למצוא את פרטי הפריט.');
+                
                 uploadForm.reset();
-                editingItemIdInput.value = id;
+                editingItemIdInput.value = itemToEdit._id;
                 document.getElementById('item-title').value = itemToEdit.title;
                 document.getElementById('item-description').value = itemToEdit.description;
                 document.getElementById('item-category').value = itemToEdit.category;
@@ -1031,19 +929,14 @@
                 
                 const affiliateContainer = document.getElementById('affiliate-link-container');
                 const promotedContainer = document.getElementById('promoted-container');
-                const affiliateInput = document.getElementById('item-affiliate-link');
-                const promotedInput = document.getElementById('item-promoted');
-                
                 if (currentUser && currentUser.email === ADMIN_EMAIL) {
                     affiliateContainer.classList.remove('hidden');
                     promotedContainer.classList.remove('hidden');
-                    affiliateInput.value = itemToEdit.affiliateLink || '';
-                    promotedInput.checked = itemToEdit.isPromoted || false;
+                    document.getElementById('item-affiliate-link').value = itemToEdit.affiliateLink || '';
+                    document.getElementById('item-promoted').checked = itemToEdit.isPromoted || false;
                 } else {
                     affiliateContainer.classList.add('hidden');
                     promotedContainer.classList.add('hidden');
-                    affiliateInput.value = '';
-                    promotedInput.checked = false;
                 }
 
                 const previewContainer = document.getElementById('image-preview-container');
@@ -1059,9 +952,6 @@
 
             if (deleteButton) {
                 const id = deleteButton.dataset.id;
-                const token = localStorage.getItem('authToken');
-                if (!token) return showAlert('שגיאת אימות למחיקה.');
-
                 const confirmed = await showCustomModal({
                     title: 'אישור מחיקה',
                     message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
@@ -1072,24 +962,14 @@
                 });
 
                 if (confirmed) {
+                    const token = localStorage.getItem('authToken');
+                    if (!token) return showAlert('שגיאת אימות למחיקה.');
                     try {
-                        const response = await fetch(`${SERVER_URL}/items/${id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-
+                        const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
                         if (!response.ok) {
-                            let errorMessage = `השרת הגיב עם קוד שגיאה ${response.status}.`;
-                            try {
-                                const errData = await response.json();
-                                errorMessage = errData.message || JSON.stringify(errData);
-                            } catch (e) {
-                                const textError = await response.text();
-                                if (textError) { errorMessage = textError; }
-                            }
-                            throw new Error(errorMessage);
+                            const errData = await response.json();
+                            throw new Error(errData.message || `Error ${response.status}`);
                         }
-                        // If response is ok, the 'itemDeleted' socket event will handle the UI update.
                     } catch (error) {
                         console.error('Delete failed:', error);
                         showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
@@ -1097,7 +977,22 @@
                 }
             }
         });
-        async function handleToggleSoldStatus(id) { const token = localStorage.getItem('authToken'); if (!token) return showAlert('שגיאת אימות.'); const item = allItemsCache[id]; const newStatus = !item.sold; try { const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); if (!response.ok) throw new Error('Failed to update status'); } catch (error) { console.error('Failed to toggle sold status:', error); showAlert('שגיאה בעדכון סטטוס הפריט.'); } }
+
+        async function handleToggleSoldStatus(id) { 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) return showAlert('שגיאת אימות.'); 
+            const item = allItemsCache[id]; 
+            const newStatus = !item.sold; 
+            try { 
+                const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); 
+                if (!response.ok) throw new Error('Failed to update status'); 
+            } catch (error) { 
+                console.error('Failed to toggle sold status:', error); 
+                showAlert('שגיאה בעדכון סטטוס הפריט.'); 
+            } 
+        }
+
+        // --- Filter Event Listeners ---
         categorySelect.addEventListener('change', (e) => { currentFilter.category = e.target.value; applyFilters(); });
         sortSelect.addEventListener('change', (e) => { currentFilter.sort = e.target.value; applyFilters(); });
         minPriceInput.addEventListener('input', (e) => { currentFilter.minPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
@@ -1107,14 +1002,9 @@
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
         // --- Announcement Bar Logic ---
-        const announcementBar = document.getElementById('announcement-bar');
-        const closeAnnouncementBtn = document.getElementById('close-announcement');
-
-        if (announcementBar && closeAnnouncementBtn) {
-            closeAnnouncementBtn.addEventListener('click', () => {
-                announcementBar.style.display = 'none';
-            });
-        }
+        document.getElementById('close-announcement')?.addEventListener('click', () => {
+            document.getElementById('announcement-bar').style.display = 'none';
+        });
         
         function populateCategoryFilter() {
             categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
@@ -1126,7 +1016,7 @@
             }
         }
 
-        // Initial Setup
+        // --- Initial Application Setup ---
         populateCategoryFilter();
         checkAuthState();
     </script>
