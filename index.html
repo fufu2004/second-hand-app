@@ -612,13 +612,16 @@
             let itemsFound = false;
 
             let filteredItems = allItems.filter(item => {
-                if (!item || !item.owner || !item.title) return false; 
+                // FIX: Ensure item and item.title exist before trying to access properties.
+                if (!item || !item.owner) return false; 
                 const title = (item.title || '').toLowerCase().trim();
                 const category = item.category;
                 const price = item.price;
+                const categoryName = (categoryMap[item.category] || '').toLowerCase(); // Get category name
 
                 const categoryMatch = (currentFilter.category === 'all' || category === currentFilter.category);
-                const searchMatch = title.includes(searchTerm);
+                // FIX: Search in title AND category name
+                const searchMatch = title.includes(searchTerm) || categoryName.includes(searchTerm);
                 const favoritesMatch = !currentFilter.favorites || favorites.includes(item._id);
                 const minPriceMatch = currentFilter.minPrice === null || !currentFilter.minPrice || price >= currentFilter.minPrice;
                 const maxPriceMatch = currentFilter.maxPrice === null || !currentFilter.maxPrice || price <= currentFilter.maxPrice;
