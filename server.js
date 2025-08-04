@@ -270,6 +270,29 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
     }
 });
 
+// NEW ROUTE to get a single conversation's details
+app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
+    try {
+        const conversation = await Conversation.findById(req.params.id)
+            .populate('participants', 'displayName email image')
+            .populate('item', 'title');
+        
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found' });
+        }
+
+        const isParticipant = conversation.participants.some(p => p._id.toString() === req.user.id);
+        if (!isParticipant) {
+            return res.status(403).json({ message: 'Not authorized to view this conversation' });
+        }
+
+        res.json(conversation);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
 app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
     try {
         const messages = await Message.find({ conversation: req.params.id }).populate('sender', 'displayName image').sort('createdAt');
