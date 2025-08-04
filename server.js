@@ -70,7 +70,8 @@ const UserSchema = new mongoose.Schema({
         comment: String,
         createdAt: { type: Date, default: Date.now }
     }],
-    averageRating: { type: Number, default: 0 }
+    averageRating: { type: Number, default: 0 },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }] // NEW: Server-side favorites
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -85,6 +86,9 @@ const ItemSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
     sold: { type: Boolean, default: false }, 
     isPromoted: { type: Boolean, default: false },
+    // NEW: Fields for advanced filtering
+    condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
+    size: { type: String, trim: true },
     createdAt: { type: Date, default: Date.now } 
 });
 const Item = mongoose.model('Item', ItemSchema);
@@ -255,7 +259,37 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
-// --- סוף נתיבים חדשים ---
+
+// --- NEW: Routes for Favorites ---
+app.get('/api/my-favorites', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('favorites');
+        res.json(user.favorites);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
+    try {
+        const itemId = req.params.itemId;
+        const user = await User.findById(req.user.id);
+        
+        const index = user.favorites.indexOf(itemId);
+        if (index > -1) {
+            // Item is already a favorite, so remove it
+            user.favorites.splice(index, 1);
+        } else {
+            // Item is not a favorite, so add it
+            user.favorites.push(itemId);
+        }
+        
+        await user.save();
+        res.json(user.favorites); // Return the updated list of favorites
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 
 
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
@@ -271,7 +305,10 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             category: req.body.category, 
             contact: req.body.contact, 
             imageUrls: imageUrls,
-            owner: req.user.id 
+            owner: req.user.id,
+            // NEW: Add new fields from form
+            condition: req.body.condition,
+            size: req.body.size
         };
 
         if (req.user.email === ADMIN_EMAIL) {
