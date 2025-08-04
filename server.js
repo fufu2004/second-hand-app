@@ -323,17 +323,44 @@ app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
 });
 
 // --- הגדרת Socket.io ---
-io.on('connection', (socket) => { 
-    console.log('a user connected:', socket.id);
-
-    socket.on('joinUserRoom', (userId) => {
-        socket.join(userId);
-        console.log(`Socket ${socket.id} joined room ${userId}.`);
+// Middleware for authenticating socket connections
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        // Allow connection even without token for non-authenticated users
+        return next();
+    }
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            // Invalid token, but still allow connection without user data
+            console.log("Socket connection with invalid token.");
+            return next();
+        }
+        socket.user = user; // Attach user info to the socket
+        next();
     });
+});
+
+io.on('connection', (socket) => { 
+    if (socket.user) {
+        socket.join(socket.user.id);
+        console.log(`Socket ${socket.id} for user ${socket.user.name} connected and joined room ${socket.user.id}.`);
+    } else {
+        console.log('An anonymous user connected:', socket.id);
+    }
 
     socket.on('sendMessage', async (data) => {
         try {
             const { conversationId, senderId, receiverId, text } = data;
+            
+            // Security check: ensure the sender is who they say they are and is authenticated
+            if (!socket.user || socket.user.id !== senderId) {
+                console.error("Socket user does not match senderId. Aborting message send.");
+                // Optionally, emit an error back to the sender
+                socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
+                return;
+            }
+
             const message = new Message({
                 conversation: conversationId,
                 sender: senderId,
@@ -353,7 +380,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => { console.log('user disconnected'); }); 
+    socket.on('disconnect', () => { 
+        if (socket.user) {
+            console.log(`User ${socket.user.name} disconnected`);
+        } else {
+            console.log('An anonymous user disconnected');
+        }
+    }); 
 });
 
 // --- חיבור למסד הנתונים והרצת השרת ---
