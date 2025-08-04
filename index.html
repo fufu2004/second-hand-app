@@ -882,11 +882,8 @@
                 };
                 socket.emit('sendMessage', messageData);
                 
-                // Optimistically append the message to the UI
-                appendMessage({
-                    sender: { _id: currentUser.id },
-                    text: text
-                });
+                // The message will be appended when it's received back from the server via the 'newMessage' socket event
+                // This prevents message duplication.
 
                 input.value = '';
             }
