@@ -799,20 +799,64 @@
 
         async function showChatView(conversationId = null) {
             showView('chat-view');
-            chatView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div><p class="mt-4 text-gray-600">טוען שיחות...</p></div>`;
-
             if (conversationId) {
                 currentConversationId = conversationId;
                 await renderFullChatInterface(conversationId);
             } else {
-                // TODO: Implement a view that shows a list of all conversations
-                chatView.innerHTML = `
+                currentConversationId = null; 
+                currentConversationDetails = null;
+                await renderConversationsListView();
+            }
+        }
+        
+        async function renderConversationsListView() {
+            chatView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div><p class="mt-4 text-gray-600">טוען שיחות...</p></div>`;
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                chatView.innerHTML = `<p class="text-center p-8 text-red-500">עליך להתחבר כדי לראות את ההודעות שלך.</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/my-conversations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to fetch conversations');
+                const conversations = await response.json();
+
+                let conversationsHtml = `
                     <div class="p-4">
                         <h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2>
                         <button onclick="showView('main-view')" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>
-                        <p class="text-center text-gray-500 mt-8">תצוגת רשימת השיחות תתווסף בקרוב.</p>
-                    </div>
                 `;
+
+                if (conversations.length === 0) {
+                    conversationsHtml += `<p class="text-center text-gray-500 mt-8">אין לך שיחות עדיין.</p>`;
+                } else {
+                    conversationsHtml += `<div class="space-y-3">`;
+                    conversations.forEach(convo => {
+                        const otherParticipant = convo.participants.find(p => p._id !== currentUser.id);
+                        if (otherParticipant) {
+                            conversationsHtml += `
+                                <div class="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition" onclick="showChatView('${convo._id}')">
+                                    <img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4">
+                                    <div class="flex-grow">
+                                        <p class="font-bold text-gray-800">${otherParticipant.displayName}</p>
+                                        <p class="text-sm text-gray-600">לגבי: ${convo.item.title}</p>
+                                    </div>
+                                    <img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover">
+                                </div>
+                            `;
+                        }
+                    });
+                    conversationsHtml += `</div>`;
+                }
+                conversationsHtml += `</div>`;
+                chatView.innerHTML = conversationsHtml;
+
+            } catch (error) {
+                console.error('Error rendering conversations list:', error);
+                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת השיחות.</p>`;
             }
         }
 
@@ -844,7 +888,7 @@
                     <div class="flex flex-col h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg">
                         <!-- Chat Header -->
                         <div class="flex items-center p-3 border-b">
-                            <button onclick="showView('main-view')" class="text-teal-500 p-2 rounded-full hover:bg-gray-100">
+                            <button onclick="showChatView()" class="text-teal-500 p-2 rounded-full hover:bg-gray-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                             </button>
                             <img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3">
