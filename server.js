@@ -1,6 +1,7 @@
 // server.js
 
 // 1. ייבוא ספריות נדרשות
+require('dotenv').config(); // טוען משתני סביבה מקובץ .env
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -13,7 +14,8 @@ const session = require('express-session');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
-const sgMail = require('@sendgrid/mail'); // ייבוא הספרייה של SendGrid
+const sgMail = require('@sendgrid/mail');
+const path = require('path'); // הוספת המודול 'path'
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -35,7 +37,7 @@ const CLIENT_URL = process.env.CLIENT_URL;
 const SERVER_URL = process.env.SERVER_URL;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS; // המייל שאומת ב-SendGrid
+const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
 
 // --- הגדרת Cloudinary ---
 cloudinary.config({ 
@@ -49,7 +51,7 @@ if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
     sgMail.setApiKey(SENDGRID_API_KEY);
     console.log("SendGrid configured successfully.");
 } else {
-    console.warn("SendGrid is not configured. Missing SENDGRID_API_KEY or SENDER_EMAIL_ADDRESS environment variables. Email notifications will be disabled.");
+    console.warn("SendGrid is not configured. Email notifications will be disabled.");
 }
 
 // --- בדיקת משתני סביבה חיוניים ---
@@ -71,7 +73,7 @@ const UserSchema = new mongoose.Schema({
         createdAt: { type: Date, default: Date.now }
     }],
     averageRating: { type: Number, default: 0 },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }] // NEW: Server-side favorites
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }]
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -86,7 +88,6 @@ const ItemSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
     sold: { type: Boolean, default: false }, 
     isPromoted: { type: Boolean, default: false },
-    // NEW: Fields for advanced filtering
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
     createdAt: { type: Date, default: Date.now } 
@@ -117,6 +118,10 @@ const upload = multer({ storage: storage });
 // --- הגדרת Middleware ---
 app.use(cors());
 app.use(express.json());
+
+// --- הוספת הקוד להגשת קבצים סטטיים ---
+app.use(express.static(path.join(__dirname)));
+
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -561,6 +566,11 @@ io.on('connection', (socket) => {
             console.log('An anonymous user disconnected');
         }
     }); 
+});
+
+// --- נתיב להגשת קובץ ה-HTML ---
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // --- חיבור למסד הנתונים והרצת השרת ---
