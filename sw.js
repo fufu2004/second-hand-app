@@ -1,5 +1,5 @@
-// The version of the cache. Higher version number means old caches are invalidated.
-const CACHE_VERSION = 4; // עדכון גרסה כדי לאלץ ריענון
+// A high version number to forcefully invalidate all previous caches.
+const CACHE_VERSION = 10;
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 
 // The core files needed for the app to run offline.
@@ -49,44 +49,36 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // For navigation requests (loading the page itself), always try network first.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        // If network fails, serve the cached index.html as a fallback.
+        return caches.match('/index.html');
+      })
+    );
+    return;
+  }
+
+  // For other requests (CSS, JS, images), use the same network-first strategy.
   event.respondWith(
-    // 1. Try to fetch from the network.
     fetch(event.request)
       .then(networkResponse => {
         // If the network request is successful, cache the response and return it.
         // This keeps the cache up-to-date.
         if (networkResponse) {
-            // We need to clone the response because a response is a stream and can only be consumed once.
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME)
               .then(cache => {
-                // Cache the new response for the request.
                 cache.put(event.request, responseToCache);
               });
         }
         return networkResponse;
       })
       .catch(() => {
-        // 2. If the network fails (e.g., offline), try to get the response from the cache.
+        // If the network fails, try to get the response from the cache.
         console.log(`[Service Worker] Network request for ${event.request.url} failed. Trying cache.`);
-        return caches.match(event.request)
-          .then(cachedResponse => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // If the request is for a page navigation and it's not in the cache,
-            // return the offline fallback page.
-            if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-            // If it's another type of asset and not in cache, there's nothing we can do.
-            // The browser will show its default offline error.
-            return new Response("You are offline and this asset is not cached.", {
-              status: 404,
-              statusText: "Offline",
-              headers: { 'Content-Type': 'text/plain' }
-            });
-          });
+        return caches.match(event.request);
       })
   );
 });
