@@ -1,7 +1,7 @@
 // server.js
 
 // 1. ייבוא ספריות נדרשות
-require('dotenv').config(); // טוען משתני סביבה מקובץ .env
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -16,6 +16,7 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
 const path = require('path');
+const webPush = require('web-push'); // *** NEW: Import web-push ***
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -38,6 +39,27 @@ const SERVER_URL = process.env.SERVER_URL;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
+
+// *** NEW: VAPID Keys for Web Push ***
+// These keys are used to identify your application server to the push service.
+// IMPORTANT: You should generate your own keys once and store them securely in your .env file.
+// To generate keys, run this command in your terminal: npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.error("FATAL ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are missing from .env file!");
+    // In a real production environment, you might want to exit the process.
+    // process.exit(1); 
+} else {
+    webPush.setVapidDetails(
+        'mailto:your-email@example.com', // Replace with your contact email
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY
+    );
+    console.log("Web Push configured successfully.");
+}
+
 
 // --- הגדרת Cloudinary ---
 cloudinary.config({ 
@@ -76,9 +98,7 @@ const UserSchema = new mongoose.Schema({
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    // START: VERIFIED SELLER FIELD
     isVerified: { type: Boolean, default: false }
-    // END: VERIFIED SELLER FIELD
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -141,6 +161,19 @@ const NotificationSchema = new mongoose.Schema({
     fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
+
+// *** NEW: Schema for Push Subscriptions ***
+const PushSubscriptionSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    subscription: {
+        endpoint: { type: String, required: true, unique: true },
+        keys: {
+            p256dh: String,
+            auth: String
+        }
+    }
+});
+const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
 
 
 // --- הגדרות העלאת קבצים ---
@@ -227,6 +260,11 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
+// *** NEW: Route to send the VAPID Public Key to the client ***
+app.get('/api/vapid-public-key', (req, res) => {
+    res.send(VAPID_PUBLIC_KEY);
+});
+
 app.get('/items', async (req, res) => {
     try {
         await Item.updateMany(
@@ -262,7 +300,7 @@ app.get('/items', async (req, res) => {
         }
         
         const items = await Item.find(filters)
-            .populate('owner', 'displayName email isVerified') // Include isVerified
+            .populate('owner', 'displayName email isVerified')
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
@@ -283,7 +321,6 @@ app.get('/items', async (req, res) => {
 
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
-// --- נתיבים לפרופיל ציבורי ודירוגים ---
 app.get('/users/:id/items', async (req, res) => { 
     try { 
         const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); 
@@ -295,7 +332,7 @@ app.get('/users/:id/items', async (req, res) => {
 
 app.get('/users/:id', async (req, res) => { 
     try { 
-        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified'); // Include isVerified
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified'); 
         if (!user) return res.status(404).json({ message: 'User not found' }); 
         res.json(user); 
     } catch (err) { 
@@ -368,10 +405,7 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
     }
 });
 
-// START: VERIFIED SELLER ENDPOINTS
 app.post('/api/users/start-verification', authMiddleware, (req, res) => {
-    // In a real app, this would trigger an email or SMS verification flow.
-    // For now, it just returns an informational message.
     res.status(200).json({ message: 'Verification feature is coming soon! Stay tuned.' });
 });
 
@@ -388,9 +422,7 @@ app.patch('/api/users/:id/set-verified', authMiddleware, adminMiddleware, async 
         res.status(500).json({ message: 'Server error.' });
     }
 });
-// END: VERIFIED SELLER ENDPOINTS
 
-// --- Routes for Favorites ---
 app.get('/api/my-favorites', authMiddleware, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('favorites');
@@ -535,7 +567,6 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
 app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
-// *** Report Item Endpoint ***
 app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
     try {
         const { reason, details } = req.body;
@@ -733,6 +764,41 @@ app.post('/api/notifications/mark-as-read', authMiddleware, async (req, res) => 
     }
 });
 
+// *** NEW: Push Notification Subscription Routes ***
+app.post('/api/subscribe', authMiddleware, async (req, res) => {
+    const subscription = req.body;
+    try {
+        // Check if subscription already exists for this endpoint
+        const existingSubscription = await PushSubscription.findOne({ 'subscription.endpoint': subscription.endpoint });
+        if (existingSubscription) {
+            console.log('Subscription already exists.');
+            return res.status(200).json({ message: 'Subscription already exists.' });
+        }
+
+        const newSubscription = new PushSubscription({
+            user: req.user.id,
+            subscription: subscription
+        });
+        await newSubscription.save();
+        res.status(201).json({ message: 'Subscription saved successfully.' });
+    } catch (error) {
+        console.error("Error saving subscription:", error);
+        res.status(500).json({ message: 'Failed to save subscription.' });
+    }
+});
+
+app.post('/api/unsubscribe', authMiddleware, async (req, res) => {
+    const { endpoint } = req.body;
+    try {
+        await PushSubscription.deleteOne({ 'subscription.endpoint': endpoint, user: req.user.id });
+        res.status(200).json({ message: 'Subscription removed successfully.' });
+    } catch (error) {
+        console.error("Error removing subscription:", error);
+        res.status(500).json({ message: 'Failed to remove subscription.' });
+    }
+});
+
+
 // --- הגדרת Socket.io ---
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -792,34 +858,29 @@ io.on('connection', (socket) => {
             });
             await notification.save();
             io.to(receiverId).emit('newNotification', notification);
-
-            if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
-                try {
-                    const receiver = await User.findById(receiverId);
-                    const conversation = await Conversation.findById(conversationId).populate('item', 'title');
-
-                    if (!receiver || !sender || !conversation) {
-                        throw new Error("Could not find all details for email notification.");
-                    }
-
-                    const msg = {
-                        to: receiver.email,
-                        from: {
-                            email: SENDER_EMAIL_ADDRESS,
-                            name: 'סטייל מתגלגל'
-                        },
-                        subject: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`,
-                        html: `<div dir="rtl">...</div>`,
-                        text: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`
-                    };
-
-                    await sgMail.send(msg);
-                    console.log(`Email sent successfully to ${receiver.email}`);
-
-                } catch (emailError) {
-                    console.error("Failed to send email notification via SendGrid:", emailError.response ? emailError.response.body : emailError);
+            
+            // *** NEW: Send Push Notification on new message ***
+            const pushPayload = JSON.stringify({
+                title: `הודעה חדשה מ-${sender.displayName}`,
+                body: text,
+                icon: sender.image || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
+                data: {
+                    url: `${CLIENT_URL}?openChat=${conversationId}`
                 }
-            }
+            });
+            
+            const userSubscriptions = await PushSubscription.find({ user: receiverId });
+            userSubscriptions.forEach(sub => {
+                webPush.sendNotification(sub.subscription, pushPayload)
+                    .catch(async (err) => {
+                        if (err.statusCode === 410) { // 410 Gone: subscription is no longer valid
+                            console.log('Subscription has expired or is no longer valid. Removing.');
+                            await PushSubscription.findByIdAndDelete(sub._id);
+                        } else {
+                            console.error('Error sending push notification:', err);
+                        }
+                    });
+            });
 
         } catch (error) {
             console.error('Error sending message:', error);
