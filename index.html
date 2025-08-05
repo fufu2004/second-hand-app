@@ -65,6 +65,36 @@
         .static-stars { color: #f59e0b; }
         /* Announcement Bar Animation */
         #announcement-bar span { transition: opacity 0.5s ease-in-out; }
+        /* Notification Bell */
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid white;
+        }
+        .dark .notification-badge {
+             border-color: #1f2937;
+        }
+        #notifications-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -99,7 +129,7 @@
                 <!-- Left Side (end in RTL) -->
                 <div id="header-left-desktop" class="flex-1 flex justify-end items-center gap-4">
                     <!-- Auth Content injected by JS -->
-                    <div id="auth-content-desktop"></div>
+                    <div id="auth-content-desktop" class="flex items-center gap-4"></div>
                     <!-- Theme Toggle Button -->
                     <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
                         <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
@@ -274,7 +304,7 @@
         </div>
     </div>
     
-    <!-- *** NEW: Report Modal *** -->
+    <!-- Report Modal -->
     <div id="report-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
             <h2 class="text-xl font-bold mb-4 text-center text-red-700 dark:text-red-400">דיווח על פריט</h2>
@@ -400,10 +430,10 @@
         const customModal = document.getElementById('custom-modal');
         const shareModal = document.getElementById('share-modal');
         const ratingModal = document.getElementById('rating-modal');
-        const reportModal = document.getElementById('report-modal'); // New
+        const reportModal = document.getElementById('report-modal'); 
         const uploadForm = document.getElementById('upload-form');
         const ratingForm = document.getElementById('rating-form');
-        const reportForm = document.getElementById('report-form'); // New
+        const reportForm = document.getElementById('report-form'); 
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
@@ -423,9 +453,10 @@
         let allItemsCache = {};
         let galleryImages = [];
         let currentImageIndex = 0;
-        let favorites = []; // Will be fetched from server
+        let favorites = []; 
         let currentConversationId = null;
         let currentConversationDetails = null;
+        let notificationsCache = [];
 
         // --- Category Mapping ---
         const categoryMap = { 
@@ -441,10 +472,6 @@
             'general': 'כללי' 
         };
         
-        /**
-         * Initializes or re-initializes the Socket.IO connection.
-         * @param {string | null} token - The JWT for authentication.
-         */
         function initializeSocket(token) {
             if (socket) {
                 socket.disconnect();
@@ -454,13 +481,13 @@
                 auth: { token: token }
             });
 
-            // --- Centralized Socket Event Listeners ---
             socket.off('connect');
             socket.off('newItem');
             socket.off('itemDeleted');
             socket.off('itemUpdated');
             socket.off('newMessage');
             socket.off('newConversation');
+            socket.off('newNotification'); // NEW
 
             socket.on('connect', () => {
                 console.log('Connected to server with socket ID:', socket.id);
@@ -495,13 +522,18 @@
             socket.on('newMessage', (message) => {
                 if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
                     appendMessage(message);
-                } else {
-                    showToast(`הודעה חדשה מ-${message.sender.displayName}`);
                 }
             });
 
             socket.on('newConversation', (data) => {
                 showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
+            });
+
+            // *** NEW: Listen for new notifications ***
+            socket.on('newNotification', (notification) => {
+                notificationsCache.unshift(notification);
+                updateNotificationBell();
+                showToast(notification.message);
             });
         }
         
@@ -561,11 +593,6 @@
         galleryClose.addEventListener('click', closeGallery);
         document.addEventListener('keydown', (e) => { if (galleryModal.classList.contains('hidden')) return; if (e.key === 'Escape') closeGallery(); if (e.key === 'ArrowRight') galleryNext.click(); if (e.key === 'ArrowLeft') galleryPrev.click(); });
 
-        /**
-         * Parses a JWT token to extract its payload.
-         * @param {string} token - The JWT string.
-         * @returns {object|null} The decoded payload or null if parsing fails.
-         */
         function parseJwt (token) {
             try {
                 const base64Url = token.split('.')[1];
@@ -598,7 +625,7 @@
                 favorites = await response.json();
             } catch (error) {
                 console.error('Failed to fetch user favorites:', error);
-                favorites = []; // Default to empty on error
+                favorites = []; 
             }
         }
         
@@ -622,7 +649,9 @@
             }
             
             initializeSocket(storedToken);
-            if(currentUser) await fetchUserFavorites();
+            if(currentUser) {
+                await Promise.all([fetchUserFavorites(), fetchNotifications()]);
+            }
             updateUIForAuthState();
             fetchHistory();
         }
@@ -635,13 +664,19 @@
             `;
             
             if (currentUser) {
-                // --- Logged In State ---
-
-                // Desktop View
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
                 const actionButtonsHtml = `
+                    <div class="relative">
+                        <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <span id="notification-badge" class="notification-badge hidden"></span>
+                        </button>
+                        <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+                            <!-- Notifications will be rendered here -->
+                        </div>
+                    </div>
                     <div class="hidden sm:flex items-center gap-3">
                         <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
                         <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
@@ -650,7 +685,6 @@
                 `;
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
-                // Mobile View
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
@@ -662,13 +696,10 @@
                     </div>
                 `;
                 authContentMobile.innerHTML = loggedInHtmlMobile;
+                updateNotificationBell();
 
             } else {
-                // --- Logged Out State ---
-
-                // Desktop View
                 headerRightContent.innerHTML = shareButtonHtml;
-
                 const loginButtonHtml = `
                     <div class="hidden sm:flex">
                         <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
@@ -679,7 +710,6 @@
                 `;
                 authContentDesktop.innerHTML = loginButtonHtml;
 
-                // Mobile View
                 const loggedOutHtmlMobile = `
                      <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
@@ -695,6 +725,10 @@
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             document.getElementById('share-app-btn').addEventListener('click', shareApp);
+            const notificationsBtn = document.getElementById('notifications-btn');
+            if (notificationsBtn) {
+                notificationsBtn.addEventListener('click', toggleNotificationsPanel);
+            }
         }
         
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
@@ -973,7 +1007,6 @@
 
                 hideAllModals();
                 showToast('הדירוג שלך נשלח בהצלחה!');
-                // Refresh the profile view to show the new rating
                 if (publicProfileView.classList.contains('active')) {
                     showPublicProfile(ratedUserId);
                 }
@@ -1480,9 +1513,83 @@
                 showToast('הדיווח שלך נשלח בהצלחה. תודה!');
             } catch (error) {
                 console.error('Failed to submit report:', error);
-                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
             }
         });
+
+        // *** NEW: Notification Logic ***
+        async function fetchNotifications() {
+            if (!currentUser) return;
+            const token = localStorage.getItem('authToken');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/notifications`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Could not fetch notifications');
+                notificationsCache = await response.json();
+                updateNotificationBell();
+            } catch (error) {
+                console.error('Failed to fetch notifications:', error);
+            }
+        }
+
+        function updateNotificationBell() {
+            const badge = document.getElementById('notification-badge');
+            if (!badge) return;
+            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function renderNotifications() {
+            const panel = document.getElementById('notifications-panel');
+            if (!panel) return;
+
+            if (notificationsCache.length === 0) {
+                panel.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">אין התראות חדשות.</div>`;
+                return;
+            }
+
+            panel.innerHTML = notificationsCache.map(n => `
+                <div class="p-3 border-b dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${!n.isRead ? 'font-bold' : ''}">
+                    <p class="text-sm">${n.message}</p>
+                    <p class="text-xs text-gray-400">${new Date(n.createdAt).toLocaleString('he-IL')}</p>
+                </div>
+            `).join('');
+        }
+
+        async function markNotificationsAsRead() {
+            const token = localStorage.getItem('authToken');
+            try {
+                await fetch(`${SERVER_URL}/api/notifications/mark-as-read`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                notificationsCache.forEach(n => n.isRead = true);
+                updateNotificationBell();
+            } catch (error) {
+                console.error('Failed to mark notifications as read:', error);
+            }
+        }
+        
+        function toggleNotificationsPanel() {
+            const panel = document.getElementById('notifications-panel');
+            if (!panel) return;
+
+            const isVisible = panel.style.display === 'block';
+            if (isVisible) {
+                panel.style.display = 'none';
+            } else {
+                renderNotifications();
+                panel.style.display = 'block';
+                markNotificationsAsRead();
+            }
+        }
+
 
         // --- Announcement Bar Logic ---
         const announcementBar = document.getElementById('announcement-bar');
@@ -1500,16 +1607,12 @@
 
         function changeAnnouncement() {
             if (!announcementSpan) return;
-            // Fade out
             announcementSpan.style.opacity = '0';
-
             setTimeout(() => {
-                // Change text
                 currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
                 announcementSpan.textContent = announcements[currentAnnouncementIndex];
-                // Fade in
                 announcementSpan.style.opacity = '1';
-            }, 500); // Wait for fade out to complete
+            }, 500);
         }
 
         if (announcementBar && closeAnnouncementBtn && announcementSpan) {
@@ -1519,7 +1622,7 @@
             });
             
             announcementSpan.textContent = announcements[0];
-            announcementInterval = setInterval(changeAnnouncement, 5000); // Change every 5 seconds
+            announcementInterval = setInterval(changeAnnouncement, 5000);
         }
         
         function populateCategoryFilter() {
