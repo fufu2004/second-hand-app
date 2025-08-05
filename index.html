@@ -1073,7 +1073,7 @@
                 
                 if (!response.ok) {
                     if (items && items.message && items.message.includes("timed out")) {
-                        itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br> יכולות להיות לכך שתי סיבות:</p><div class="text-right mx-auto max-w-md mt-4 space-y-4"><p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p><p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p></div><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
+                        itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br> יכולות להיות לכך שתי סיבות:</p><div class="text-right mx-auto max-w-md mt-4 space-y-4"><p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p><p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p></div><button data-action="retry-fetch" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
                     } else {
                         itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
                     }
@@ -1091,7 +1091,7 @@
                 applyFilters();
             } catch (error) {
                 console.error('Failed to fetch history:', error);
-                itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.</p><p class="mt-2 text-xs text-gray-500 dark:text-gray-400">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
+                itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.</p><p class="mt-2 text-xs text-gray-500 dark:text-gray-400">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p><button data-action="retry-fetch" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
             }
         }
         
@@ -1497,6 +1497,10 @@
                             showPublicProfile(userId);
                         }
                     }
+                    break;
+                }
+                case 'retry-fetch': {
+                    fetchHistory();
                     break;
                 }
             }
