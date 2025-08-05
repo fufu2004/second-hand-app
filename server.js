@@ -15,7 +15,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
-const path = require('path');
+const path =require('path');
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -775,6 +775,16 @@ io.on('connection', (socket) => {
         }
     }); 
 });
+
+// --- נתיב ייעודי לקובץ Service Worker עם הוראות למניעת שמירה במטמון ---
+app.get('/sw.js', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.sendFile(path.join(__dirname, 'sw.js'));
+});
+
 
 // --- נתיב להגשת קובץ ה-HTML ---
 app.get('*', (req, res) => {
