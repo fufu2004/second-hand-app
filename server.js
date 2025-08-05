@@ -136,7 +136,6 @@ const NotificationSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
 
-// *** NEW: Offer Schema and Model ***
 const OfferSchema = new mongoose.Schema({
     item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
     buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
