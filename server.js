@@ -15,7 +15,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
-const path =require('path');
+const path = require('path');
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -74,6 +74,7 @@ const UserSchema = new mongoose.Schema({
     }],
     averageRating: { type: Number, default: 0 },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+    // *** NEW: Follower system fields ***
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
@@ -128,23 +129,13 @@ const Report = mongoose.model('Report', ReportSchema);
 
 const NotificationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower', 'new-offer', 'offer-accepted', 'offer-rejected', 'counter-offer'] },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
     message: { type: String, required: true },
     link: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
-
-const OfferSchema = new mongoose.Schema({
-    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
-    buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    offerPrice: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'accepted', 'rejected', 'countered'], default: 'pending' },
-    counterPrice: { type: Number },
-}, { timestamps: true });
-const Offer = mongoose.model('Offer', OfferSchema);
 
 
 // --- הגדרות העלאת קבצים ---
@@ -203,21 +194,6 @@ const authMiddleware = (req, res, next) => {
     });
 };
 
-const optionalAuthMiddleware = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) return next();
-
-    const token = authHeader.split(' ')[1];
-    if (token == null) return next();
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (!err) {
-            req.user = user;
-        }
-        next();
-    });
-};
-
 // --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
 const uploadToCloudinary = (fileBuffer) => {
     return new Promise((resolve, reject) => {
@@ -237,42 +213,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-app.get('/api/feed', optionalAuthMiddleware, async (req, res) => {
-    try {
-        const baseQuery = { sold: false };
-
-        if (req.user) {
-            const currentUser = await User.findById(req.user.id);
-            if (!currentUser) {
-                const allItems = await Item.find(baseQuery).populate('owner', 'displayName email').sort({ createdAt: -1 });
-                return res.json({ followedItems: [], otherItems: allItems });
-            }
-
-            const followingIds = currentUser.following;
-
-            const followedItems = await Item.find({ 
-                ...baseQuery,
-                owner: { $in: followingIds },
-            }).populate('owner', 'displayName email').sort({ createdAt: -1 });
-
-            const otherItems = await Item.find({
-                ...baseQuery,
-                owner: { $nin: [...followingIds, currentUser._id] }
-            }).populate('owner', 'displayName email').sort({ createdAt: -1 });
-
-            const feed = { followedItems, otherItems };
-            res.json(feed);
-
-        } else {
-            const allItems = await Item.find(baseQuery).populate('owner', 'displayName email').sort({ createdAt: -1 });
-            res.json({ followedItems: [], otherItems: allItems });
-        }
-    } catch (err) {
-        console.error("Error fetching feed:", err);
-        res.status(500).json({ message: err.message });
-    }
-});
-
+app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- נתיבים לפרופיל ציבורי ודירוגים ---
@@ -389,7 +330,7 @@ app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
     }
 });
 
-// *** Follow/Unfollow Route ***
+// *** NEW: Follow/Unfollow Route ***
 app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
     const currentUserId = req.user.id;
     const targetUserId = req.params.id;
@@ -775,16 +716,6 @@ io.on('connection', (socket) => {
         }
     }); 
 });
-
-// --- נתיב ייעודי לקובץ Service Worker עם הוראות למניעת שמירה במטמון ---
-app.get('/sw.js', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-    res.sendFile(path.join(__dirname, 'sw.js'));
-});
-
 
 // --- נתיב להגשת קובץ ה-HTML ---
 app.get('*', (req, res) => {
