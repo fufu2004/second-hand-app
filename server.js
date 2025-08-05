@@ -194,6 +194,22 @@ const authMiddleware = (req, res, next) => {
     });
 };
 
+// *** NEW: Optional Auth Middleware ***
+const optionalAuthMiddleware = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return next();
+
+    const token = authHeader.split(' ')[1];
+    if (token == null) return next();
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (!err) {
+            req.user = user;
+        }
+        next();
+    });
+};
+
 // --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
 const uploadToCloudinary = (fileBuffer) => {
     return new Promise((resolve, reject) => {
@@ -213,7 +229,43 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+// *** NEW: Personalized Feed Route ***
+app.get('/api/feed', optionalAuthMiddleware, async (req, res) => {
+    try {
+        const baseQuery = { sold: false };
+
+        if (req.user) {
+            const currentUser = await User.findById(req.user.id);
+            if (!currentUser) {
+                const allItems = await Item.find(baseQuery).populate('owner', 'displayName email').sort({ createdAt: -1 });
+                return res.json({ followedItems: [], otherItems: allItems });
+            }
+
+            const followingIds = currentUser.following;
+
+            const followedItems = await Item.find({ 
+                ...baseQuery,
+                owner: { $in: followingIds },
+            }).populate('owner', 'displayName email').sort({ createdAt: -1 });
+
+            const otherItems = await Item.find({
+                ...baseQuery,
+                owner: { $nin: [...followingIds, currentUser._id] }
+            }).populate('owner', 'displayName email').sort({ createdAt: -1 });
+
+            const feed = { followedItems, otherItems };
+            res.json(feed);
+
+        } else {
+            const allItems = await Item.find(baseQuery).populate('owner', 'displayName email').sort({ createdAt: -1 });
+            res.json({ followedItems: [], otherItems: allItems });
+        }
+    } catch (err) {
+        console.error("Error fetching feed:", err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- נתיבים לפרופיל ציבורי ודירוגים ---
