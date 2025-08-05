@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#14b8a6"/>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
@@ -249,6 +255,17 @@
         // It handles user authentication, item display, filtering, uploading, editing, deleting,
         // real-time updates via WebSockets, and the chat functionality.
 
+        // --- PWA Service Worker Registration ---
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }, err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+          });
+        }
+
         // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
         const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
@@ -465,7 +482,6 @@
         
         // --- Authentication System ---
         
-        // *** FIXED ***: Added the missing fetchUserFavorites function
         async function fetchUserFavorites() {
             if (!currentUser) {
                 favorites = [];
@@ -506,7 +522,6 @@
             }
             
             initializeSocket(storedToken);
-            // *** FIXED ***: The call to fetchUserFavorites will now work
             if(currentUser) await fetchUserFavorites();
             updateUIForAuthState();
             fetchHistory();
@@ -1047,7 +1062,7 @@
                     const errData = await convoResponse.json();
                     throw new Error(errData.message || 'Failed to fetch conversation details');
                 }
-                currentConversationDetails = await convoResponse.json();
+                currentConversationDetails = await response.json();
 
                 const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
