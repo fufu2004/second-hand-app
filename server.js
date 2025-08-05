@@ -75,7 +75,10 @@ const UserSchema = new mongoose.Schema({
     averageRating: { type: Number, default: 0 },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // START: VERIFIED SELLER FIELD
+    isVerified: { type: Boolean, default: false }
+    // END: VERIFIED SELLER FIELD
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -93,10 +96,8 @@ const ItemSchema = new mongoose.Schema({
     promotedUntil: { type: Date },
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
-    // START: ADVANCED SEARCH FIELDS
     brand: { type: String, trim: true },
     location: { type: String, trim: true },
-    // END: ADVANCED SEARCH FIELDS
     createdAt: { type: Date, default: Date.now } 
 });
 const Item = mongoose.model('Item', ItemSchema);
@@ -198,6 +199,15 @@ const authMiddleware = (req, res, next) => {
     });
 };
 
+// Middleware לבדיקת הרשאות מנהל
+const adminMiddleware = (req, res, next) => {
+    if (req.user && req.user.email === ADMIN_EMAIL) {
+        next();
+    } else {
+        res.status(403).json({ message: 'Admin access required.' });
+    }
+};
+
 // --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
 const uploadToCloudinary = (fileBuffer) => {
     return new Promise((resolve, reject) => {
@@ -235,10 +245,8 @@ app.get('/items', async (req, res) => {
         if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
         if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
         if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
-        // START: ADVANCED SEARCH FILTERS
         if (req.query.brand) filters.brand = { $regex: req.query.brand.trim(), $options: 'i' };
         if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
-        // END: ADVANCED SEARCH FILTERS
 
         const sortOptions = {};
         sortOptions.isPromoted = -1; 
@@ -254,7 +262,7 @@ app.get('/items', async (req, res) => {
         }
         
         const items = await Item.find(filters)
-            .populate('owner', 'displayName email')
+            .populate('owner', 'displayName email isVerified') // Include isVerified
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
@@ -273,12 +281,12 @@ app.get('/items', async (req, res) => {
     }
 });
 
-app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- נתיבים לפרופיל ציבורי ודירוגים ---
 app.get('/users/:id/items', async (req, res) => { 
     try { 
-        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); 
+        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); 
         res.json(items); 
     } catch (err) { 
         res.status(500).json({ message: err.message }); 
@@ -287,7 +295,7 @@ app.get('/users/:id/items', async (req, res) => {
 
 app.get('/users/:id', async (req, res) => { 
     try { 
-        const user = await User.findById(req.params.id).select('displayName image averageRating followers following'); 
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified'); // Include isVerified
         if (!user) return res.status(404).json({ message: 'User not found' }); 
         res.json(user); 
     } catch (err) { 
@@ -360,6 +368,28 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
     }
 });
 
+// START: VERIFIED SELLER ENDPOINTS
+app.post('/api/users/start-verification', authMiddleware, (req, res) => {
+    // In a real app, this would trigger an email or SMS verification flow.
+    // For now, it just returns an informational message.
+    res.status(200).json({ message: 'Verification feature is coming soon! Stay tuned.' });
+});
+
+app.patch('/api/users/:id/set-verified', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { isVerified } = req.body;
+        const user = await User.findByIdAndUpdate(req.params.id, { isVerified: isVerified }, { new: true });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ message: `User verification status set to ${isVerified}`, user });
+    } catch (error) {
+        console.error("Error setting verification status:", error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+// END: VERIFIED SELLER ENDPOINTS
+
 // --- Routes for Favorites ---
 app.get('/api/my-favorites', authMiddleware, async (req, res) => {
     try {
@@ -389,7 +419,6 @@ app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
     }
 });
 
-// *** NEW: Follow/Unfollow Route ***
 app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
     const currentUserId = req.user.id;
     const targetUserId = req.params.id;
@@ -409,15 +438,12 @@ app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
         const isFollowing = currentUser.following.includes(targetUserId);
 
         if (isFollowing) {
-            // Unfollow
             await User.updateOne({ _id: currentUserId }, { $pull: { following: targetUserId } });
             await User.updateOne({ _id: targetUserId }, { $pull: { followers: currentUserId } });
         } else {
-            // Follow
             await User.updateOne({ _id: currentUserId }, { $addToSet: { following: targetUserId } });
             await User.updateOne({ _id: targetUserId }, { $addToSet: { followers: currentUserId } });
 
-            // Create notification
             const notification = new Notification({
                 user: targetUserId,
                 type: 'new-follower',
@@ -454,10 +480,8 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             owner: req.user.id,
             condition: req.body.condition,
             size: req.body.size,
-            // START: ADVANCED SEARCH FIELDS
             brand: req.body.brand,
             location: req.body.location
-            // END: ADVANCED SEARCH FIELDS
         };
 
         if (req.user.email === ADMIN_EMAIL) {
@@ -467,7 +491,7 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         
         const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
-        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email');
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified');
         io.emit('newItem', populatedItem);
         res.status(201).json(populatedItem);
     } catch (err) {
@@ -499,7 +523,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
             delete updateData.isPromoted;
         }
 
-        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email');
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email isVerified');
         io.emit('itemUpdated', updatedItem);
         res.json(updatedItem);
     } catch (err) {
@@ -508,7 +532,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
     }
 });
 
-app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
+app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // *** Report Item Endpoint ***
@@ -562,7 +586,6 @@ app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
     }
 });
 
-// START: PROMOTE FEATURE ENDPOINT
 app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
     try {
         const item = await Item.findById(req.params.id);
@@ -573,18 +596,15 @@ app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
             return res.status(403).json({ message: 'You can only promote your own items.' });
         }
 
-        // In a real application, you would integrate a payment provider like Stripe here.
-        // For now, we'll simulate a successful payment.
         const paymentSuccessful = true;
 
         if (paymentSuccessful) {
             item.isPromoted = true;
-            // Set promotion to expire in 24 hours
             item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); 
             await item.save();
 
-            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email');
-            io.emit('itemUpdated', updatedItem); // Notify all clients about the update
+            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified');
+            io.emit('itemUpdated', updatedItem);
             
             res.status(200).json({ message: 'Item promoted successfully!', item: updatedItem });
         } else {
@@ -596,7 +616,6 @@ app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Failed to promote item.' });
     }
 });
-// END: PROMOTE FEATURE ENDPOINT
 
 
 // --- Chat Routes ---
