@@ -1,6 +1,7 @@
 // server.js
 
 // 1. ייבוא ספריות נדרשות
+require('dotenv').config(); // טוען משתני סביבה מקובץ .env
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -26,8 +27,6 @@ const io = new Server(server, {
     }
 });
 const PORT = process.env.PORT || 3000;
-
-app.set('trust proxy', 1);
 
 // --- קריאת משתני סביבה ---
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -119,6 +118,8 @@ const upload = multer({ storage: storage });
 // --- הגדרת Middleware ---
 app.use(cors());
 app.use(express.json());
+
+// --- הוספת הקוד להגשת קבצים סטטיים ---
 app.use(express.static(path.join(__dirname)));
 
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
@@ -566,18 +567,6 @@ io.on('connection', (socket) => {
         }
     }); 
 });
-
-// --- *** FIXED ***: Explicitly serve PWA files before the catch-all route ---
-app.get('/manifest.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.sendFile(path.join(__dirname, 'manifest.json'));
-});
-
-app.get('/sw.js', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(path.join(__dirname, 'sw.js'));
-});
-
 
 // --- נתיב להגשת קובץ ה-HTML ---
 app.get('*', (req, res) => {
