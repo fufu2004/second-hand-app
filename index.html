@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
 
     <!-- PWA Meta Tags -->
@@ -139,7 +139,7 @@
                     <span>הצג מועדפים בלבד</span>
                 </button>
             </div>
-            <main id="items-feed" class="space-y-6"></main>
+            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
             <div id="empty-state" class="text-center py-16 px-4 hidden">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                 <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
@@ -156,7 +156,7 @@
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
                 <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
             </div>
-            <main id="profile-items-feed" class="space-y-6"></main>
+            <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
 
         <!-- NEW: Chat View -->
@@ -856,10 +856,35 @@
                 purchaseButtonHtml = `<button onclick="startOrOpenChat('${item.owner._id}', '${item._id}')" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></button>`;
             }
             
-            return `<div id="item-${item._id}" class="item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}"><div class="md:w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'><img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 dark:bg-gray-700 md:h-full md:object-cover">${soldStampHtml}</div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><div class="flex-grow my-3"><p class="text-gray-600 dark:text-gray-300">${item.description || ''}</p></div><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">${!item.sold ? purchaseButtonHtml : ''}<div class="flex justify-between items-center"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-2"> <p class="text-xs text-gray-400 dark:text-gray-500">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div></div>`;
+            return `<div id="item-${item._id}" class="item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}">
+                        <div class="main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>
+                            <img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-64 object-cover">
+                            ${soldStampHtml}
+                        </div>
+                        <div class="p-4 flex flex-col flex-grow">
+                            <div class="flex justify-between items-start">
+                                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">${item.title}</h2>
+                                <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div>
+                            </div>
+                            <div class="flex items-center my-2 gap-2"> ${categoryHtml} </div>
+                            <p class="text-gray-600 dark:text-gray-300 text-sm flex-grow">${item.description || ''}</p>
+                            <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                                ${!item.sold ? purchaseButtonHtml : ''}
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center" title="פורסם על ידי ${ownerName}">
+                                        <div class="w-6 h-6 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div>
+                                        ${contactHtml}
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
         }
 
-        function createSkeletonCard() { return `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
+        function createSkeletonCard() { return `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col p-4 space-y-4"><div class="skeleton-loader w-full h-48"></div><div class="flex-grow w-full space-y-3"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2"></div><div class="skeleton-loader h-10 w-full"></div></div></div>`; }
         function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
         
         function generateContactHtml(item, ownerName) {
