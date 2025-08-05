@@ -326,14 +326,13 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             contact: req.body.contact, 
             imageUrls: imageUrls,
             owner: req.user.id,
-            // NEW: Add new fields from form
             condition: req.body.condition,
             size: req.body.size
         };
 
         if (req.user.email === ADMIN_EMAIL) {
             if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
-            if (req.body.isPromoted) newItemData.isPromoted = req.body.isPromoted === 'on';
+            newItemData.isPromoted = req.body.isPromoted === 'on';
         }
         
         const newItem = new Item(newItemData);
