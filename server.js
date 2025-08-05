@@ -74,7 +74,6 @@ const UserSchema = new mongoose.Schema({
     }],
     averageRating: { type: Number, default: 0 },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
-    // *** NEW: Follower system fields ***
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
@@ -93,6 +92,7 @@ const ItemSchema = new mongoose.Schema({
     isPromoted: { type: Boolean, default: false },
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
+    location: { type: String, trim: true }, // שדה חדש למיקום
     createdAt: { type: Date, default: Date.now } 
 });
 const Item = mongoose.model('Item', ItemSchema);
@@ -213,7 +213,68 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+// ### נתיב משודרג ###
+// נתיב זה תומך כעת בפילטור, מיון וטעינת עמודים (pagination)
+app.get('/items', async (req, res) => {
+    try {
+        const { page = 1, limit = 10, sort = 'newest', category, condition, size, minPrice, maxPrice, search, favorites, userId } = req.query;
+
+        let filterQuery = {};
+
+        // טיפול בסינון
+        if (category && category !== 'all') filterQuery.category = category;
+        if (condition && condition !== 'all') filterQuery.condition = condition;
+        if (size) filterQuery.size = { $regex: size, $options: 'i' };
+        if (search) filterQuery.title = { $regex: search, $options: 'i' };
+        if (minPrice || maxPrice) {
+            filterQuery.price = {};
+            if (minPrice) filterQuery.price.$gte = Number(minPrice);
+            if (maxPrice) filterQuery.price.$lte = Number(maxPrice);
+        }
+
+        // טיפול בסינון מועדפים
+        if (favorites === 'true' && userId) {
+            const user = await User.findById(userId);
+            if (user) {
+                filterQuery._id = { $in: user.favorites };
+            }
+        }
+
+        // טיפול במיון
+        const sortQuery = {};
+        switch (sort) {
+            case 'price_asc':
+                sortQuery.price = 1;
+                break;
+            case 'price_desc':
+                sortQuery.price = -1;
+                break;
+            default: // newest
+                sortQuery.createdAt = -1;
+        }
+
+        const skip = (page - 1) * limit;
+        const items = await Item.find(filterQuery)
+            .populate('owner', 'displayName email image')
+            .sort({ isPromoted: -1, ...sortQuery }) // פריטים מקודמים תמיד ראשונים
+            .skip(skip)
+            .limit(Number(limit));
+            
+        const totalItems = await Item.countDocuments(filterQuery);
+
+        res.json({
+            items,
+            totalPages: Math.ceil(totalItems / limit),
+            currentPage: Number(page)
+        });
+
+    } catch (err) {
+        console.error("Error fetching items:", err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- נתיבים לפרופיל ציבורי ודירוגים ---
