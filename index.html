@@ -175,7 +175,7 @@
                     <span>הצג מועדפים בלבד</span>
                 </button>
             </div>
-            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
+            <main id="items-feed" class="space-y-8"></main>
             <div id="empty-state" class="text-center py-16 px-4 hidden">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                 <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
@@ -653,7 +653,7 @@
                 await Promise.all([fetchUserFavorites(), fetchNotifications()]);
             }
             updateUIForAuthState();
-            fetchHistory();
+            fetchFeed();
         }
 
         function updateUIForAuthState() {
@@ -738,7 +738,7 @@
             initializeSocket(null);
             showView('main-view'); 
             updateUIForAuthState(); 
-            fetchHistory(); 
+            fetchFeed(); 
         }
 
         // --- Profile View Logic ---
@@ -841,7 +841,7 @@
                             <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200 dark:border-teal-700">
                             <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100">${user.displayName}</h2>
                             <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                                <span><strong>${user.followers.length}</strong> עוקבים</span>
+                                <span><strong id="followers-count">${user.followers.length}</strong> עוקבים</span>
                                 <span><strong>${user.following.length}</strong> נעקבים</span>
                             </div>
                             <div class="flex items-center gap-2 text-lg">
@@ -1064,33 +1064,56 @@
         }
 
         // --- Data Fetching ---
-        async function fetchHistory() {
-            itemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
+        async function fetchFeed() {
+            itemsFeed.innerHTML = Array(6).fill(createSkeletonCard()).join('<div class="sm:col-span-2"></div>'); // Show skeleton loaders
             emptyState.classList.add('hidden');
+            
+            const token = localStorage.getItem('authToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
             try {
-                const response = await fetch(`${SERVER_URL}/items`);
-                const items = await response.json();
+                const response = await fetch(`${SERVER_URL}/api/feed`, { headers });
+                const data = await response.json();
                 
-                if (!response.ok) {
-                    if (items && items.message && items.message.includes("timed out")) {
-                        itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br> יכולות להיות לכך שתי סיבות:</p><div class="text-right mx-auto max-w-md mt-4 space-y-4"><p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p><p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p></div><button data-action="retry-fetch" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
-                    } else {
-                        itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
-                    }
-                    return;
-                }
-                
-                if (!Array.isArray(items)) {
-                    console.error("Server response is not an array:", items);
-                    itemsFeed.innerHTML = '<p class="text-center text-red-500">התקבלה תגובה לא תקינה מהשרת.</p>';
-                    return;
+                if (!response.ok) throw new Error(data.message || 'Failed to fetch feed');
+
+                itemsFeed.innerHTML = '';
+                allItemsCache = {};
+
+                let hasContent = false;
+
+                if (data.followedItems && data.followedItems.length > 0) {
+                    hasContent = true;
+                    const followedHtml = data.followedItems.map(item => {
+                        allItemsCache[item._id] = item;
+                        return createItemCard(item);
+                    }).join('');
+                    itemsFeed.innerHTML += `
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">מה חדש אצל מי שאת עוקבת</h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${followedHtml}</div>
+                        </div>
+                    `;
                 }
 
-                allItemsCache = {};
-                items.forEach(item => allItemsCache[item._id] = item);
-                applyFilters();
+                if (data.otherItems && data.otherItems.length > 0) {
+                    hasContent = true;
+                    const otherHtml = data.otherItems.map(item => {
+                        allItemsCache[item._id] = item;
+                        return createItemCard(item);
+                    }).join('');
+                    itemsFeed.innerHTML += `
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4 ${data.followedItems.length > 0 ? 'mt-8' : ''}">עוד פריטים מהקהילה</h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${otherHtml}</div>
+                        </div>
+                    `;
+                }
+                
+                emptyState.classList.toggle('hidden', hasContent);
+
             } catch (error) {
-                console.error('Failed to fetch history:', error);
+                console.error('Failed to fetch feed:', error);
                 itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3><p class="mt-2 text-sm text-gray-600 dark:text-gray-300">לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.</p><p class="mt-2 text-xs text-gray-500 dark:text-gray-400">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p><button data-action="retry-fetch" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
             }
         }
@@ -1500,7 +1523,7 @@
                     break;
                 }
                 case 'retry-fetch': {
-                    fetchHistory();
+                    fetchFeed();
                     break;
                 }
                 case 'follow-user': {
@@ -1530,7 +1553,7 @@
                         actionTarget.classList.toggle('hover:bg-gray-600', isFollowing);
 
                         // Update the follower count on the page
-                        const followersCountElement = publicProfileView.querySelector('span strong');
+                        const followersCountElement = publicProfileView.querySelector('#followers-count');
                         if (followersCountElement) {
                             let currentCount = parseInt(followersCountElement.textContent, 10);
                             followersCountElement.textContent = isFollowing ? currentCount + 1 : currentCount - 1;
