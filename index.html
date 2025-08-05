@@ -12,6 +12,9 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- START: Panzoom Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+    <!-- END: Panzoom Library -->
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
         // On page load or when changing themes, best to add inline in `head` to avoid FOUC
@@ -38,7 +41,19 @@
         .dark .skeleton-loader { background-color: #374151; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         .thumbnail { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s ease; }
-        .gallery-content img { max-height: 80vh; max-width: 90vw; }
+        
+        /* START: Gallery & Panzoom Styles */
+        .gallery-content { width: 100%; height: 100%; }
+        #gallery-panzoom-viewport { cursor: grab; }
+        #gallery-panzoom-viewport.is-dragging { cursor: grabbing; }
+        #gallery-image {
+            max-height: 80vh;
+            max-width: 90vw;
+            /* The following are important for Panzoom to work correctly */
+            transform-origin: 0 0;
+        }
+        /* END: Gallery & Panzoom Styles */
+
         .view { display: none; animation: fadeIn 0.3s ease-in-out; }
         .view.active { display: block; }
         .item-card.sold .main-image-container { opacity: 0.5; }
@@ -269,7 +284,28 @@
             </form> 
         </div> 
     </div>
-    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
+    
+    <!-- START: UPDATED GALLERY MODAL -->
+    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="gallery-content relative flex items-center justify-center">
+            <!-- This div is the viewport for Panzoom -->
+            <div id="gallery-panzoom-viewport" class="w-full h-full">
+                <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl">
+            </div>
+        </div>
+        
+        <!-- Controls are outside the zoomable area -->
+        <div class="absolute top-4 right-4 flex gap-2">
+            <button id="gallery-zoom-in" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אין">+</button>
+            <button id="gallery-zoom-out" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אאוט">-</button>
+            <button id="gallery-close" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="סגור">&times;</button>
+        </div>
+        <button id="gallery-prev" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הקודם">&#x276E;</button>
+        <button id="gallery-next" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הבא">&#x276F;</button>
+        <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
+    </div>
+    <!-- END: UPDATED GALLERY MODAL -->
+
     <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
@@ -450,6 +486,9 @@
         const galleryPrev = document.getElementById('gallery-prev');
         const galleryNext = document.getElementById('gallery-next');
         const galleryCounter = document.getElementById('gallery-counter');
+        const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
+        const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
+        const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
         
         const toastNotification = document.getElementById('toast-notification');
 
@@ -463,12 +502,12 @@
         let currentConversationId = null;
         let currentConversationDetails = null;
         let notificationsCache = [];
+        let panzoomInstance = null;
 
-        // --- START: INFINITE SCROLL STATE ---
+        // --- Infinite Scroll State ---
         let currentPage = 1;
         let isLoading = false;
         let hasMorePages = true;
-        // --- END: INFINITE SCROLL STATE ---
 
         // --- Category Mapping ---
         const categoryMap = { 
@@ -506,7 +545,6 @@
             });
 
             socket.on('newItem', (item) => { 
-                // Prepend new item to the feed if no filters are active
                 if (filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
                     displayItem(item, true, itemsFeed);
                 } else {
@@ -598,14 +636,63 @@
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
         allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
-        // --- Gallery (Lightbox) System ---
-        function openGallery(images, startIndex = 0) { if (!images || images.length === 0) return; galleryImages = images; showModal(galleryModal); document.body.style.overflow = 'hidden'; updateGalleryImage(startIndex); }
-        function closeGallery() { hideAllModals(); document.body.style.overflow = ''; }
-        function updateGalleryImage(index) { currentImageIndex = index; galleryImage.src = galleryImages[index]; galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`; galleryPrev.disabled = index === 0; galleryNext.disabled = index === galleryImages.length - 1; }
+        // --- START: UPDATED Gallery (Lightbox) System with Panzoom ---
+        function openGallery(images, startIndex = 0) {
+            if (!images || images.length === 0) return;
+            galleryImages = images;
+            showModal(galleryModal);
+            document.body.style.overflow = 'hidden';
+            
+            // Initialize Panzoom
+            panzoomInstance = Panzoom(galleryImage, {
+                maxScale: 4,
+                minScale: 1,
+                canvas: true, // Use the parent as the viewport
+                startScale: 1,
+            });
+            
+            // Add wheel listener for zooming
+            galleryPanzoomViewport.addEventListener('wheel', panzoomInstance.zoomWithWheel);
+            
+            updateGalleryImage(startIndex);
+        }
+
+        function closeGallery() {
+            hideAllModals();
+            document.body.style.overflow = '';
+            // Destroy Panzoom instance to clean up
+            if (panzoomInstance) {
+                galleryPanzoomViewport.removeEventListener('wheel', panzoomInstance.zoomWithWheel);
+                panzoomInstance.destroy();
+                panzoomInstance = null;
+            }
+        }
+
+        function updateGalleryImage(index) {
+            currentImageIndex = index;
+            // Reset zoom/pan before changing image
+            if (panzoomInstance) {
+                panzoomInstance.reset();
+            }
+            galleryImage.src = galleryImages[index];
+            galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`;
+            galleryPrev.disabled = index === 0;
+            galleryNext.disabled = index === galleryImages.length - 1;
+        }
+
         galleryPrev.addEventListener('click', () => { if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1); });
         galleryNext.addEventListener('click', () => { if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1); });
         galleryClose.addEventListener('click', closeGallery);
-        document.addEventListener('keydown', (e) => { if (galleryModal.classList.contains('hidden')) return; if (e.key === 'Escape') closeGallery(); if (e.key === 'ArrowRight') galleryNext.click(); if (e.key === 'ArrowLeft') galleryPrev.click(); });
+        galleryZoomInBtn.addEventListener('click', () => panzoomInstance?.zoomIn());
+        galleryZoomOutBtn.addEventListener('click', () => panzoomInstance?.zoomOut());
+        
+        document.addEventListener('keydown', (e) => { 
+            if (galleryModal.classList.contains('hidden')) return; 
+            if (e.key === 'Escape') closeGallery(); 
+            if (e.key === 'ArrowRight') galleryNext.click(); 
+            if (e.key === 'ArrowLeft') galleryPrev.click(); 
+        });
+        // --- END: UPDATED Gallery System ---
 
         function parseJwt (token) {
             try {
