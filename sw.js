@@ -66,10 +66,16 @@ self.addEventListener('push', event => {
   console.log('Push notification received:', data);
 
   const title = data.title || 'התראה חדשה';
+  // Using a very simple, reliable placeholder to test if the issue is with the original icon URL.
+  const testIcon = 'https://placehold.co/192x192/14b8a6/FFFFFF?text=S'; 
+
   const options = {
     body: data.body || 'קיבלת עדכון חדש.',
-    icon: data.icon || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
-    badge: 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
+    // The 'icon' is the main image shown in the notification.
+    icon: testIcon,
+    // The 'badge' is a small monochrome icon used on Android. 
+    // It's best practice for this to be a simple, single-color version of your logo.
+    badge: testIcon, 
     data: {
       url: data.data.url // URL to open when the notification is clicked
     }
