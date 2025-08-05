@@ -95,6 +95,16 @@
             overflow-y: auto;
             z-index: 50;
         }
+        /* Offers View Tabs */
+        .tab-btn.active {
+            border-color: #14b8a6;
+            color: #14b8a6;
+            background-color: #f0fdfa;
+        }
+        .dark .tab-btn.active {
+            background-color: #115e59;
+            color: #ccfbf1;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -195,9 +205,30 @@
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
 
-        <!-- NEW: Chat View -->
+        <!-- Chat View -->
         <div id="chat-view" class="view">
             <!-- This will be populated by JavaScript -->
+        </div>
+        
+        <!-- Offers View -->
+        <div id="offers-view" class="view">
+            <div class="my-6">
+                <h2 class="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">הצעות מחיר</h2>
+                <p class="text-center text-gray-500 dark:text-gray-400 mb-6">כאן אפשר לנהל את כל הצעות המחיר ששלחת וקיבלת.</p>
+                <div class="border-b border-gray-200 dark:border-gray-700">
+                    <nav class="-mb-px flex justify-center gap-6" aria-label="Tabs">
+                        <button id="received-offers-tab" data-tab="received" class="tab-btn active shrink-0 border-b-2 py-4 px-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300">
+                            הצעות שקיבלתי
+                        </button>
+                        <button id="sent-offers-tab" data-tab="sent" class="tab-btn shrink-0 border-b-2 py-4 px-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300">
+                            הצעות ששלחתי
+                        </button>
+                    </nav>
+                </div>
+                <div id="offers-content" class="mt-6">
+                    <!-- Offer cards will be rendered here -->
+                </div>
+            </div>
         </div>
 
     </div>
@@ -329,6 +360,26 @@
         </div>
     </div>
 
+    <!-- *** NEW: Offer Modal *** -->
+    <div id="offer-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
+            <h2 id="offer-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">הצע הצעה</h2>
+            <form id="offer-form">
+                <input type="hidden" id="offer-item-id">
+                <input type="hidden" id="offer-seller-id">
+                <input type="hidden" id="offer-id"> <!-- For counter-offers -->
+                <div class="mb-4">
+                    <label for="offer-price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ההצעה שלך (בשקלים)</label>
+                    <input type="number" id="offer-price" name="offerPrice" class="mt-1 w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח הצעה</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
@@ -419,6 +470,7 @@
         const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
         const emptyState = document.getElementById('empty-state');
         const chatView = document.getElementById('chat-view');
+        const offersView = document.getElementById('offers-view');
         const conditionSelect = document.getElementById('condition-select');
         const sizeFilterInput = document.getElementById('size-filter');
 
@@ -431,9 +483,11 @@
         const shareModal = document.getElementById('share-modal');
         const ratingModal = document.getElementById('rating-modal');
         const reportModal = document.getElementById('report-modal'); 
+        const offerModal = document.getElementById('offer-modal');
         const uploadForm = document.getElementById('upload-form');
         const ratingForm = document.getElementById('rating-form');
         const reportForm = document.getElementById('report-form'); 
+        const offerForm = document.getElementById('offer-form');
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
@@ -487,7 +541,8 @@
             socket.off('itemUpdated');
             socket.off('newMessage');
             socket.off('newConversation');
-            socket.off('newNotification'); // NEW
+            socket.off('newNotification'); 
+            socket.off('offerUpdated'); // NEW
 
             socket.on('connect', () => {
                 console.log('Connected to server with socket ID:', socket.id);
@@ -529,11 +584,17 @@
                 showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
             });
 
-            // *** NEW: Listen for new notifications ***
             socket.on('newNotification', (notification) => {
                 notificationsCache.unshift(notification);
                 updateNotificationBell();
                 showToast(notification.message);
+            });
+
+            // *** NEW: Listen for offer updates ***
+            socket.on('offerUpdated', () => {
+                if (offersView.classList.contains('active')) {
+                    showOffersView(); // Refresh the offers view if it's open
+                }
             });
         }
         
@@ -678,6 +739,7 @@
                         </div>
                     </div>
                     <div class="hidden sm:flex items-center gap-3">
+                        <button id="offers-btn-desktop" class="text-center text-sm bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition whitespace-nowrap">הצעות</button>
                         <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
                         <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
@@ -689,6 +751,7 @@
                     <div class="flex flex-col items-center gap-2">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
                         <div class="flex gap-2">
+                            <button id="offers-btn-mobile" class="text-sm bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition">הצעות</button>
                             <button id="chat-btn-mobile" class="text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                             <button id="profile-btn-mobile" class="text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
                             <button id="logout-btn-mobile" class="text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
@@ -724,6 +787,7 @@
             document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
+            document.querySelectorAll('[id^="offers-btn"]').forEach(btn => btn.addEventListener('click', showOffersView));
             document.getElementById('share-app-btn').addEventListener('click', shareApp);
             const notificationsBtn = document.getElementById('notifications-btn');
             if (notificationsBtn) {
@@ -915,20 +979,25 @@
             
             const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${item.owner._id}">${ownerName}</p>`;
 
-            let purchaseButtonHtml = '';
-            const purchaseButtonClasses = "purchase-btn mt-2 block w-1/2 mx-auto text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
+            let actionButtonsHtml = '';
+            const buttonClasses = "mt-2 block w-full text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
             
             if (isPostByAdmin) {
-                const buttonText = 'לרכישה';
                 const link = item.affiliateLink || getWhatsAppLink(item.contact, item.title);
-                const colorClasses = 'bg-amber-500 hover:bg-amber-600';
-                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
-                purchaseButtonHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>` : `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
+                actionButtonsHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${buttonClasses} bg-amber-500 hover:bg-amber-600">...</a>` : `<div class="${buttonClasses} bg-gray-400 cursor-not-allowed">...</div>`;
             } else if (!isOwner) {
-                const buttonText = 'שלחי הודעה';
-                const colorClasses = 'bg-green-500 hover:bg-green-600';
-                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>`;
-                purchaseButtonHtml = `<button data-action="start-chat" data-seller-id="${item.owner._id}" data-item-id="${item._id}" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></button>`;
+                actionButtonsHtml = `
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button data-action="start-chat" data-seller-id="${item.owner._id}" data-item-id="${item._id}" class="${buttonClasses} bg-green-500 hover:bg-green-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>
+                            <span>שלח הודעה</span>
+                        </button>
+                        <button data-action="make-offer" data-item-id="${item._id}" data-seller-id="${item.owner._id}" class="${buttonClasses} bg-blue-500 hover:bg-blue-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" /></svg>
+                            <span>הצע הצעה</span>
+                        </button>
+                    </div>
+                `;
             }
             
             return `<div id="item-${item._id}" class="item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}">
@@ -944,7 +1013,7 @@
                             <div class="flex items-center my-2 gap-2"> ${categoryHtml} </div>
                             <p class="text-gray-600 dark:text-gray-300 text-sm flex-grow">${item.description || ''}</p>
                             <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
-                                ${!item.sold ? purchaseButtonHtml : ''}
+                                ${!item.sold ? actionButtonsHtml : ''}
                                 <div class="flex justify-between items-center">
                                     <div class="flex items-center" title="פורסם על ידי ${ownerName}">
                                         <div class="w-6 h-6 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div>
@@ -1696,4 +1765,4 @@
     });
     </script>
 </body>
-</html>
+</html
