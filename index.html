@@ -830,23 +830,32 @@
                 const rateButtonHtml = (currentUser && currentUser.id !== userId) ? 
                     `<button data-action="rate-user" data-user-id="${userId}" data-user-name="${user.displayName}" class="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition">דרג את ${user.displayName}</button>` : '';
 
+                const isFollowing = currentUser ? user.followers.includes(currentUser.id) : false;
+                const followButtonHtml = (currentUser && currentUser.id !== userId) ?
+                    `<button data-action="follow-user" data-user-id="${userId}" class="mt-4 ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold py-2 px-4 rounded-md transition">${isFollowing ? 'הסר עוקב' : 'עקוב'}</button>` : '';
+
                 publicProfileView.innerHTML = `
                     <div class="my-6">
                         <button data-action="show-main-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
                         <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
                             <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200 dark:border-teal-700">
                             <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100">${user.displayName}</h2>
+                            <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+                                <span><strong>${user.followers.length}</strong> עוקבים</span>
+                                <span><strong>${user.following.length}</strong> נעקבים</span>
+                            </div>
                             <div class="flex items-center gap-2 text-lg">
                                 <div class="static-stars">${renderStars(user.averageRating)}</div>
                                 <span class="text-gray-600 dark:text-gray-400">(${ratings.length} דירוגים)</span>
                             </div>
+                            ${followButtonHtml}
                             ${rateButtonHtml}
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">פריטים למכירה</h3>
+                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">המלתחה של ${user.displayName}</h3>
                             <div class="space-y-6">${itemsHtml}</div>
                         </div>
                         <div>
@@ -1470,7 +1479,6 @@
                     openGallery(images, index);
                     break;
                 }
-                // *** NEW: Handle notification click ***
                 case 'notification-click': {
                     const link = actionTarget.dataset.link;
                     const type = actionTarget.dataset.type;
@@ -1483,7 +1491,7 @@
                         if (conversationId) {
                             showChatView(conversationId);
                         }
-                    } else if (type === 'new-rating') {
+                    } else if (type === 'new-rating' || type === 'new-follower') {
                         const userId = link.split('/').pop();
                         if (userId) {
                             showPublicProfile(userId);
