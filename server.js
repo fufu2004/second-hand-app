@@ -74,7 +74,6 @@ const UserSchema = new mongoose.Schema({
     }],
     averageRating: { type: Number, default: 0 },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
-    // *** NEW: Follower system fields ***
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
@@ -129,13 +128,24 @@ const Report = mongoose.model('Report', ReportSchema);
 
 const NotificationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower', 'new-offer', 'offer-accepted', 'offer-rejected', 'counter-offer'] },
     message: { type: String, required: true },
     link: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
+
+// *** NEW: Offer Schema and Model ***
+const OfferSchema = new mongoose.Schema({
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
+    buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    offerPrice: { type: Number, required: true },
+    status: { type: String, enum: ['pending', 'accepted', 'rejected', 'countered'], default: 'pending' },
+    counterPrice: { type: Number },
+}, { timestamps: true });
+const Offer = mongoose.model('Offer', OfferSchema);
 
 
 // --- הגדרות העלאת קבצים ---
@@ -194,7 +204,6 @@ const authMiddleware = (req, res, next) => {
     });
 };
 
-// *** NEW: Optional Auth Middleware ***
 const optionalAuthMiddleware = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return next();
@@ -229,7 +238,6 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// *** NEW: Personalized Feed Route ***
 app.get('/api/feed', optionalAuthMiddleware, async (req, res) => {
     try {
         const baseQuery = { sold: false };
@@ -382,7 +390,7 @@ app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
     }
 });
 
-// *** NEW: Follow/Unfollow Route ***
+// *** Follow/Unfollow Route ***
 app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
     const currentUserId = req.user.id;
     const targetUserId = req.params.id;
