@@ -63,7 +63,7 @@
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <!-- Right Side (start in RTL) -->
                 <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
-                    <!-- Content injected by JS -->
+                    <!-- PWA Install Button will be injected here -->
                 </div>
 
                 <!-- Center: Logo -->
@@ -85,7 +85,9 @@
         </header>
 
         <!-- Mobile Auth Container -->
-        <div id="auth-container-mobile" class="my-2 flex justify-center sm:hidden"></div>
+        <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2">
+            <!-- PWA Install Button will be injected here -->
+        </div>
 
         <!-- Main Feed View -->
         <div id="main-view" class="view active">
@@ -251,10 +253,6 @@
 
 
     <script>
-        // This script contains the client-side logic for the application.
-        // It handles user authentication, item display, filtering, uploading, editing, deleting,
-        // real-time updates via WebSockets, and the chat functionality.
-
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -265,6 +263,64 @@
             });
           });
         }
+
+        // --- PWA Custom Install Prompt ---
+        let deferredPrompt;
+        const installButtonContainerDesktop = document.getElementById('header-right-desktop');
+        const installButtonContainerMobile = document.getElementById('auth-container-mobile');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+          // Prevent the mini-infobar from appearing on mobile
+          e.preventDefault();
+          // Stash the event so it can be triggered later.
+          deferredPrompt = e;
+          // Update UI to notify the user they can install the PWA
+          showInstallPromotion();
+        });
+
+        function showInstallPromotion() {
+            const installButtonHtml = `
+                <button id="install-pwa-btn" class="flex items-center gap-2 bg-teal-500 text-white font-semibold py-2 px-3 text-sm rounded-md shadow-sm hover:bg-teal-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span>התקנת אפליקציה</span>
+                </button>
+            `;
+            
+            // Create a temporary div to hold the button for desktop
+            const desktopBtnWrapper = document.createElement('div');
+            desktopBtnWrapper.innerHTML = installButtonHtml;
+            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild); // Prepend to show it first
+
+            // Create a temporary div to hold the button for mobile
+            const mobileBtnWrapper = document.createElement('div');
+            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
+            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
+            installButtonContainerMobile.prepend(mobileBtnWrapper);
+
+            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
+                btn.addEventListener('click', handleInstallClick);
+            });
+        }
+
+        async function handleInstallClick() {
+            // Hide the app provided install promotion
+            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => btn.parentElement.remove());
+            // Show the install prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+        }
+
+        window.addEventListener('appinstalled', () => {
+          // Clear the deferredPrompt so it can be garbage collected
+          deferredPrompt = null;
+          // Optionally, send analytics event to indicate successful install
+          console.log('PWA was installed');
+        });
+
 
         // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
