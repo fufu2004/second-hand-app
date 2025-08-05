@@ -119,7 +119,6 @@
             overflow-y: auto;
             z-index: 50;
         }
-        /* START: VERIFIED BADGE STYLE */
         .verified-badge {
             color: #3b82f6; /* blue-500 */
             width: 1.1rem;
@@ -128,7 +127,6 @@
             margin-right: 4px;
             vertical-align: middle;
         }
-        /* END: VERIFIED BADGE STYLE */
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -229,9 +227,7 @@
             <div class="my-6 text-center">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
                 <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
-                <!-- START: VERIFIED SELLER - Button container -->
                 <div id="verification-status-container" class="mt-4"></div>
-                <!-- END: VERIFIED SELLER - Button container -->
             </div>
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
@@ -524,7 +520,8 @@
         let currentConversationDetails = null;
         let notificationsCache = [];
         let panzoomInstance = null;
-        let currentUserProfile = null; // To store full profile data of the logged-in user
+        let currentUserProfile = null; 
+        let pushSubscription = null; // To store the current push subscription object
 
         // --- Infinite Scroll State ---
         let currentPage = 1;
@@ -770,6 +767,7 @@
             initializeSocket(storedToken);
             if(currentUser) {
                 await Promise.all([fetchUserFavorites(), fetchNotifications()]);
+                initializePushNotifications(); // *** NEW: Initialize Push Notifications for logged-in users ***
             }
             updateUIForAuthState();
             resetAndFetchItems(); // Initial fetch
@@ -787,6 +785,13 @@
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
                 const actionButtonsHtml = `
+                    <!-- START: PUSH NOTIFICATION BUTTON -->
+                    <div id="push-notification-container" class="hidden">
+                        <button id="push-notification-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition" title="ניהול התראות פוש">
+                           <!-- Icon will be injected by JS -->
+                        </button>
+                    </div>
+                    <!-- END: PUSH NOTIFICATION BUTTON -->
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
@@ -870,19 +875,16 @@
                 return; 
             } 
             try { 
-                // START: VERIFIED SELLER - Fetch full user profile to check verification status
                 const [itemsResponse, userResponse] = await Promise.all([
                     fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }),
                     fetch(`${SERVER_URL}/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } })
                 ]);
-                // END: VERIFIED SELLER
-
+                
                 if (!itemsResponse.ok || !userResponse.ok) throw new Error('Could not fetch user data'); 
                 
                 const items = await itemsResponse.json(); 
-                currentUserProfile = await userResponse.json(); // Store full profile
+                currentUserProfile = await userResponse.json(); 
                 
-                // START: VERIFIED SELLER - Display verification status/button
                 if (currentUserProfile.isVerified) {
                     verificationStatusContainer.innerHTML = `
                         <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-full">
@@ -897,7 +899,6 @@
                         </button>
                     `;
                 }
-                // END: VERIFIED SELLER
 
                 profileItemsFeed.innerHTML = ''; 
                 allItemsCache = {}; 
@@ -979,9 +980,7 @@
                 const followButtonHtml = (currentUser && currentUser.id !== userId) ?
                     `<button data-action="follow-user" data-user-id="${userId}" class="mt-4 ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold py-2 px-4 rounded-md transition">${isFollowing ? 'הסר עוקב' : 'עקוב'}</button>` : '';
                 
-                // START: VERIFIED SELLER - Badge in public profile
                 const verifiedBadgeHtml = user.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
-                // END: VERIFIED SELLER
 
                 publicProfileView.innerHTML = `
                     <div class="my-6">
@@ -1069,9 +1068,7 @@
             const brandHtml = item.brand ? `<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">${item.brand}</span>` : '';
             const locationHtml = item.location ? `<span class="flex items-center text-xs text-gray-500 dark:text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>${item.location}</span>` : '';
             
-            // START: VERIFIED SELLER - Badge in item card
             const verifiedBadgeHtml = item.owner.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
-            // END: VERIFIED SELLER
 
             const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${item.owner._id}">${ownerName}</p>`;
 
@@ -1638,7 +1635,6 @@
                     }
                     break;
                 }
-                // START: VERIFIED SELLER - Event handler
                 case 'start-verification': {
                     const token = localStorage.getItem('authToken');
                     if (!token) return showAlert('שגיאת אימות.');
@@ -1654,7 +1650,6 @@
                     }
                     break;
                 }
-                // END: VERIFIED SELLER - Event handler
                 case 'report-item': {
                     if (!currentUser) {
                         return showAlert('עליך להתחבר כדי לדווח על פריט.');
@@ -1859,6 +1854,108 @@
                 panel.style.display = 'block';
                 markNotificationsAsRead();
             }
+        }
+
+        // *** NEW: Push Notification Client Logic ***
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        async function initializePushNotifications() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.warn('Push messaging is not supported');
+                return;
+            }
+
+            const pushButtonContainer = document.getElementById('push-notification-container');
+            pushButtonContainer.classList.remove('hidden');
+            const pushButton = document.getElementById('push-notification-btn');
+
+            const registration = await navigator.serviceWorker.ready;
+            pushSubscription = await registration.pushManager.getSubscription();
+            
+            updateSubscriptionButton();
+
+            pushButton.addEventListener('click', () => {
+                if (pushSubscription) {
+                    unsubscribeUser();
+                } else {
+                    subscribeUser();
+                }
+            });
+        }
+
+        function updateSubscriptionButton() {
+            const pushButton = document.getElementById('push-notification-btn');
+            if (Notification.permission === 'denied') {
+                pushButton.innerHTML = `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>`;
+                pushButton.title = 'התראות חסומות';
+                pushButton.disabled = true;
+                return;
+            }
+
+            if (pushSubscription) {
+                pushButton.innerHTML = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>`;
+                pushButton.title = 'בטל קבלת התראות';
+            } else {
+                pushButton.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9m-9 4a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>`;
+                pushButton.title = 'הפעל קבלת התראות';
+            }
+        }
+
+        async function subscribeUser() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/vapid-public-key`);
+                const vapidPublicKey = await response.text();
+                const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+                const registration = await navigator.serviceWorker.ready;
+                pushSubscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: convertedVapidKey
+                });
+
+                await fetch(`${SERVER_URL}/api/subscribe`, {
+                    method: 'POST',
+                    body: JSON.stringify(pushSubscription),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
+                showToast('נרשמת בהצלחה לקבלת התראות!');
+            } catch (err) {
+                console.error('Failed to subscribe the user: ', err);
+                showToast('שגיאה ברישום להתראות.');
+            }
+            updateSubscriptionButton();
+        }
+
+        async function unsubscribeUser() {
+            try {
+                await fetch(`${SERVER_URL}/api/unsubscribe`, {
+                    method: 'POST',
+                    body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
+                await pushSubscription.unsubscribe();
+                pushSubscription = null;
+                showToast('הרישום להתראות בוטל.');
+            } catch (err) {
+                console.error('Failed to unsubscribe the user: ', err);
+                showToast('שגיאה בביטול הרישום.');
+            }
+            updateSubscriptionButton();
         }
 
 
