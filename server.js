@@ -569,10 +569,12 @@ io.on('connection', (socket) => {
 
 // --- *** FIXED ***: Explicitly serve PWA files before the catch-all route ---
 app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     res.sendFile(path.join(__dirname, 'manifest.json'));
 });
 
 app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
     res.sendFile(path.join(__dirname, 'sw.js'));
 });
 
