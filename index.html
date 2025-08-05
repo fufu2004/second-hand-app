@@ -252,7 +252,7 @@
         </div>
     </div>
     
-    <!-- NEW: Rating Modal -->
+    <!-- Rating Modal -->
     <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
             <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">דרג את המוכר</h2>
@@ -274,6 +274,31 @@
         </div>
     </div>
     
+    <!-- *** NEW: Report Modal *** -->
+    <div id="report-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
+            <h2 class="text-xl font-bold mb-4 text-center text-red-700 dark:text-red-400">דיווח על פריט</h2>
+            <form id="report-form">
+                <input type="hidden" id="reported-item-id">
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">מדוע ברצונך לדווח על פריט זה?</p>
+                <div class="space-y-3">
+                    <select id="report-reason" name="reason" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                        <option value="" disabled selected>בחירת סיבה...</option>
+                        <option value="inappropriate-content">תוכן לא הולם (עירום, אלימות וכו')</option>
+                        <option value="spam">ספאם או פרסומת</option>
+                        <option value="scam">חשד להונאה או פריט מזויף</option>
+                        <option value="wrong-category">קטגוריה שגויה</option>
+                    </select>
+                    <textarea id="report-details" name="details" placeholder="פרטים נוספים (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דיווח</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
@@ -375,8 +400,10 @@
         const customModal = document.getElementById('custom-modal');
         const shareModal = document.getElementById('share-modal');
         const ratingModal = document.getElementById('rating-modal');
+        const reportModal = document.getElementById('report-modal'); // New
         const uploadForm = document.getElementById('upload-form');
         const ratingForm = document.getElementById('rating-form');
+        const reportForm = document.getElementById('report-form'); // New
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
@@ -831,6 +858,7 @@
             const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="toggle-sold" class="text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
             const editButtonHtml = (isOwner || isAdmin) && !item.sold ? `<button data-id="${item._id}" data-action="edit-item" class="text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : '';
             const deleteButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="delete-item" class="text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : '';
+            const reportButtonHtml = (currentUser && !isOwner) ? `<button data-id="${item._id}" data-action="report-item" class="text-gray-400 hover:text-amber-500 transition" title="דיווח על פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 01-1-1V6z" clip-rule="evenodd" /></svg></button>` : '';
             
             let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
             if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
@@ -880,7 +908,10 @@
                                         ${ownerNameHtml}
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml}
+                                        ${reportButtonHtml}
+                                        ${soldButtonHtml} 
+                                        ${editButtonHtml} 
+                                        ${deleteButtonHtml}
                                     </div>
                                 </div>
                             </div>
@@ -1225,7 +1256,7 @@
             
             const affiliateContainer = document.getElementById('affiliate-link-container');
             const promotedContainer = document.getElementById('promoted-container');
-            if (currentUser.email === ADMIN_EMAIL) {
+            if (currentUser && currentUser.email === ADMIN_EMAIL) {
                 affiliateContainer.classList.remove('hidden');
                 promotedContainer.classList.remove('hidden');
             } else {
@@ -1278,10 +1309,10 @@
             if (!actionTarget) return;
 
             const action = actionTarget.dataset.action;
-            const id = actionTarget.dataset.id;
-
+            
             switch (action) {
                 case 'edit-item': {
+                    const id = actionTarget.dataset.id;
                     const itemToEdit = allItemsCache[id];
                     if (!itemToEdit) return showAlert('שגיאה: לא ניתן למצוא את פרטי הפריט.');
                     
@@ -1320,6 +1351,7 @@
                     break;
                 }
                 case 'delete-item': {
+                    const id = actionTarget.dataset.id;
                     const confirmed = await showCustomModal({
                         title: 'אישור מחיקה',
                         message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
@@ -1346,6 +1378,7 @@
                     break;
                 }
                 case 'toggle-sold': {
+                    const id = actionTarget.dataset.id;
                     const token = localStorage.getItem('authToken'); 
                     if (!token) return showAlert('שגיאת אימות.'); 
                     const item = allItemsCache[id]; 
@@ -1358,6 +1391,16 @@
                         console.error('Failed to toggle sold status:', error); 
                         showAlert('שגיאה בעדכון סטטוס הפריט.'); 
                     } 
+                    break;
+                }
+                case 'report-item': {
+                    if (!currentUser) {
+                        return showAlert('עליך להתחבר כדי לדווח על פריט.');
+                    }
+                    const id = actionTarget.dataset.id;
+                    document.getElementById('reported-item-id').value = id;
+                    reportForm.reset();
+                    showModal(reportModal);
                     break;
                 }
                 case 'start-chat': {
@@ -1406,6 +1449,41 @@
         filterInput.addEventListener('input', applyFilters);
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
+        // --- Report Form Submission ---
+        reportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) return showAlert('שגיאת אימות.');
+
+            const itemId = document.getElementById('reported-item-id').value;
+            const reason = document.getElementById('report-reason').value;
+            const details = document.getElementById('report-details').value;
+
+            if (!reason) return showAlert('יש לבחור סיבה לדיווח.');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/items/${itemId}/report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ reason, details })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to submit report.');
+                }
+
+                hideAllModals();
+                showToast('הדיווח שלך נשלח בהצלחה. תודה!');
+            } catch (error) {
+                console.error('Failed to submit report:', error);
+                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+            }
+        });
+
         // --- Announcement Bar Logic ---
         const announcementBar = document.getElementById('announcement-bar');
         const closeAnnouncementBtn = document.getElementById('close-announcement');
