@@ -1,7 +1,6 @@
 // server.js
 
 // 1. ייבוא ספריות נדרשות
-require('dotenv').config(); // טוען משתני סביבה מקובץ .env
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -15,7 +14,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
-const path = require('path'); // הוספת המודול 'path'
+const path = require('path');
 
 // --- הגדרות ראשוניות ---
 const app = express();
