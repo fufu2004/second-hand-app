@@ -1,5 +1,5 @@
 // A high version number to forcefully invalidate all previous caches.
-const CACHE_VERSION = 10;
+const CACHE_VERSION = 20;
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 
 // The core files needed for the app to run offline.
