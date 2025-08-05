@@ -90,11 +90,13 @@ const ItemSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
     sold: { type: Boolean, default: false }, 
     isPromoted: { type: Boolean, default: false },
-    // START: PROMOTE FEATURE FIELD
     promotedUntil: { type: Date },
-    // END: PROMOTE FEATURE FIELD
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
+    // START: ADVANCED SEARCH FIELDS
+    brand: { type: String, trim: true },
+    location: { type: String, trim: true },
+    // END: ADVANCED SEARCH FIELDS
     createdAt: { type: Date, default: Date.now } 
 });
 const Item = mongoose.model('Item', ItemSchema);
@@ -217,12 +219,10 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
 
 app.get('/items', async (req, res) => {
     try {
-        // START: PROMOTE FEATURE - Expire old promotions before fetching
         await Item.updateMany(
             { isPromoted: true, promotedUntil: { $lt: new Date() } },
             { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
         );
-        // END: PROMOTE FEATURE
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
@@ -235,11 +235,13 @@ app.get('/items', async (req, res) => {
         if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
         if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
         if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
+        // START: ADVANCED SEARCH FILTERS
+        if (req.query.brand) filters.brand = { $regex: req.query.brand.trim(), $options: 'i' };
+        if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
+        // END: ADVANCED SEARCH FILTERS
 
         const sortOptions = {};
-        // START: PROMOTE FEATURE - Updated sort logic
         sortOptions.isPromoted = -1; 
-        // END: PROMOTE FEATURE
         switch (req.query.sort) {
             case 'price_asc':
                 sortOptions.price = 1;
@@ -451,7 +453,11 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             imageUrls: imageUrls,
             owner: req.user.id,
             condition: req.body.condition,
-            size: req.body.size
+            size: req.body.size,
+            // START: ADVANCED SEARCH FIELDS
+            brand: req.body.brand,
+            location: req.body.location
+            // END: ADVANCED SEARCH FIELDS
         };
 
         if (req.user.email === ADMIN_EMAIL) {
