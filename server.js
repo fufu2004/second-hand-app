@@ -1,586 +1,1314 @@
-// server.js
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Assistant', sans-serif; background-color: #f0f5f5; }
+        .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
+        .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
+        .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .item-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .skeleton-loader { background-color: #e2e8f0; border-radius: 0.75rem; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .thumbnail { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s ease; }
+        .gallery-content img { max-height: 80vh; max-width: 90vw; }
+        .view { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .view.active { display: block; }
+        .item-card.sold .main-image-container { opacity: 0.5; }
+        .item-card.sold .purchase-btn { background-color: #9ca3af; cursor: not-allowed; pointer-events: none; }
+        .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
+        .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
+        .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
+        .item-card.promoted { border: 2px solid #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
+        .promoted-badge { position: absolute; top: -10px; right: -10px; background-color: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        /* Chat Styles */
+        .message-bubble { max-width: 75%; }
+        .message-bubble.sent { background-color: #dcf8c6; }
+        .message-bubble.received { background-color: #ffffff; }
+        /* Star Rating Styles */
+        .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 2.5rem; color: #ddd; cursor: pointer; transition: color 0.2s; }
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label { color: #f59e0b; }
+        .static-stars { color: #f59e0b; }
+        /* Announcement Bar Animation */
+        #announcement-bar span { transition: opacity 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100">
 
-// 1. ייבוא ספריות נדרשות
-const express = require('express');
-const http = require('http');
-const { Server } = require("socket.io");
-const mongoose = require('mongoose');
-const cors = require('cors');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const jwt = require('jsonwebtoken');
-const session = require('express-session');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
-const sgMail = require('@sendgrid/mail');
-const path = require('path');
+    <!-- Announcement Bar -->
+    <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
+        <span></span>
+        <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
+    </div>
 
-// --- הגדרות ראשוניות ---
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PATCH", "DELETE"]
-    }
-});
-const PORT = process.env.PORT || 3000;
+    <div class="container mx-auto p-4 max-w-2xl pb-24">
+        <!-- Header -->
+        <header class="bg-gray-100/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm py-1">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <!-- Right Side (start in RTL) -->
+                <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
+                    <!-- Content injected by JS -->
+                </div>
 
-// --- קריאת משתני סביבה ---
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL;
-const SERVER_URL = process.env.SERVER_URL;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
+                <!-- Center: Logo -->
+                <div class="flex-shrink-0 px-2">
+                    <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
+                        <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
+                        <div>
+                            <h1 class="text-xl sm:text-3xl font-bold text-teal-700 whitespace-nowrap">סטייל מתגלגל</h1>
+                            <p class="text-gray-500 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה <span class="blinking-dot"></span> LIVE</p>
+                        </div>
+                    </div>
+                </div>
 
-// --- הגדרת Cloudinary ---
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY, 
-  api_secret: process.env.CLOUDINARY_API_SECRET 
-});
+                <!-- Left Side (end in RTL) -->
+                <div id="header-left-desktop" class="flex-1 flex justify-end">
+                    <!-- Content injected by JS -->
+                </div>
+            </div>
+        </header>
 
-// --- הגדרת שירות המייל (SendGrid) ---
-if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    console.log("SendGrid configured successfully.");
-} else {
-    console.warn("SendGrid is not configured. Email notifications will be disabled.");
-}
+        <!-- Mobile Auth Container -->
+        <div id="auth-container-mobile" class="my-2 flex justify-center sm:hidden"></div>
 
-// --- בדיקת משתני סביבה חיוניים ---
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
-    console.error("FATAL ERROR: One or more required environment variables are missing!");
-    process.exit(1);
-}
+        <!-- Main Feed View -->
+        <div id="main-view" class="view active">
+             <div class="my-6 space-y-4">
+                <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <select id="category-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
+                    <select id="condition-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                        <option value="all">כל המצבים</option>
+                        <option value="new-with-tags">חדש עם טיקט</option>
+                        <option value="new-without-tags">חדש ללא טיקט</option>
+                        <option value="like-new">כמו חדש</option>
+                        <option value="good">במצב טוב</option>
+                        <option value="used">משומש</option>
+                    </select>
+                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <select id="sort-select" class="w-full p-3 border bg-white border-gray-300 rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                        <option value="newest">החדש ביותר</option>
+                        <option value="price_asc">מחיר: מהנמוך לגבוה</option>
+                        <option value="price_desc">מחיר: מהגבוה לנמוך</option>
+                    </select>
+                </div>
+                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 rounded-md bg-white hover:bg-red-50" title="הצג מועדפים">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
+                    <span>הצג מועדפים בלבד</span>
+                </button>
+            </div>
+            <main id="items-feed" class="space-y-6"></main>
+            <div id="empty-state" class="text-center py-16 px-4 hidden">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">לא נמצאו פריטים</h3>
+                <p class="mt-1 text-sm text-gray-500">נסה לשנות את תנאי החיפוש.</p>
+            </div>
+        </div>
 
-// --- הגדרת מודלים למסד הנתונים ---
-const UserSchema = new mongoose.Schema({ 
-    googleId: { type: String, required: true }, 
-    displayName: String, 
-    email: String, 
-    image: String,
-    ratings: [{
-        rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, min: 1, max: 5, required: true },
-        comment: String,
-        createdAt: { type: Date, default: Date.now }
-    }],
-    averageRating: { type: Number, default: 0 },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }]
-});
-const User = mongoose.model('User', UserSchema);
+        <!-- Public Profile View -->
+        <div id="public-profile-view" class="view"></div>
 
-const ItemSchema = new mongoose.Schema({ 
-    title: String, 
-    description: String, 
-    price: Number, 
-    category: String, 
-    contact: String, 
-    imageUrls: [String], 
-    affiliateLink: { type: String, default: '' },
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
-    sold: { type: Boolean, default: false }, 
-    isPromoted: { type: Boolean, default: false },
-    condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
-    size: { type: String, trim: true },
-    createdAt: { type: Date, default: Date.now } 
-});
-const Item = mongoose.model('Item', ItemSchema);
+        <!-- Profile View -->
+        <div id="profile-view" class="view">
+            <div class="my-6 text-center">
+                <h2 class="text-2xl font-bold text-gray-800">הפריטים שלי</h2>
+                <p class="text-gray-500">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
+            </div>
+            <main id="profile-items-feed" class="space-y-6"></main>
+        </div>
 
-const ConversationSchema = new mongoose.Schema({
-    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
-    lastMessage: { type: String },
-}, { timestamps: true });
-const Conversation = mongoose.model('Conversation', ConversationSchema);
+        <!-- NEW: Chat View -->
+        <div id="chat-view" class="view">
+            <!-- This will be populated by JavaScript -->
+        </div>
 
-const MessageSchema = new mongoose.Schema({
-    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
-    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    text: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const Message = mongoose.model('Message', MessageSchema);
+    </div>
+
+    <!-- Floating Add Button -->
+    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+    </button>
+
+    <!-- Modals -->
+    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
+        <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
+            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800">העלאת פריט חדש</h2> 
+            <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
+                <div class="space-y-4"> 
+                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3" required></textarea> 
+                    <div class="grid grid-cols-2 gap-4">
+                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                            <option value="" disabled selected>בחרי קטגוריה</option> 
+                            <option value="pants">מכנסיים</option> 
+                            <option value="shirts">חולצות</option> 
+                            <option value="jackets">ג'קטים</option> 
+                            <option value="dresses">שמלות</option> 
+                            <option value="skirts">חצאיות</option> 
+                            <option value="top">טופ</option> 
+                            <option value="tank-tops">גופיות</option> 
+                            <option value="blazer">בלייזר</option> 
+                            <option value="accessories">אקססוריז</option> 
+                            <option value="general">כללי</option> 
+                        </select>
+                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border bg-white rounded-md focus:ring-2 focus:ring-teal-400 transition" required>
+                            <option value="" disabled selected>מצב הפריט</option>
+                            <option value="new-with-tags">חדש עם טיקט</option>
+                            <option value="new-without-tags">חדש ללא טיקט</option>
+                            <option value="like-new">כמו חדש</option>
+                            <option value="good">במצב טוב</option>
+                            <option value="used">משומש</option>
+                        </select>
+                    </div>
+                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" required> 
+                    <div id="affiliate-link-container" class="hidden"> 
+                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700">קישור אפילייט (מנהלים בלבד)</label> 
+                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition"> 
+                    </div> 
+                    <div id="promoted-container" class="hidden items-center">
+                        <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900">קדם פריט זה (יוצג בראש העמוד)</label>
+                    </div>
+                    <div> 
+                        <label for="item-images" class="block text-sm font-medium text-gray-700">העלאת תמונות (עד 6)</label> 
+                        <p class="text-xs text-gray-500">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
+                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" accept="image/*" multiple> 
+                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div> 
+                    </div> 
+                </div> 
+                <div class="mt-6 flex justify-end gap-4"> 
+                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button> 
+                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button> 
+                </div> 
+            </form> 
+        </div> 
+    </div>
+    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50"> <div class="gallery-content relative"> <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl object-contain"> <button id="gallery-close" class="absolute -top-4 -right-4 bg-white text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition">&times;</button> <button id="gallery-prev" class="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276E;</button> <button id="gallery-next" class="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed">&#x276F;</button> <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div> </div> </div>
+    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
+    <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content relative bg-white rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">שתפי את האפליקציה</h3>
+            <div class="space-y-3">
+                <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    <span>שתפי בווטסאפ</span>
+                </a>
+                <button id="copy-link-btn" class="flex items-center justify-center gap-3 w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    <span>העתקת קישור</span>
+                </button>
+            </div>
+            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
+    
+    <!-- NEW: Rating Modal -->
+    <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
+            <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800">דרג את המוכר</h2>
+            <form id="rating-form">
+                <input type="hidden" id="rated-user-id">
+                <div class="star-rating mb-4">
+                    <input type="radio" id="star5" name="rating" value="5" required/><label for="star5" title="5 כוכבים">&#9733;</label>
+                    <input type="radio" id="star4" name="rating" value="4" required/><label for="star4" title="4 כוכבים">&#9733;</label>
+                    <input type="radio" id="star3" name="rating" value="3" required/><label for="star3" title="3 כוכבים">&#9733;</label>
+                    <input type="radio" id="star2" name="rating" value="2" required/><label for="star2" title="2 כוכבים">&#9733;</label>
+                    <input type="radio" id="star1" name="rating" value="1" required/><label for="star1" title="כוכב 1">&#9733;</label>
+                </div>
+                <textarea id="rating-comment" placeholder="ספר/י על חווית הקנייה... (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition" rows="3"></textarea>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-rating-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דירוג</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
 
-// --- הגדרות העלאת קבצים ---
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+    <script>
+        // This script contains the client-side logic for the application.
+        // It handles user authentication, item display, filtering, uploading, editing, deleting,
+        // real-time updates via WebSockets, and the chat functionality.
 
-// --- הגדרת Middleware ---
-app.use(cors());
-app.use(express.json());
+        // --- Configuration ---
+        const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
+        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
+        const CLIENT_URL = window.location.origin;
 
-// --- הוספת הקוד להגשת קבצים סטטיים ---
-app.use(express.static(path.join(__dirname)));
+        // --- UI Element Selectors ---
+        const mainView = document.getElementById('main-view');
+        const profileView = document.getElementById('profile-view');
+        const publicProfileView = document.getElementById('public-profile-view');
+        const itemsFeed = document.getElementById('items-feed');
+        const profileItemsFeed = document.getElementById('profile-items-feed');
+        const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerLeftDesktop = document.getElementById('header-left-desktop');
+        const authContainerMobile = document.getElementById('auth-container-mobile');
+        const homeLogo = document.getElementById('home-logo');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const filterInput = document.getElementById('filter-input');
+        const categorySelect = document.getElementById('category-select');
+        const sortSelect = document.getElementById('sort-select');
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
+        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
+        const emptyState = document.getElementById('empty-state');
+        const chatView = document.getElementById('chat-view');
+        // NEW: Filter selectors
+        const conditionSelect = document.getElementById('condition-select');
+        const sizeFilterInput = document.getElementById('size-filter');
 
-app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// --- הגדרת Passport.js ---
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
-
-passport.use(new GoogleStrategy({
-    clientID: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: `${SERVER_URL}/auth/google/callback`,
-    proxy: true
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-        let user = await User.findOne({ googleId: profile.id });
-        if (user) return done(null, user);
         
-        const newUser = new User({
-            googleId: profile.id,
-            displayName: profile.displayName,
-            email: profile.emails[0].value,
-            image: profile.photos[0].value
-        });
-        await newUser.save();
-        return done(null, newUser);
-    } catch (err) {
-        console.error("Error during Google Strategy user processing:", err);
-        return done(err, null);
-    }
-  }
-));
+        // --- Modals & Forms Selectors ---
+        const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
+        const uploadModal = document.getElementById('upload-modal');
+        const galleryModal = document.getElementById('gallery-modal');
+        const customModal = document.getElementById('custom-modal');
+        const shareModal = document.getElementById('share-modal');
+        const ratingModal = document.getElementById('rating-modal');
+        const uploadForm = document.getElementById('upload-form');
+        const ratingForm = document.getElementById('rating-form');
+        const uploadModalTitle = document.getElementById('upload-modal-title');
+        const editingItemIdInput = document.getElementById('editing-item-id');
+        
+        // --- Gallery Elements Selectors ---
+        const galleryImage = document.getElementById('gallery-image');
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+        const galleryCounter = document.getElementById('gallery-counter');
+        
+        const toastNotification = document.getElementById('toast-notification');
 
-// Middleware לאימות טוקן
-const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401);
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
-        req.user = user;
-        next();
-    });
-};
+        // --- Global State ---
+        let socket;
+        let currentUser = null;
+        let currentFilter = { category: 'all', favorites: false, minPrice: null, maxPrice: null, sort: 'newest', condition: 'all', size: '' };
+        let allItemsCache = {};
+        let galleryImages = [];
+        let currentImageIndex = 0;
+        let favorites = []; // Will be fetched from server
+        let currentConversationId = null;
+        let currentConversationDetails = null;
 
-// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
-const uploadToCloudinary = (fileBuffer) => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream({ folder: "second-hand-app" }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-        });
-        streamifier.createReadStream(fileBuffer).pipe(uploadStream);
-    });
-};
+        // --- Category Mapping ---
+        const categoryMap = { 
+            'pants': 'מכנסיים', 
+            'shirts': 'חולצות', 
+            'jackets': 'ג\'קטים', 
+            'dresses': 'שמלות', 
+            'skirts': 'חצאיות', 
+            'top': 'טופ', 
+            'tank-tops': 'גופיות', 
+            'blazer': 'בלייזר', 
+            'accessories': 'אקססוריז', 
+            'general': 'כללי' 
+        };
+        
+        /**
+         * Initializes or re-initializes the Socket.IO connection.
+         * @param {string | null} token - The JWT for authentication.
+         */
+        function initializeSocket(token) {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io(SERVER_URL, {
+                auth: { token: token }
+            });
 
-// --- נתיבים (Routes) ---
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    const payload = { id: req.user._id, name: req.user.displayName, email: req.user.email };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-    res.redirect(`${CLIENT_URL}?token=${token}`);
-});
+            // --- Centralized Socket Event Listeners ---
+            socket.off('connect');
+            socket.off('newItem');
+            socket.off('itemDeleted');
+            socket.off('itemUpdated');
+            socket.off('newMessage');
+            socket.off('newConversation');
 
-app.get('/items', async (req, res) => { try { const items = await Item.find().populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
-app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+            socket.on('connect', () => {
+                console.log('Connected to server with socket ID:', socket.id);
+            });
 
-// --- נתיבים לפרופיל ציבורי ודירוגים ---
-app.get('/users/:id/items', async (req, res) => { 
-    try { 
-        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); 
-        res.json(items); 
-    } catch (err) { 
-        res.status(500).json({ message: err.message }); 
-    } 
-});
-
-app.get('/users/:id', async (req, res) => { 
-    try { 
-        const user = await User.findById(req.params.id).select('displayName image averageRating'); 
-        if (!user) return res.status(404).json({ message: 'User not found' }); 
-        res.json(user); 
-    } catch (err) { 
-        res.status(500).json({ message: err.message }); 
-    } 
-});
-
-app.get('/users/:id/ratings', async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id)
-            .populate({
-                path: 'ratings',
-                populate: {
-                    path: 'rater',
-                    select: 'displayName image' // Select fields from the rater
+            socket.on('newItem', (item) => { 
+                allItemsCache[item._id] = item; 
+                applyFilters(); 
+                if (profileView.classList.contains('active') && currentUser && item.owner._id === currentUser.id) { 
+                    const profileEmptyState = profileItemsFeed.querySelector('.text-center'); 
+                    if (profileEmptyState) profileEmptyState.remove(); 
+                    displayItem(item, true, profileItemsFeed); 
+                } 
+            });
+            socket.on('itemDeleted', (itemId) => { 
+                delete allItemsCache[itemId]; 
+                applyFilters(); 
+                const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); 
+                if (itemElementProfile) itemElementProfile.remove(); 
+            });
+            socket.on('itemUpdated', (updatedItem) => { 
+                allItemsCache[updatedItem._id] = updatedItem; 
+                applyFilters(); 
+                const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); 
+                if (profileFeedCard) { 
+                    const tempDiv = document.createElement('div'); 
+                    tempDiv.innerHTML = createItemCard(updatedItem); 
+                    profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); 
+                } 
+            });
+            
+            socket.on('newMessage', (message) => {
+                if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
+                    appendMessage(message);
+                } else {
+                    showToast(`הודעה חדשה מ-${message.sender.displayName}`);
                 }
             });
-        if (!user) return res.status(404).json({ message: "User not found" });
-        res.json(user.ratings.sort((a, b) => b.createdAt - a.createdAt)); // Send sorted ratings
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
 
-app.post('/users/:id/rate', authMiddleware, async (req, res) => {
-    const { rating, comment } = req.body;
-    const raterId = req.user.id;
-    const ratedUserId = req.params.id;
-
-    if (raterId === ratedUserId) {
-        return res.status(400).json({ message: "You cannot rate yourself." });
-    }
-
-    try {
-        const userToRate = await User.findById(ratedUserId);
-        if (!userToRate) return res.status(404).json({ message: "User to be rated not found." });
-
-        // Find if the user has already rated and remove the old rating
-        const existingRatingIndex = userToRate.ratings.findIndex(r => r.rater.toString() === raterId);
-        if (existingRatingIndex > -1) {
-            userToRate.ratings.splice(existingRatingIndex, 1);
-        }
-
-        // Add the new rating
-        userToRate.ratings.push({ rater: raterId, rating, comment });
-
-        // Recalculate average rating
-        if (userToRate.ratings.length > 0) {
-            const totalRating = userToRate.ratings.reduce((acc, r) => acc + r.rating, 0);
-            userToRate.averageRating = totalRating / userToRate.ratings.length;
-        } else {
-            userToRate.averageRating = 0;
-        }
-        
-        await userToRate.save();
-        res.status(201).json({ message: "Rating submitted successfully", averageRating: userToRate.averageRating });
-
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-// --- NEW: Routes for Favorites ---
-app.get('/api/my-favorites', authMiddleware, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).select('favorites');
-        res.json(user.favorites);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
-    try {
-        const itemId = req.params.itemId;
-        const user = await User.findById(req.user.id);
-        
-        const index = user.favorites.indexOf(itemId);
-        if (index > -1) {
-            // Item is already a favorite, so remove it
-            user.favorites.splice(index, 1);
-        } else {
-            // Item is not a favorite, so add it
-            user.favorites.push(itemId);
-        }
-        
-        await user.save();
-        res.json(user.favorites); // Return the updated list of favorites
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-
-app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
-    try {
-        const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
-        const uploadResults = await Promise.all(uploadPromises);
-        const imageUrls = uploadResults.map(result => result.secure_url);
-
-        const newItemData = { 
-            title: req.body.title, 
-            description: req.body.description, 
-            price: req.body.price, 
-            category: req.body.category, 
-            contact: req.body.contact, 
-            imageUrls: imageUrls,
-            owner: req.user.id,
-            // NEW: Add new fields from form
-            condition: req.body.condition,
-            size: req.body.size
-        };
-
-        if (req.user.email === ADMIN_EMAIL) {
-            if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
-            if (req.body.isPromoted) newItemData.isPromoted = req.body.isPromoted === 'true';
-        }
-        
-        const newItem = new Item(newItemData);
-        const savedItem = await newItem.save();
-        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email');
-        io.emit('newItem', populatedItem);
-        res.status(201).json(populatedItem);
-    } catch (err) {
-        console.error("Error uploading item:", err);
-        res.status(400).json({ message: err.message });
-    }
-});
-
-app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => {
-    try {
-        const item = await Item.findById(req.params.id);
-        if (!item) return res.status(404).json({ message: 'Item not found' });
-        const isOwner = item.owner && item.owner.toString() === req.user.id;
-        const isAdmin = req.user.email === ADMIN_EMAIL;
-        if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' });
-
-        const updateData = { ...req.body };
-        if (req.files && req.files.length > 0) {
-            const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
-            const uploadResults = await Promise.all(uploadPromises);
-            updateData.imageUrls = uploadResults.map(result => result.secure_url);
-        }
-
-        if (isAdmin) {
-             if (req.body.affiliateLink) updateData.affiliateLink = req.body.affiliateLink;
-             if (req.body.isPromoted) updateData.isPromoted = req.body.isPromoted === 'true';
-        } else {
-            delete updateData.affiliateLink;
-            delete updateData.isPromoted;
-        }
-
-        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email');
-        io.emit('itemUpdated', updatedItem);
-        res.json(updatedItem);
-    } catch (err) {
-        console.error("Error updating item:", err);
-        res.status(400).json({ message: err.message });
-    }
-});
-
-app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
-app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
-
-// --- Chat Routes ---
-app.post('/api/conversations', authMiddleware, async (req, res) => {
-    const { sellerId, itemId } = req.body;
-    const buyerId = req.user.id;
-
-    if (sellerId === buyerId) {
-        return res.status(400).json({ message: "You cannot start a conversation with yourself." });
-    }
-
-    try {
-        let conversation = await Conversation.findOne({
-            participants: { $all: [buyerId, sellerId] },
-            item: itemId
-        });
-
-        if (!conversation) {
-            conversation = new Conversation({
-                participants: [buyerId, sellerId],
-                item: itemId
+            socket.on('newConversation', (data) => {
+                showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
             });
-            await conversation.save();
-            
-            // Populate after saving to get all details for the notification
-            const newConversation = await Conversation.findById(conversation._id)
-                .populate('participants', 'displayName email image')
-                .populate('item', 'title');
+        }
+        
+        // --- Custom Modal System ---
+        let modalResolver;
+        function showCustomModal({ title, message, buttons }) {
+            document.getElementById('custom-modal-title').textContent = title;
+            document.getElementById('custom-modal-message').innerHTML = message; 
+            const buttonsContainer = document.getElementById('custom-modal-buttons');
+            buttonsContainer.innerHTML = '';
+            buttons.forEach(btn => {
+                const buttonEl = document.createElement('button');
+                buttonEl.textContent = btn.text;
+                buttonEl.className = btn.class;
+                buttonEl.onclick = () => {
+                    hideAllModals();
+                    if (modalResolver) modalResolver(btn.resolves);
+                };
+                buttonsContainer.appendChild(buttonEl);
+            });
+            showModal(customModal);
+            return new Promise(resolve => { modalResolver = resolve; });
+        }
+        
+        async function showAlert(message, title = 'הודעה') {
+            await showCustomModal({
+                title: title,
+                message: message,
+                buttons: [{ text: 'הבנתי', class: 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }]
+            });
+        }
+        
+        function showToast(message) {
+            toastNotification.textContent = message;
+            toastNotification.classList.remove('hidden', 'opacity-0');
+            setTimeout(() => {
+                toastNotification.classList.add('opacity-0');
+                setTimeout(() => {
+                    toastNotification.classList.add('hidden');
+                }, 2500);
+            }, 2500);
+        }
 
-            const seller = newConversation.participants.find(p => p._id.toString() === sellerId);
-            const buyer = newConversation.participants.find(p => p._id.toString() === buyerId);
+        // --- View & Modal Management ---
+        function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); window.scrollTo(0, 0); }
+        function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
+        function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
+        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
+        allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
-            if (seller && buyer) {
-                 io.to(sellerId).emit('newConversation', {
-                    conversationId: newConversation._id,
-                    buyerName: buyer.displayName,
-                    itemName: newConversation.item.title
-                });
+        // --- Gallery (Lightbox) System ---
+        function openGallery(images, startIndex = 0) { if (!images || images.length === 0) return; galleryImages = images; showModal(galleryModal); document.body.style.overflow = 'hidden'; updateGalleryImage(startIndex); }
+        function closeGallery() { hideAllModals(); document.body.style.overflow = ''; }
+        function updateGalleryImage(index) { currentImageIndex = index; galleryImage.src = galleryImages[index]; galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`; galleryPrev.disabled = index === 0; galleryNext.disabled = index === galleryImages.length - 1; }
+        galleryPrev.addEventListener('click', () => { if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1); });
+        galleryNext.addEventListener('click', () => { if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1); });
+        galleryClose.addEventListener('click', closeGallery);
+        document.addEventListener('keydown', (e) => { if (galleryModal.classList.contains('hidden')) return; if (e.key === 'Escape') closeGallery(); if (e.key === 'ArrowRight') galleryNext.click(); if (e.key === 'ArrowLeft') galleryPrev.click(); });
+
+        /**
+         * Parses a JWT token to extract its payload.
+         * @param {string} token - The JWT string.
+         * @returns {object|null} The decoded payload or null if parsing fails.
+         */
+        function parseJwt (token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("Invalid token:", e);
+                return null;
             }
-            return res.status(201).json(newConversation);
         }
         
-        const existingConversation = await Conversation.findById(conversation._id)
-            .populate('participants', 'displayName email image')
-            .populate('item');
-
-        res.status(200).json(existingConversation);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.get('/api/my-conversations', authMiddleware, async (req, res) => {
-    try {
-        const conversations = await Conversation.find({ participants: req.user.id })
-            .populate('participants', 'displayName email image')
-            .populate('item', 'title imageUrls')
-            .sort({ updatedAt: -1 });
+        // --- Authentication System ---
         
-        res.json(conversations);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
-    try {
-        const conversation = await Conversation.findById(req.params.id)
-            .populate('participants', 'displayName email image')
-            .populate('item', 'title');
+        // *** FIXED ***: Added the missing fetchUserFavorites function
+        async function fetchUserFavorites() {
+            if (!currentUser) {
+                favorites = [];
+                return;
+            }
+            const token = localStorage.getItem('authToken');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/my-favorites`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    throw new Error('Could not fetch favorites');
+                }
+                favorites = await response.json();
+            } catch (error) {
+                console.error('Failed to fetch user favorites:', error);
+                favorites = []; // Default to empty on error
+            }
+        }
         
-        if (!conversation) {
-            return res.status(404).json({ message: 'Conversation not found' });
-        }
+        async function checkAuthState() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tokenFromUrl = urlParams.get('token');
 
-        const isParticipant = conversation.participants.some(p => p._id.toString() === req.user.id);
-        if (!isParticipant) {
-            return res.status(403).json({ message: 'Not authorized to view this conversation' });
-        }
+            if (tokenFromUrl) {
+                localStorage.setItem('authToken', tokenFromUrl);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
 
-        res.json(conversation);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-
-app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
-    try {
-        const messages = await Message.find({ conversation: req.params.id }).populate('sender', 'displayName image').sort('createdAt');
-        res.json(messages);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-// --- הגדרת Socket.io ---
-// Middleware for authenticating socket connections
-io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
-    if (!token) {
-        return next();
-    }
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            console.log("Socket connection with invalid token.");
-            return next();
-        }
-        socket.user = user;
-        next();
-    });
-});
-
-io.on('connection', (socket) => { 
-    if (socket.user) {
-        socket.join(socket.user.id);
-        console.log(`Socket ${socket.id} for user ${socket.user.name} connected and joined room ${socket.user.id}.`);
-    } else {
-        console.log('An anonymous user connected:', socket.id);
-    }
-
-    socket.on('sendMessage', async (data) => {
-        try {
-            const { conversationId, senderId, receiverId, text } = data;
+            const storedToken = localStorage.getItem('authToken');
             
-            if (!socket.user || socket.user.id !== senderId) {
-                console.error("Socket user does not match senderId. Aborting message send.");
-                socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
+            if (storedToken) {
+                const decodedUser = parseJwt(storedToken);
+                currentUser = (decodedUser && decodedUser.id) ? decodedUser : null;
+                if (!currentUser) localStorage.removeItem('authToken');
+            } else {
+                currentUser = null;
+            }
+            
+            initializeSocket(storedToken);
+            // *** FIXED ***: The call to fetchUserFavorites will now work
+            if(currentUser) await fetchUserFavorites();
+            updateUIForAuthState();
+            fetchHistory();
+        }
+
+        function updateUIForAuthState() {
+            const shareButtonHtml = `
+                <button id="share-app-btn" class="text-teal-500 hover:text-teal-700 transition p-2 rounded-full hover:bg-teal-100" title="שתף את האפליקציה">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
+                </button>
+            `;
+            
+            if (currentUser) {
+                // --- Logged In State ---
+
+                // Desktop View
+                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 hidden sm:block">שלום, ${currentUser.name}</span>`;
+                headerRightDesktop.innerHTML = shareButtonHtml + usernameHtmlDesktop;
+
+                const actionButtonsHtml = `
+                    <div class="hidden sm:flex items-center gap-3">
+                        <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
+                        <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
+                        <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
+                    </div>
+                `;
+                headerLeftDesktop.innerHTML = actionButtonsHtml;
+                
+                // Mobile View (Untouched)
+                const loggedInHtmlMobile = `
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-sm text-gray-700 mb-2">שלום, ${currentUser.name}</span>
+                        <div class="flex gap-2">
+                            <button id="chat-btn-mobile" class="text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn-mobile" class="text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button id="logout-btn-mobile" class="text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                        </div>
+                    </div>
+                `;
+                authContainerMobile.innerHTML = loggedInHtmlMobile;
+
+            } else {
+                // --- Logged Out State ---
+
+                // Desktop View
+                headerRightDesktop.innerHTML = shareButtonHtml;
+
+                const loginButtonHtml = `
+                    <div class="hidden sm:flex">
+                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 text-base border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition">
+                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                            <span>התחברות עם Google</span>
+                        </button>
+                    </div>
+                `;
+                headerLeftDesktop.innerHTML = loginButtonHtml;
+
+                // Mobile View (Untouched)
+                const loggedOutHtmlMobile = `
+                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white text-gray-700 font-semibold py-2 px-4 text-base border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition">
+                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                        <span>התחברות עם Google</span>
+                    </button>
+                `;
+                authContainerMobile.innerHTML = loggedOutHtmlMobile;
+            }
+
+            // Re-attach event listeners for all states
+            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
+            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
+            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
+            document.getElementById('share-app-btn').addEventListener('click', shareApp);
+        }
+        
+        function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
+        function handleLogout() { 
+            localStorage.removeItem('authToken'); 
+            currentUser = null; 
+            initializeSocket(null);
+            showView('main-view'); 
+            updateUIForAuthState(); 
+            fetchHistory(); 
+        }
+
+        // --- Profile View Logic ---
+        async function showProfileView() { 
+            showView('profile-view'); 
+            profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) { 
+                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; 
+                return; 
+            } 
+            try { 
+                const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); 
+                if (!response.ok) throw new Error('Could not fetch user items'); 
+                const items = await response.json(); 
+                profileItemsFeed.innerHTML = ''; 
+                allItemsCache = {}; 
+                if (items.length === 0) { 
+                    profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; 
+                } else { 
+                    items.forEach(item => { 
+                        const cardHtml = createItemCard(item); 
+                        profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); 
+                    }); 
+                } 
+            } catch (error) { 
+                console.error('Failed to fetch profile items:', error); 
+                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; 
+            } 
+        }
+
+        // --- Public Profile View Logic ---
+        async function showPublicProfile(userId) {
+            showView('public-profile-view');
+            publicProfileView.innerHTML = `
+                <div class="my-6 text-center space-y-2">
+                    <div class="skeleton-loader h-24 w-24 rounded-full mx-auto"></div>
+                    <div class="skeleton-loader h-8 w-48 mx-auto"></div>
+                </div>
+                <div class="space-y-6">${Array(2).fill(createSkeletonCard()).join('')}</div>`;
+
+            try {
+                const [userResponse, itemsResponse, ratingsResponse] = await Promise.all([
+                    fetch(`${SERVER_URL}/users/${userId}`),
+                    fetch(`${SERVER_URL}/users/${userId}/items`),
+                    fetch(`${SERVER_URL}/users/${userId}/ratings`)
+                ]);
+
+                if (!userResponse.ok || !itemsResponse.ok || !ratingsResponse.ok) {
+                    throw new Error('Failed to load profile data.');
+                }
+
+                const user = await userResponse.json();
+                const items = await itemsResponse.json();
+                const ratings = await ratingsResponse.json();
+
+                let itemsHtml = '';
+                if (items.length > 0) {
+                    items.forEach(item => {
+                        itemsHtml += createItemCard(item);
+                    });
+                } else {
+                    itemsHtml = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900">למשתמש זה אין פריטים למכירה כרגע</h3></div>`;
+                }
+                
+                let ratingsHtml = '';
+                if (ratings.length > 0) {
+                    ratings.forEach(rating => {
+                        ratingsHtml += `
+                            <div class="bg-white p-4 rounded-lg shadow-sm">
+                                <div class="flex items-center mb-2">
+                                    <img src="${rating.rater.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${rating.rater.displayName}" class="w-10 h-10 rounded-full mr-3">
+                                    <div>
+                                        <p class="font-bold">${rating.rater.displayName}</p>
+                                        <div class="text-sm text-gray-500">${new Date(rating.createdAt).toLocaleDateString('he-IL')}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center mb-2">
+                                    ${renderStars(rating.rating)}
+                                </div>
+                                <p class="text-gray-700">${rating.comment || ''}</p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    ratingsHtml = `<div class="text-center py-8 px-4"><p class="text-gray-500">עדיין אין דירוגים עבור מוכר זה.</p></div>`;
+                }
+
+                const rateButtonHtml = (currentUser && currentUser.id !== userId) ? 
+                    `<button onclick="openRatingModal('${userId}', '${user.displayName}')" class="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition">דרג את ${user.displayName}</button>` : '';
+
+                publicProfileView.innerHTML = `
+                    <div class="my-6">
+                        <button onclick="showView('main-view')" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
+                        <div class="flex flex-col items-center gap-4 p-6 bg-white rounded-lg shadow-md">
+                            <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200">
+                            <h2 class="text-3xl font-bold text-gray-800">${user.displayName}</h2>
+                            <div class="flex items-center gap-2 text-lg">
+                                <div class="static-stars">${renderStars(user.averageRating)}</div>
+                                <span class="text-gray-600">(${ratings.length} דירוגים)</span>
+                            </div>
+                            ${rateButtonHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-700 mb-4">פריטים למכירה</h3>
+                            <div class="space-y-6">${itemsHtml}</div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-700 mb-4">ביקורות אחרונות</h3>
+                            <div class="space-y-4">${ratingsHtml}</div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Failed to show public profile:', error);
+                publicProfileView.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפרופיל.</p>`;
+            }
+        }
+
+
+        // --- Item Card Creation & Helpers ---
+        function getWhatsAppLink(contact, title) {
+            if (!contact) return null;
+            let digits = String(contact).replace(/\D/g, '');
+            if (digits.startsWith('9725')) { /* Correct format */ } 
+            else if (digits.startsWith('05')) { digits = '972' + digits.substring(1); } 
+            else { return null; }
+            if (digits.length !== 12) return null;
+            const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`);
+            return `https://wa.me/${digits}?text=${whatsappMessage}`;
+        }
+
+        function createItemCard(item) {
+            if (!item || !item.owner) {
+                console.error("Attempting to render an item with a missing owner. Skipping.", item);
+                return '';
+            }
+            allItemsCache[item._id] = item;
+            
+            const isOwner = currentUser && item.owner._id === currentUser.id;
+            const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
+            const isPostByAdmin = item.affiliateLink && item.affiliateLink.length > 0;
+            
+            const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
+            const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
+            const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
+            const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" class="sold-btn text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
+            const editButtonHtml = (isOwner || isAdmin) && !item.sold ? `<button data-id="${item._id}" class="edit-btn text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : '';
+            const deleteButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" class="delete-btn text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : '';
+            const date = new Date(item.createdAt);
+            const dateString = date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            
+            let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
+            if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                ownerName = 'מנהל';
+            }
+
+            const ownerInitial = ownerName ? ownerName.charAt(0).toUpperCase() : '?';
+            const contactHtml = generateContactHtml(item, ownerName);
+            const imageUrlsJson = JSON.stringify(item.imageUrls || []);
+            const thumbnailsHtml = (item.imageUrls || []).map((url, index) => `<img src="${url}" class="thumbnail w-12 h-12 object-cover rounded-md" onclick='openGallery(${imageUrlsJson}, ${index})'>`).join('');
+            const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
+            const categoryHtml = `<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
+            
+            let purchaseButtonHtml = '';
+            const purchaseButtonClasses = "purchase-btn mt-2 block w-1/2 mx-auto text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
+            
+            if (isPostByAdmin) {
+                const buttonText = 'לרכישה';
+                const link = item.affiliateLink || getWhatsAppLink(item.contact, item.title);
+                const colorClasses = 'bg-amber-500 hover:bg-amber-600';
+                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
+                purchaseButtonHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>` : `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
+            } else if (!isOwner) {
+                const buttonText = 'שלחי הודעה';
+                const colorClasses = 'bg-green-500 hover:bg-green-600';
+                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>`;
+                purchaseButtonHtml = `<button onclick="startOrOpenChat('${item.owner._id}', '${item._id}')" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></button>`;
+            }
+            
+            return `<div id="item-${item._id}" class="item-card bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}"><div class="md:w-48 flex-shrink-0 main-image-container relative" onclick='openGallery(${imageUrlsJson}, 0)'>${soldStampHtml}<img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-80 object-contain bg-gray-200 md:h-full md:object-cover"></div><div class="p-5 flex flex-col flex-grow"><div class="flex justify-between items-start"> <h2 class="text-2xl font-bold text-gray-800">${item.title}</h2> <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div> </div><div class="flex items-center my-2 gap-2"> ${categoryHtml} </div><div class="flex-grow my-3"><p class="text-gray-600">${item.description || ''}</p></div><div class="flex gap-2 mt-2 overflow-x-auto pb-2">${thumbnailsHtml}</div><div class="mt-auto pt-4 border-t border-gray-200 space-y-3">${!item.sold ? purchaseButtonHtml : ''}<div class="flex justify-between items-center"><div class="flex items-center" title="פורסם על ידי ${ownerName}"> <div class="w-6 h-6 bg-gray-200 text-gray-600 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div> ${contactHtml} </div><div class="flex items-center gap-2"> <p class="text-xs text-gray-400">${dateString}</p> ${soldButtonHtml} ${editButtonHtml} ${deleteButtonHtml} </div></div></div></div></div>`;
+        }
+
+        function createSkeletonCard() { return `<div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row gap-4 p-5"><div class="skeleton-loader w-full h-64 md:w-48 md:h-32"></div><div class="flex-grow w-full"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2 mt-4"></div><div class="skeleton-loader h-16 w-full mt-3"></div></div></div>`; }
+        function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
+        
+        function generateContactHtml(item, ownerName) {
+            if (!item || !item.owner) return `<p class="text-sm text-gray-700 font-semibold">${ownerName}</p>`;
+            const ownerNameHtml = `<p class="text-sm text-teal-700 font-semibold cursor-pointer hover:underline" onclick="showPublicProfile('${item.owner._id}')">${ownerName}</p>`;
+            const whatsappUrl = getWhatsAppLink(item.contact, item.title);
+            if (whatsappUrl) {
+                return `<div class="flex items-center gap-2">${ownerNameHtml}<a href="${whatsappUrl}" target="_blank" class="text-green-500 hover:text-green-600 transition" title="שלח הודעה בווטסאפ"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a></div>`;
+            } 
+            return ownerNameHtml;
+        }
+
+        // --- Rating Logic ---
+        function renderStars(rating) {
+            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+            const fullStars = Math.floor(roundedRating);
+            const halfStar = roundedRating % 1 !== 0;
+            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+            let starsHtml = '';
+            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;'; // Full star
+            if (halfStar) starsHtml += '&#9734;'; // Using an empty star as a placeholder for half, can be improved with better icons
+            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>'; // Empty star
+            return starsHtml;
+        }
+
+        function openRatingModal(userId, userName) {
+            if (!currentUser) {
+                return showAlert('עליך להתחבר כדי לדרג משתמשים.');
+            }
+            document.getElementById('rating-modal-title').textContent = `דרג את ${userName}`;
+            document.getElementById('rated-user-id').value = userId;
+            ratingForm.reset();
+            showModal(ratingModal);
+        }
+
+        ratingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return showAlert('עליך להתחבר כדי לדרג.');
+            }
+
+            const ratedUserId = document.getElementById('rated-user-id').value;
+            const rating = ratingForm.elements.rating.value;
+            const comment = document.getElementById('rating-comment').value;
+
+            try {
+                const response = await fetch(`${SERVER_URL}/users/${ratedUserId}/rate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ rating: Number(rating), comment })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to submit rating.');
+                }
+
+                hideAllModals();
+                showToast('הדירוג שלך נשלח בהצלחה!');
+                // Refresh the profile view to show the new rating
+                showPublicProfile(ratedUserId);
+
+            } catch (error) {
+                console.error('Failed to submit rating:', error);
+                showAlert(`שגיאה בשליחת הדירוג: ${error.message}`);
+            }
+        });
+        
+        // --- Filtering and State Management ---
+        function applyFilters() {
+            const searchTerm = (filterInput.value || '').toLowerCase().trim();
+            const allItems = Object.values(allItemsCache);
+            
+            let filteredItems = allItems.filter(item => {
+                if (!item || !item.owner) return false; 
+                const title = (item.title || '').toLowerCase().trim();
+                const categoryName = (categoryMap[item.category] || '').toLowerCase();
+
+                const categoryMatch = (currentFilter.category === 'all' || item.category === currentFilter.category);
+                const searchMatch = title.includes(searchTerm) || categoryName.includes(searchTerm);
+                const favoritesMatch = !currentFilter.favorites || favorites.includes(item._id);
+                const minPriceMatch = currentFilter.minPrice === null || !currentFilter.minPrice || item.price >= currentFilter.minPrice;
+                const maxPriceMatch = currentFilter.maxPrice === null || !currentFilter.maxPrice || item.price <= currentFilter.maxPrice;
+
+                return categoryMatch && searchMatch && favoritesMatch && minPriceMatch && maxPriceMatch;
+            });
+
+            // Sorting
+            filteredItems.sort((a, b) => {
+                if (a.isPromoted && !b.isPromoted) return -1;
+                if (!a.isPromoted && b.isPromoted) return 1;
+                switch (currentFilter.sort) {
+                    case 'price_asc': return a.price - b.price;
+                    case 'price_desc': return b.price - a.price;
+                    default: return new Date(b.createdAt) - new Date(a.createdAt);
+                }
+            });
+
+            itemsFeed.innerHTML = '';
+            if (filteredItems.length > 0) {
+                filteredItems.forEach(item => displayItem(item, false, itemsFeed));
+            }
+            emptyState.classList.toggle('hidden', filteredItems.length > 0);
+        }
+
+        // --- Data Fetching ---
+        async function fetchHistory() {
+            itemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join('');
+            emptyState.classList.add('hidden');
+            try {
+                const response = await fetch(`${SERVER_URL}/items`);
+                const items = await response.json();
+                
+                if (!response.ok) {
+                    if (items && items.message && items.message.includes("timed out")) {
+                        itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">שגיאת התחברות השרת</h3><p class="mt-2 text-sm text-gray-600">השרת לא מצליח להתחבר למסד הנתונים בזמן. <br> יכולות להיות לכך שתי סיבות:</p><div class="text-right mx-auto max-w-md mt-4 space-y-4"><p><strong>1. השרת "מתעורר":</strong> שרתים בתוכנית החינמית של OnRender "נרדמים" אחרי חוסר פעילות. הבקשה הראשונה לוקחת זמן רב יותר. <strong>נסה ללחוץ על "נסה שוב" בעוד מספר שניות.</strong></p><p><strong>2. חסימת גישה:</strong> מסד הנתונים חוסם את הגישה מהשרת. יש לוודא שהגישה ב-MongoDB Atlas פתוחה מכל כתובת IP (0.0.0.0/0) בהגדרות Network Access.</p></div><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
+                    } else {
+                        itemsFeed.innerHTML = '<p class="text-center text-red-500">שגיאה בטעינת הפריטים מהשרת.</p>';
+                    }
+                    return;
+                }
+                
+                if (!Array.isArray(items)) {
+                    console.error("Server response is not an array:", items);
+                    itemsFeed.innerHTML = '<p class="text-center text-red-500">התקבלה תגובה לא תקינה מהשרת.</p>';
+                    return;
+                }
+
+                allItemsCache = {};
+                items.forEach(item => allItemsCache[item._id] = item);
+                applyFilters();
+            } catch (error) {
+                console.error('Failed to fetch history:', error);
+                itemsFeed.innerHTML = `<div class="text-center py-16 px-4 bg-white rounded-lg shadow-md"><h3 class="text-lg font-medium text-red-700">לא ניתן להתחבר לשרת</h3><p class="mt-2 text-sm text-gray-600">לא ניתן היה ליצור קשר עם השרת. ייתכן שהשרת "מתעורר" (פעולה שלוקחת כ-30 שניות בשירותים חינמיים) או שישנה בעיית רשת.</p><p class="mt-2 text-xs text-gray-500">כתובת השרת שאליה מנסים להתחבר: <strong>${SERVER_URL}</strong></p><button onclick="fetchHistory()" class="mt-6 bg-teal-500 text-white font-bold py-2 px-4 rounded-md hover:bg-teal-600 transition">נסה שוב</button></div>`;
+            }
+        }
+        
+        // --- Image Preview Handler ---
+        function handleImagePreview(event) {
+            const previewContainer = document.getElementById('image-preview-container');
+            previewContainer.innerHTML = '';
+            const files = event.target.files;
+
+            if (files.length > 6) {
+                showAlert('ניתן להעלות עד 6 תמונות בלבד.');
+                event.target.value = '';
                 return;
             }
 
-            const message = new Message({
-                conversation: conversationId,
-                sender: senderId,
-                receiver: receiverId,
-                text: text
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-16 h-16 object-cover rounded-md';
+                    previewContainer.appendChild(img);
+                }
+                reader.readAsDataURL(file);
             });
-            await message.save();
+        }
+        
+        // --- Share Logic ---
+        function showShareModal(shareData) {
+            document.getElementById('whatsapp-share-link').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
+            document.getElementById('copy-link-btn').onclick = () => {
+                navigator.clipboard.writeText(shareData.url).then(() => {
+                    showToast('הקישור הועתק!');
+                    hideAllModals();
+                }).catch(err => console.error('Failed to copy text: ', err));
+            };
+            showModal(shareModal);
+        }
 
-            await Conversation.findByIdAndUpdate(conversationId, { updatedAt: new Date() });
+        async function shareApp() {
+            const shareData = { title: 'סטייל מתגלגל', text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!', url: CLIENT_URL };
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    showShareModal(shareData);
+                }
+            } catch (err) {
+                console.error('Error sharing:', err);
+            }
+        }
+
+        // --- Chat Logic ---
+        async function startOrOpenChat(sellerId, itemId) {
+            if (!currentUser) return showAlert('עליך להתחבר כדי לשלוח הודעה.');
+            if (currentUser.id === sellerId) return showAlert('לא ניתן לשלוח הודעה לעצמך.');
+
+            const token = localStorage.getItem('authToken');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/conversations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ sellerId, itemId })
+                });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to start conversation');
+                }
+                const conversation = await response.json();
+                await showChatView(conversation._id);
+            } catch (error) {
+                console.error('Error starting chat:', error);
+                showAlert(`שגיאה בפתיחת הצ'אט: ${error.message}`);
+            }
+        }
+
+        async function showChatView(conversationId = null) {
+            showView('chat-view');
+            if (conversationId) {
+                currentConversationId = conversationId;
+                await renderFullChatInterface(conversationId);
+            } else {
+                currentConversationId = null; 
+                currentConversationDetails = null;
+                await renderConversationsListView();
+            }
+        }
+        
+        async function renderConversationsListView() {
+            chatView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div><p class="mt-4 text-gray-600">טוען שיחות...</p></div>`;
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                chatView.innerHTML = `<p class="text-center p-8 text-red-500">עליך להתחבר כדי לראות את ההודעות שלך.</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/my-conversations`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) throw new Error('Failed to fetch conversations');
+                const conversations = await response.json();
+
+                let conversationsHtml = `<div class="p-4"><h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2><button onclick="showView('main-view')" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>`;
+                if (conversations.length === 0) {
+                    conversationsHtml += `<p class="text-center text-gray-500 mt-8">אין לך שיחות עדיין.</p>`;
+                } else {
+                    conversationsHtml += `<div class="space-y-3">`;
+                    conversations.forEach(convo => {
+                        const otherParticipant = convo.participants.find(p => p._id !== currentUser.id);
+                        if (otherParticipant) {
+                            conversationsHtml += `<div class="flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition" onclick="showChatView('${convo._id}')"><img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4"><div class="flex-grow"><p class="font-bold text-gray-800">${otherParticipant.displayName}</p><p class="text-sm text-gray-600">לגבי: ${convo.item.title}</p></div><img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover"></div>`;
+                        }
+                    });
+                    conversationsHtml += `</div>`;
+                }
+                conversationsHtml += `</div>`;
+                chatView.innerHTML = conversationsHtml;
+
+            } catch (error) {
+                console.error('Error rendering conversations list:', error);
+                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת השיחות.</p>`;
+            }
+        }
+
+        async function renderFullChatInterface(conversationId) {
+            const token = localStorage.getItem('authToken');
+            try {
+                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!convoResponse.ok) {
+                    const errData = await convoResponse.json();
+                    throw new Error(errData.message || 'Failed to fetch conversation details');
+                }
+                currentConversationDetails = await convoResponse.json();
+
+                const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
+                const messages = await messagesResponse.json();
+
+                const otherParticipant = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
+                if (!otherParticipant) throw new Error("Could not identify the other participant in the chat.");
+
+                chatView.innerHTML = `<div class="flex flex-col h-[calc(100vh-200px)] bg-white rounded-lg shadow-lg"><div class="flex items-center p-3 border-b"><button onclick="showChatView()" class="text-teal-500 p-2 rounded-full hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button><img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3"><span class="font-bold">${otherParticipant.displayName}</span></div><div id="messages-container" class="flex-grow p-4 space-y-4 overflow-y-auto"></div><div class="p-4 border-t"><form id="message-form" class="flex items-center gap-2"><input type="text" id="message-input" placeholder="כתוב הודעה..." class="flex-grow p-2 border rounded-full focus:ring-2 focus:ring-teal-400" autocomplete="off" required><button type="submit" class="bg-teal-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" transform="rotate(180)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button></form></div></div>`;
+
+                messages.forEach(appendMessage);
+                document.getElementById('message-form').addEventListener('submit', handleSendMessage);
+
+            } catch (error) {
+                console.error("Error rendering chat:", error);
+                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת הצ'אט: ${error.message}</p>`;
+            }
+        }
+        
+        function appendMessage(message) {
+            const messagesContainer = document.getElementById('messages-container');
+            if (!messagesContainer) return;
+
+            const isSent = message.sender._id === currentUser.id;
+            const bubbleClasses = isSent ? 'message-bubble sent self-end rounded-lg p-3' : 'message-bubble received self-start rounded-lg p-3 border';
             
-            const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
+            const messageEl = document.createElement('div');
+            messageEl.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
+            messageEl.innerHTML = `<div class="${bubbleClasses}">${message.text}</div>`;
             
-            io.to(senderId).emit('newMessage', populatedMessage);
-            io.to(receiverId).emit('newMessage', populatedMessage);
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
 
-            // --- שליחת התראה במייל עם SendGrid ---
-            if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
-                try {
-                    const receiver = await User.findById(receiverId);
-                    const sender = await User.findById(senderId);
-                    const conversation = await Conversation.findById(conversationId).populate('item', 'title');
+        async function handleSendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
 
-                    if (!receiver || !sender || !conversation) {
-                        throw new Error("Could not find all details for email notification.");
+            if (text && currentConversationDetails && currentUser) {
+                const receiver = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
+                if (!receiver) return showAlert("שגיאה: לא ניתן היה למצוא את הנמען בשיחה.");
+                
+                socket.emit('sendMessage', {
+                    conversationId: currentConversationDetails._id,
+                    senderId: currentUser.id,
+                    receiverId: receiver._id,
+                    text: text
+                });
+                input.value = '';
+            }
+        }
+
+        // --- Event Listeners ---
+        homeLogo.addEventListener('click', () => { showView('main-view'); });
+        
+        openModalBtn.addEventListener('click', () => { 
+            if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
+            uploadForm.reset(); 
+            editingItemIdInput.value = ''; 
+            uploadModalTitle.textContent = 'העלאת פריט חדש'; 
+            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; 
+            document.getElementById('item-images').required = true; 
+            document.getElementById('image-preview-container').innerHTML = ''; 
+            
+            const affiliateContainer = document.getElementById('affiliate-link-container');
+            const promotedContainer = document.getElementById('promoted-container');
+            if (currentUser.email === ADMIN_EMAIL) {
+                affiliateContainer.classList.remove('hidden');
+                promotedContainer.classList.remove('hidden');
+            } else {
+                affiliateContainer.classList.add('hidden');
+                promotedContainer.classList.add('hidden');
+            }
+            document.getElementById('item-affiliate-link').value = '';
+            document.getElementById('item-promoted').checked = false;
+
+            showModal(uploadModal); 
+        });
+
+        uploadForm.addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
+            const isEditing = !!editingItemIdInput.value;
+            const formData = new FormData(uploadForm);
+            
+            const imageFiles = document.getElementById('item-images').files;
+            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
+            
+            const submitBtn = document.getElementById('submit-btn'); 
+            submitBtn.disabled = true; 
+            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
+            
+            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
+            const method = isEditing ? 'PATCH' : 'POST'; 
+            
+            try { 
+                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
+                if (!response.ok) { 
+                    const errData = await response.json(); 
+                    throw new Error(errData.message || 'Server responded with an error'); 
+                } 
+                hideAllModals(); 
+            } catch (error) { 
+                console.error('Upload/Edit failed:', error); 
+                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
+            } finally { 
+                submitBtn.disabled = false; 
+            } 
+        });
+
+        document.body.addEventListener('click', async (e) => {
+            const editButton = e.target.closest('.edit-btn');
+            const deleteButton = e.target.closest('.delete-btn');
+            const soldButton = e.target.closest('.sold-btn');
+
+            if (soldButton) {
+                await handleToggleSoldStatus(soldButton.dataset.id);
+            }
+
+            if (editButton) {
+                const itemToEdit = allItemsCache[editButton.dataset.id];
+                if (!itemToEdit) return showAlert('שגיאה: לא ניתן למצוא את פרטי הפריט.');
+                
+                uploadForm.reset();
+                editingItemIdInput.value = itemToEdit._id;
+                document.getElementById('item-title').value = itemToEdit.title;
+                document.getElementById('item-description').value = itemToEdit.description;
+                document.getElementById('item-category').value = itemToEdit.category;
+                document.getElementById('item-contact').value = itemToEdit.contact;
+                document.getElementById('item-price').value = itemToEdit.price;
+                document.getElementById('item-images').required = false;
+                uploadModalTitle.textContent = 'עריכת פריט';
+                document.getElementById('submit-btn').textContent = 'שמור שינויים';
+                
+                const affiliateContainer = document.getElementById('affiliate-link-container');
+                const promotedContainer = document.getElementById('promoted-container');
+                if (currentUser && currentUser.email === ADMIN_EMAIL) {
+                    affiliateContainer.classList.remove('hidden');
+                    promotedContainer.classList.remove('hidden');
+                    document.getElementById('item-affiliate-link').value = itemToEdit.affiliateLink || '';
+                    document.getElementById('item-promoted').checked = itemToEdit.isPromoted || false;
+                } else {
+                    affiliateContainer.classList.add('hidden');
+                    promotedContainer.classList.add('hidden');
+                }
+
+                const previewContainer = document.getElementById('image-preview-container');
+                previewContainer.innerHTML = '';
+                (itemToEdit.imageUrls || []).forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.className = 'w-16 h-16 object-cover rounded-md opacity-75';
+                    previewContainer.appendChild(img);
+                });
+                showModal(uploadModal);
+            }
+
+            if (deleteButton) {
+                const id = deleteButton.dataset.id;
+                const confirmed = await showCustomModal({
+                    title: 'אישור מחיקה',
+                    message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
+                    buttons: [
+                        { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition', resolves: false },
+                        { text: 'מחק', class: 'bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
+                    ]
+                });
+
+                if (confirmed) {
+                    const token = localStorage.getItem('authToken');
+                    if (!token) return showAlert('שגיאת אימות למחיקה.');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || `Error ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('Delete failed:', error);
+                        showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
                     }
-
-                    const msg = {
-                        to: receiver.email,
-                        from: {
-                            email: SENDER_EMAIL_ADDRESS,
-                            name: 'סטייל מתגלגל'
-                        },
-                        subject: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`,
-                        html: `
-                            <div dir="rtl" style="font-family: Assistant, sans-serif; text-align: right; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; margin: auto;">
-                                <h2 style="color: #14b8a6;">היי ${receiver.displayName},</h2>
-                                <p>קיבלת הודעה חדשה מ<strong>${sender.displayName}</strong> בנוגע לפריט "<strong>${conversation.item.title}</strong>".</p>
-                                <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                                    <p style="margin: 0;"><strong>תוכן ההודעה:</strong> "${text}"</p>
-                                </div>
-                                <p>כדי להשיב, היכנס/י לאתר ולחצ/י על כפתור "הודעות":</p>
-                                <a href="${CLIENT_URL}" style="display: inline-block; padding: 12px 24px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">לצ'אט באתר</a>
-                                <hr style="margin-top: 20px; border: none; border-top: 1px solid #eee;">
-                                <p style="font-size: 12px; color: #888;">זוהי הודעה אוטומטית. אין להשיב למייל זה.</p>
-                            </div>
-                        `,
-                        text: `היי ${receiver.displayName},\n\nקיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}".\n\nתוכן ההודעה: "${text}"\n\nכדי להשיב, היכנס/י לאתר: ${CLIENT_URL}`
-                    };
-
-                    await sgMail.send(msg);
-                    console.log(`Email sent successfully to ${receiver.email}`);
-
-                } catch (emailError) {
-                    console.error("Failed to send email notification via SendGrid:", emailError.response ? emailError.response.body : emailError);
                 }
             }
-            // --- סוף קוד שליחת התראה ---
-
-        } catch (error) {
-            console.error('Error sending message:', error);
-        }
-    });
-
-    socket.on('disconnect', () => { 
-        if (socket.user) {
-            console.log(`User ${socket.user.name} disconnected`);
-        } else {
-            console.log('An anonymous user disconnected');
-        }
-    }); 
-});
-
-// --- נתיב להגשת קובץ ה-HTML ---
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// --- חיבור למסד הנתונים והרצת השרת ---
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => {
-        console.log('MongoDB Connected Successfully!');
-        server.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
         });
-    })
-    .catch(err => {
-        console.error('FATAL: MongoDB Connection Error:', err);
-        process.exit(1);
-    });
+
+        async function handleToggleSoldStatus(id) { 
+            const token = localStorage.getItem('authToken'); 
+            if (!token) return showAlert('שגיאת אימות.'); 
+            const item = allItemsCache[id]; 
+            const newStatus = !item.sold; 
+            try { 
+                const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); 
+                if (!response.ok) throw new Error('Failed to update status'); 
+            } catch (error) { 
+                console.error('Failed to toggle sold status:', error); 
+                showAlert('שגיאה בעדכון סטטוס הפריט.'); 
+            } 
+        }
+
+        // --- Filter Event Listeners ---
+        categorySelect.addEventListener('change', (e) => { currentFilter.category = e.target.value; applyFilters(); });
+        sortSelect.addEventListener('change', (e) => { currentFilter.sort = e.target.value; applyFilters(); });
+        minPriceInput.addEventListener('input', (e) => { currentFilter.minPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
+        maxPriceInput.addEventListener('input', (e) => { currentFilter.maxPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
+        favoritesFilterBtn.addEventListener('click', () => { currentFilter.favorites = !currentFilter.favorites; favoritesFilterBtn.classList.toggle('bg-red-100', currentFilter.favorites); favoritesFilterBtn.querySelector('svg').classList.toggle('text-red-500', currentFilter.favorites); applyFilters(); });
+        filterInput.addEventListener('input', applyFilters);
+        document.getElementById('item-images').addEventListener('change', handleImagePreview);
+        
+        // --- Announcement Bar Logic ---
+        const announcementBar = document.getElementById('announcement-bar');
+        const closeAnnouncementBtn = document.getElementById('close-announcement');
+        const announcementSpan = announcementBar.querySelector('span');
+
+        const announcements = [
+            "פריטים חדשים עולים כל שעה! אל תפספסו את המציאה הבאה שלכם.",
+            "קונים חכם, מוכרים בקלות. ברוכים הבאים לקהילת האופנה שלנו!",
+            "הצטרפו למהפכת האופנה המעגלית - תנו לבגדים שלכם חיים חדשים!",
+            "מצאתם פריט שאהבתם? שלחו הודעה למוכר/ת ותתחדשו!"
+        ];
+        let currentAnnouncementIndex = 0;
+        let announcementInterval;
+
+        function changeAnnouncement() {
+            if (!announcementSpan) return;
+            // Fade out
+            announcementSpan.style.opacity = '0';
+
+            setTimeout(() => {
+                // Change text
+                currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
+                announcementSpan.textContent = announcements[currentAnnouncementIndex];
+                // Fade in
+                announcementSpan.style.opacity = '1';
+            }, 500); // Wait for fade out to complete
+        }
+
+        if (announcementBar && closeAnnouncementBtn && announcementSpan) {
+            closeAnnouncementBtn.addEventListener('click', () => {
+                announcementBar.style.display = 'none';
+                if(announcementInterval) clearInterval(announcementInterval);
+            });
+            
+            announcementSpan.textContent = announcements[0];
+            announcementInterval = setInterval(changeAnnouncement, 5000); // Change every 5 seconds
+        }
+        
+        function populateCategoryFilter() {
+            categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
+            for (const [key, value] of Object.entries(categoryMap)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = value;
+                categorySelect.appendChild(option);
+            }
+        }
+
+        // --- Initial Application Setup ---
+        populateCategoryFilter();
+        checkAuthState();
+    </script>
+</body>
+</html>
