@@ -90,6 +90,9 @@ const ItemSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
     sold: { type: Boolean, default: false }, 
     isPromoted: { type: Boolean, default: false },
+    // START: PROMOTE FEATURE FIELD
+    promotedUntil: { type: Date },
+    // END: PROMOTE FEATURE FIELD
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
     createdAt: { type: Date, default: Date.now } 
@@ -212,43 +215,31 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// =================================================================
-// START: INFINITE SCROLL MODIFICATION
-// This endpoint now supports pagination and filtering.
-// =================================================================
 app.get('/items', async (req, res) => {
     try {
-        // Pagination parameters
+        // START: PROMOTE FEATURE - Expire old promotions before fetching
+        await Item.updateMany(
+            { isPromoted: true, promotedUntil: { $lt: new Date() } },
+            { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
+        );
+        // END: PROMOTE FEATURE
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        // Build filter object from query params
         const filters = {};
-        if (req.query.category && req.query.category !== 'all') {
-            filters.category = req.query.category;
-        }
-        if (req.query.condition && req.query.condition !== 'all') {
-            filters.condition = req.query.condition;
-        }
-        if (req.query.size) {
-            // Use regex for flexible size matching (e.g., 'M', 'medium')
-            filters.size = { $regex: req.query.size.trim(), $options: 'i' };
-        }
-        if (req.query.minPrice) {
-            filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
-        }
-        if (req.query.maxPrice) {
-            filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
-        }
-        if (req.query.searchTerm) {
-             filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
-        }
+        if (req.query.category && req.query.category !== 'all') filters.category = req.query.category;
+        if (req.query.condition && req.query.condition !== 'all') filters.condition = req.query.condition;
+        if (req.query.size) filters.size = { $regex: req.query.size.trim(), $options: 'i' };
+        if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
+        if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
+        if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
 
-        // Build sort object
         const sortOptions = {};
-        // Promoted items should always be at the top, then sort by user's choice
-        sortOptions.isPromoted = -1; // Puts true before false
+        // START: PROMOTE FEATURE - Updated sort logic
+        sortOptions.isPromoted = -1; 
+        // END: PROMOTE FEATURE
         switch (req.query.sort) {
             case 'price_asc':
                 sortOptions.price = 1;
@@ -256,21 +247,18 @@ app.get('/items', async (req, res) => {
             case 'price_desc':
                 sortOptions.price = -1;
                 break;
-            default: // newest
+            default:
                 sortOptions.createdAt = -1;
         }
         
-        // Fetch items with filters, sorting, and pagination
         const items = await Item.find(filters)
             .populate('owner', 'displayName email')
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
         
-        // Get total count of items that match the filters for pagination calculation
         const totalItems = await Item.countDocuments(filters);
 
-        // Send response with items and pagination info
         res.json({
             items,
             totalPages: Math.ceil(totalItems / limit),
@@ -282,10 +270,6 @@ app.get('/items', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
-// =================================================================
-// END: INFINITE SCROLL MODIFICATION
-// =================================================================
-
 
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
@@ -571,6 +555,42 @@ app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Failed to submit report.' });
     }
 });
+
+// START: PROMOTE FEATURE ENDPOINT
+app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+        if (item.owner.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'You can only promote your own items.' });
+        }
+
+        // In a real application, you would integrate a payment provider like Stripe here.
+        // For now, we'll simulate a successful payment.
+        const paymentSuccessful = true;
+
+        if (paymentSuccessful) {
+            item.isPromoted = true;
+            // Set promotion to expire in 24 hours
+            item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+            await item.save();
+
+            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email');
+            io.emit('itemUpdated', updatedItem); // Notify all clients about the update
+            
+            res.status(200).json({ message: 'Item promoted successfully!', item: updatedItem });
+        } else {
+            res.status(400).json({ message: 'Payment failed.' });
+        }
+
+    } catch (error) {
+        console.error("Error promoting item:", error);
+        res.status(500).json({ message: 'Failed to promote item.' });
+    }
+});
+// END: PROMOTE FEATURE ENDPOINT
 
 
 // --- Chat Routes ---
