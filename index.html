@@ -1470,6 +1470,27 @@
                     openGallery(images, index);
                     break;
                 }
+                // *** NEW: Handle notification click ***
+                case 'notification-click': {
+                    const link = actionTarget.dataset.link;
+                    const type = actionTarget.dataset.type;
+                    
+                    const panel = document.getElementById('notifications-panel');
+                    if (panel) panel.style.display = 'none';
+
+                    if (type === 'new-message') {
+                        const conversationId = link.split('/').pop();
+                        if (conversationId) {
+                            showChatView(conversationId);
+                        }
+                    } else if (type === 'new-rating') {
+                        const userId = link.split('/').pop();
+                        if (userId) {
+                            showPublicProfile(userId);
+                        }
+                    }
+                    break;
+                }
             }
         });
 
@@ -1555,9 +1576,9 @@
             }
 
             panel.innerHTML = notificationsCache.map(n => `
-                <div class="p-3 border-b dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${!n.isRead ? 'font-bold' : ''}">
-                    <p class="text-sm">${n.message}</p>
-                    <p class="text-xs text-gray-400">${new Date(n.createdAt).toLocaleString('he-IL')}</p>
+                <div data-action="notification-click" data-link="${n.link}" data-type="${n.type}" class="p-3 border-b dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${!n.isRead ? 'font-bold' : ''}">
+                    <p class="text-sm pointer-events-none">${n.message}</p>
+                    <p class="text-xs text-gray-400 pointer-events-none">${new Date(n.createdAt).toLocaleString('he-IL')}</p>
                 </div>
             `).join('');
         }
