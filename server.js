@@ -73,7 +73,10 @@ const UserSchema = new mongoose.Schema({
         createdAt: { type: Date, default: Date.now }
     }],
     averageRating: { type: Number, default: 0 },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }]
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+    // *** NEW: Follower system fields ***
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -124,14 +127,13 @@ const ReportSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Report = mongoose.model('Report', ReportSchema);
 
-// *** NEW: Notification Schema and Model ***
 const NotificationSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // The user who receives the notification
-    type: { type: String, required: true, enum: ['new-message', 'new-rating'] },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
     message: { type: String, required: true },
-    link: { type: String, required: true }, // URL to navigate to on click
+    link: { type: String, required: true },
     isRead: { type: Boolean, default: false },
-    fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // The user who triggered the notification
+    fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
 
@@ -144,7 +146,6 @@ const upload = multer({ storage: storage });
 app.use(cors());
 app.use(express.json());
 
-// --- הוספת הקוד להגשת קבצים סטטיים ---
 app.use(express.static(path.join(__dirname)));
 
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
@@ -227,7 +228,7 @@ app.get('/users/:id/items', async (req, res) => {
 
 app.get('/users/:id', async (req, res) => { 
     try { 
-        const user = await User.findById(req.params.id).select('displayName image averageRating'); 
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following'); 
         if (!user) return res.status(404).json({ message: 'User not found' }); 
         res.json(user); 
     } catch (err) { 
@@ -242,11 +243,11 @@ app.get('/users/:id/ratings', async (req, res) => {
                 path: 'ratings',
                 populate: {
                     path: 'rater',
-                    select: 'displayName image' // Select fields from the rater
+                    select: 'displayName image'
                 }
             });
         if (!user) return res.status(404).json({ message: "User not found" });
-        res.json(user.ratings.sort((a, b) => b.createdAt - a.createdAt)); // Send sorted ratings
+        res.json(user.ratings.sort((a, b) => b.createdAt - a.createdAt));
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -267,16 +268,13 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
         
         const rater = await User.findById(raterId);
 
-        // Find if the user has already rated and remove the old rating
         const existingRatingIndex = userToRate.ratings.findIndex(r => r.rater.toString() === raterId);
         if (existingRatingIndex > -1) {
             userToRate.ratings.splice(existingRatingIndex, 1);
         }
 
-        // Add the new rating
         userToRate.ratings.push({ rater: raterId, rating, comment });
 
-        // Recalculate average rating
         if (userToRate.ratings.length > 0) {
             const totalRating = userToRate.ratings.reduce((acc, r) => acc + r.rating, 0);
             userToRate.averageRating = totalRating / userToRate.ratings.length;
@@ -286,12 +284,11 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
         
         await userToRate.save();
 
-        // *** NEW: Create notification for the rated user ***
         const notification = new Notification({
             user: ratedUserId,
             type: 'new-rating',
             message: `${rater.displayName} דירג אותך ${rating} כוכבים.`,
-            link: `/profile/${ratedUserId}`, // Link to the user's own profile
+            link: `/profile/${ratedUserId}`,
             fromUser: raterId
         });
         await notification.save();
@@ -330,6 +327,54 @@ app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
         res.json(user.favorites);
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+// *** NEW: Follow/Unfollow Route ***
+app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
+    const currentUserId = req.user.id;
+    const targetUserId = req.params.id;
+
+    if (currentUserId === targetUserId) {
+        return res.status(400).json({ message: "You cannot follow yourself." });
+    }
+
+    try {
+        const currentUser = await User.findById(currentUserId);
+        const targetUser = await User.findById(targetUserId);
+
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        const isFollowing = currentUser.following.includes(targetUserId);
+
+        if (isFollowing) {
+            // Unfollow
+            await User.updateOne({ _id: currentUserId }, { $pull: { following: targetUserId } });
+            await User.updateOne({ _id: targetUserId }, { $pull: { followers: currentUserId } });
+        } else {
+            // Follow
+            await User.updateOne({ _id: currentUserId }, { $addToSet: { following: targetUserId } });
+            await User.updateOne({ _id: targetUserId }, { $addToSet: { followers: currentUserId } });
+
+            // Create notification
+            const notification = new Notification({
+                user: targetUserId,
+                type: 'new-follower',
+                message: `${currentUser.displayName} התחיל לעקוב אחריך.`,
+                link: `/profile/${currentUserId}`,
+                fromUser: currentUserId
+            });
+            await notification.save();
+            io.to(targetUserId).emit('newNotification', notification);
+        }
+
+        res.status(200).json({ isFollowing: !isFollowing });
+
+    } catch (error) {
+        console.error("Error during follow/unfollow:", error);
+        res.status(500).json({ message: "Server error during follow operation." });
     }
 });
 
@@ -548,7 +593,7 @@ app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
     }
 });
 
-// *** NEW: Notification Routes ***
+// *** Notification Routes ***
 app.get('/api/notifications', authMiddleware, async (req, res) => {
     try {
         const notifications = await Notification.find({ user: req.user.id })
@@ -619,7 +664,6 @@ io.on('connection', (socket) => {
             io.to(senderId).emit('newMessage', populatedMessage);
             io.to(receiverId).emit('newMessage', populatedMessage);
 
-            // *** NEW: Create notification for the receiver ***
             const sender = await User.findById(senderId);
             const notification = new Notification({
                 user: receiverId,
@@ -647,7 +691,7 @@ io.on('connection', (socket) => {
                             name: 'סטייל מתגלגל'
                         },
                         subject: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`,
-                        html: `<div dir="rtl">...</div>`, // (email body omitted for brevity)
+                        html: `<div dir="rtl">...</div>`,
                         text: `הודעה חדשה מ${sender.displayName} על "${conversation.item.title}"`
                     };
 
