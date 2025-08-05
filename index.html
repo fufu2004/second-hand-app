@@ -1160,7 +1160,7 @@
                     const errData = await convoResponse.json();
                     throw new Error(errData.message || 'Failed to fetch conversation details');
                 }
-                currentConversationDetails = await response.json();
+                currentConversationDetails = await convoResponse.json();
 
                 const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
