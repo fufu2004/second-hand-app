@@ -61,8 +61,28 @@
         .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
         .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
         .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
-        .item-card.promoted { border: 2px solid #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
-        .promoted-badge { position: absolute; top: -10px; right: -10px; background-color: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        
+        /* START: Promote Feature Styles */
+        .item-card.promoted { 
+            border: 2px solid #f59e0b; 
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); 
+        }
+        .promoted-badge { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background-color: #f59e0b; 
+            color: white; 
+            padding: 3px 10px; 
+            border-radius: 9999px; 
+            font-size: 0.75rem; 
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        /* END: Promote Feature Styles */
+
         /* Chat Styles */
         .message-bubble { max-width: 75%; }
         .message-bubble.sent { background-color: #dcf8c6; }
@@ -997,6 +1017,12 @@
             const isPostByAdmin = item.affiliateLink && item.affiliateLink.length > 0;
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
+            
+            // START: PROMOTE FEATURE - HTML elements
+            const promotedBadgeHtml = item.isPromoted ? `<div class="promoted-badge"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg><span>מקודם</span></div>` : '';
+            const promoteButtonHtml = (isOwner && !item.isPromoted && !item.sold) ? `<button data-id="${item._id}" data-action="promote-item" class="text-gray-400 hover:text-amber-500 transition" title="קדם פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>` : '';
+            // END: PROMOTE FEATURE - HTML elements
+
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
             const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
             const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="toggle-sold" class="text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
@@ -1036,6 +1062,7 @@
                         <div class="main-image-container relative" data-action="open-gallery" data-images='${imageUrlsJson}' data-index="0">
                             <img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-64 object-cover cursor-pointer">
                             ${soldStampHtml}
+                            ${promotedBadgeHtml}
                         </div>
                         <div class="p-4 flex flex-col flex-grow">
                             <div class="flex justify-between items-start">
@@ -1052,6 +1079,7 @@
                                         ${ownerNameHtml}
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        ${promoteButtonHtml}
                                         ${reportButtonHtml}
                                         ${soldButtonHtml} 
                                         ${editButtonHtml} 
@@ -1549,6 +1577,40 @@
                     } 
                     break;
                 }
+                // START: PROMOTE FEATURE - Event handler
+                case 'promote-item': {
+                    const id = actionTarget.dataset.id;
+                    const confirmed = await showCustomModal({
+                        title: 'קידום פריט',
+                        message: 'קידום פריט יציג אותו בראש הפיד למשך 24 שעות ויגדיל את החשיפה שלו. <br><br> (כרגע הפיצ\'ר בחינם לצורך הדגמה)',
+                        buttons: [
+                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
+                            { text: 'קדם עכשיו', class: 'bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
+                        ]
+                    });
+
+                    if (confirmed) {
+                        const token = localStorage.getItem('authToken');
+                        if (!token) return showAlert('שגיאת אימות.');
+                        try {
+                            const response = await fetch(`${SERVER_URL}/api/items/${id}/promote`, { 
+                                method: 'POST', 
+                                headers: { 'Authorization': `Bearer ${token}` } 
+                            });
+                            if (!response.ok) {
+                                const errData = await response.json();
+                                throw new Error(errData.message || `Error ${response.status}`);
+                            }
+                            showToast('הפריט קודם בהצלחה!');
+                            resetAndFetchItems(); // Refresh the feed to show promoted item at the top
+                        } catch (error) {
+                            console.error('Promotion failed:', error);
+                            showAlert(`שגיאה בקידום הפריט: ${error.message}`, 'שגיאת קידום');
+                        }
+                    }
+                    break;
+                }
+                // END: PROMOTE FEATURE - Event handler
                 case 'report-item': {
                     if (!currentUser) {
                         return showAlert('עליך להתחבר כדי לדווח על פריט.');
