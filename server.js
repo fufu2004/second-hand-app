@@ -110,6 +110,21 @@ const MessageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', MessageSchema);
 
+// *** NEW: Report Schema and Model ***
+const ReportSchema = new mongoose.Schema({
+    reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reportedItem: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    reportedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { 
+        type: String, 
+        required: true, 
+        enum: ['inappropriate-content', 'spam', 'scam', 'wrong-category', 'harassment'] 
+    },
+    details: { type: String },
+    status: { type: String, default: 'new', enum: ['new', 'in-progress', 'resolved'] }
+}, { timestamps: true });
+const Report = mongoose.model('Report', ReportSchema);
+
 
 // --- הגדרות העלאת קבצים ---
 const storage = multer.memoryStorage();
@@ -318,7 +333,7 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
 
         if (req.user.email === ADMIN_EMAIL) {
             if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
-            if (req.body.isPromoted) newItemData.isPromoted = req.body.isPromoted === 'true';
+            if (req.body.isPromoted) newItemData.isPromoted = req.body.isPromoted === 'on';
         }
         
         const newItem = new Item(newItemData);
@@ -349,7 +364,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
 
         if (isAdmin) {
              if (req.body.affiliateLink) updateData.affiliateLink = req.body.affiliateLink;
-             if (req.body.isPromoted) updateData.isPromoted = req.body.isPromoted === 'true';
+             updateData.isPromoted = req.body.isPromoted === 'on';
         } else {
             delete updateData.affiliateLink;
             delete updateData.isPromoted;
@@ -366,6 +381,59 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
 
 app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
+
+// *** NEW: Report Item Endpoint ***
+app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
+    try {
+        const { reason, details } = req.body;
+        const reporterId = req.user.id;
+        const reportedItemId = req.params.id;
+
+        const item = await Item.findById(reportedItemId);
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+
+        if (item.owner.toString() === reporterId) {
+            return res.status(400).json({ message: 'You cannot report your own item.' });
+        }
+
+        const newReport = new Report({
+            reporter: reporterId,
+            reportedItem: reportedItemId,
+            reason: reason,
+            details: details
+        });
+
+        await newReport.save();
+        
+        // Optional: Send an email to the admin
+        if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
+            const reporter = await User.findById(reporterId);
+            const msg = {
+                to: ADMIN_EMAIL,
+                from: SENDER_EMAIL_ADDRESS,
+                subject: `New Item Report on "סטייל מתגלגל"`,
+                html: `
+                    <h2>New Item Report</h2>
+                    <p><strong>Reporter:</strong> ${reporter.displayName} (${reporter.email})</p>
+                    <p><strong>Reported Item:</strong> ${item.title} (ID: ${item._id})</p>
+                    <p><strong>Reason:</strong> ${reason}</p>
+                    <p><strong>Details:</strong> ${details || 'No details provided.'}</p>
+                    <p><a href="${CLIENT_URL}">Go to the site</a></p>
+                `
+            };
+            sgMail.send(msg).catch(error => console.error("Failed to send report email:", error));
+        }
+
+        res.status(201).json({ message: 'Report submitted successfully.' });
+
+    } catch (error) {
+        console.error("Error submitting report:", error);
+        res.status(500).json({ message: 'Failed to submit report.' });
+    }
+});
+
 
 // --- Chat Routes ---
 app.post('/api/conversations', authMiddleware, async (req, res) => {
