@@ -119,6 +119,16 @@
             overflow-y: auto;
             z-index: 50;
         }
+        /* START: VERIFIED BADGE STYLE */
+        .verified-badge {
+            color: #3b82f6; /* blue-500 */
+            width: 1.1rem;
+            height: 1.1rem;
+            display: inline-block;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+        /* END: VERIFIED BADGE STYLE */
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -181,12 +191,10 @@
                     </select>
                     <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                 </div>
-                <!-- START: ADVANCED SEARCH FILTERS -->
                 <div class="grid grid-cols-2 gap-2">
                     <input type="text" id="brand-filter" placeholder="סינון לפי מותג..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                     <input type="text" id="location-filter" placeholder="סינון לפי עיר..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                 </div>
-                <!-- END: ADVANCED SEARCH FILTERS -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                     <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -221,6 +229,9 @@
             <div class="my-6 text-center">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
                 <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
+                <!-- START: VERIFIED SELLER - Button container -->
+                <div id="verification-status-container" class="mt-4"></div>
+                <!-- END: VERIFIED SELLER - Button container -->
             </div>
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
@@ -269,10 +280,8 @@
                         </select>
                     </div>
                     <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
-                    <!-- START: ADVANCED SEARCH FIELDS IN MODAL -->
                     <input type="text" id="item-brand" name="brand" placeholder="מותג (לדוגמה: Nike, Zara)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
                     <input type="text" id="item-location" name="location" placeholder="מיקום (עיר)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <!-- END: ADVANCED SEARCH FIELDS IN MODAL -->
                     <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
                     <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
                     <div id="affiliate-link-container" class="hidden"> 
@@ -473,10 +482,9 @@
         const conditionSelect = document.getElementById('condition-select');
         const sizeFilterInput = document.getElementById('size-filter');
         const loadingIndicator = document.getElementById('loading-indicator');
-        // START: ADVANCED SEARCH SELECTORS
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
-        // END: ADVANCED SEARCH SELECTORS
+        const verificationStatusContainer = document.getElementById('verification-status-container');
 
         
         // --- Modals & Forms Selectors ---
@@ -508,7 +516,7 @@
         // --- Global State ---
         let socket;
         let currentUser = null;
-        let allItemsCache = {}; // Still useful for quick access to item data by ID
+        let allItemsCache = {}; 
         let galleryImages = [];
         let currentImageIndex = 0;
         let favorites = []; 
@@ -516,6 +524,7 @@
         let currentConversationDetails = null;
         let notificationsCache = [];
         let panzoomInstance = null;
+        let currentUserProfile = null; // To store full profile data of the logged-in user
 
         // --- Infinite Scroll State ---
         let currentPage = 1;
@@ -861,9 +870,35 @@
                 return; 
             } 
             try { 
-                const response = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }); 
-                if (!response.ok) throw new Error('Could not fetch user items'); 
-                const items = await response.json(); 
+                // START: VERIFIED SELLER - Fetch full user profile to check verification status
+                const [itemsResponse, userResponse] = await Promise.all([
+                    fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${SERVER_URL}/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                ]);
+                // END: VERIFIED SELLER
+
+                if (!itemsResponse.ok || !userResponse.ok) throw new Error('Could not fetch user data'); 
+                
+                const items = await itemsResponse.json(); 
+                currentUserProfile = await userResponse.json(); // Store full profile
+                
+                // START: VERIFIED SELLER - Display verification status/button
+                if (currentUserProfile.isVerified) {
+                    verificationStatusContainer.innerHTML = `
+                        <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-full">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                            <span>אתה מוכר מאומת</span>
+                        </div>
+                    `;
+                } else {
+                    verificationStatusContainer.innerHTML = `
+                        <button data-action="start-verification" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition">
+                            הפוך למוכר מאומת
+                        </button>
+                    `;
+                }
+                // END: VERIFIED SELLER
+
                 profileItemsFeed.innerHTML = ''; 
                 allItemsCache = {}; 
                 if (items.length === 0) { 
@@ -943,13 +978,17 @@
                 const isFollowing = currentUser ? user.followers.includes(currentUser.id) : false;
                 const followButtonHtml = (currentUser && currentUser.id !== userId) ?
                     `<button data-action="follow-user" data-user-id="${userId}" class="mt-4 ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold py-2 px-4 rounded-md transition">${isFollowing ? 'הסר עוקב' : 'עקוב'}</button>` : '';
+                
+                // START: VERIFIED SELLER - Badge in public profile
+                const verifiedBadgeHtml = user.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
+                // END: VERIFIED SELLER
 
                 publicProfileView.innerHTML = `
                     <div class="my-6">
                         <button data-action="show-main-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
                         <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
                             <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200 dark:border-teal-700">
-                            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100">${user.displayName}</h2>
+                            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center">${user.displayName} ${verifiedBadgeHtml}</h2>
                             <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
                                 <span><strong>${user.followers.length}</strong> עוקבים</span>
                                 <span><strong>${user.following.length}</strong> נעקבים</span>
@@ -1027,10 +1066,12 @@
             const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
             const categoryHtml = `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
             
-            // START: ADVANCED SEARCH - Display brand and location
             const brandHtml = item.brand ? `<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">${item.brand}</span>` : '';
             const locationHtml = item.location ? `<span class="flex items-center text-xs text-gray-500 dark:text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>${item.location}</span>` : '';
-            // END: ADVANCED SEARCH - Display brand and location
+            
+            // START: VERIFIED SELLER - Badge in item card
+            const verifiedBadgeHtml = item.owner.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
+            // END: VERIFIED SELLER
 
             const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${item.owner._id}">${ownerName}</p>`;
 
@@ -1069,7 +1110,7 @@
                                 <div class="flex justify-between items-center">
                                     <div class="flex items-center" title="פורסם על ידי ${ownerName}">
                                         <div class="w-6 h-6 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div>
-                                        ${ownerNameHtml}
+                                        ${ownerNameHtml} ${verifiedBadgeHtml}
                                     </div>
                                     <div class="flex items-center gap-2">
                                         ${promoteButtonHtml}
@@ -1180,10 +1221,8 @@
                     condition: conditionSelect.value,
                     size: sizeFilterInput.value.trim(),
                     searchTerm: filterInput.value.trim(),
-                    // START: ADVANCED SEARCH PARAMS
                     brand: brandFilterInput.value.trim(),
                     location: locationFilterInput.value.trim(),
-                    // END: ADVANCED SEARCH PARAMS
                 });
                 if (minPriceInput.value) params.append('minPrice', minPriceInput.value);
                 if (maxPriceInput.value) params.append('maxPrice', maxPriceInput.value);
@@ -1495,10 +1534,8 @@
                     document.getElementById('item-category').value = itemToEdit.category;
                     document.getElementById('item-contact').value = itemToEdit.contact;
                     document.getElementById('item-price').value = itemToEdit.price;
-                    // START: ADVANCED SEARCH - Populate fields on edit
                     document.getElementById('item-brand').value = itemToEdit.brand || '';
                     document.getElementById('item-location').value = itemToEdit.location || '';
-                    // END: ADVANCED SEARCH - Populate fields on edit
                     document.getElementById('item-images').required = false;
                     uploadModalTitle.textContent = 'עריכת פריט';
                     document.getElementById('submit-btn').textContent = 'שמור שינויים';
@@ -1593,7 +1630,7 @@
                                 throw new Error(errData.message || `Error ${response.status}`);
                             }
                             showToast('הפריט קודם בהצלחה!');
-                            resetAndFetchItems(); // Refresh the feed to show promoted item at the top
+                            resetAndFetchItems();
                         } catch (error) {
                             console.error('Promotion failed:', error);
                             showAlert(`שגיאה בקידום הפריט: ${error.message}`, 'שגיאת קידום');
@@ -1601,6 +1638,23 @@
                     }
                     break;
                 }
+                // START: VERIFIED SELLER - Event handler
+                case 'start-verification': {
+                    const token = localStorage.getItem('authToken');
+                    if (!token) return showAlert('שגיאת אימות.');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/users/start-verification`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        const data = await response.json();
+                        showAlert(data.message, 'אימות מוכר');
+                    } catch (error) {
+                        showAlert('אירעה שגיאה. נסה שוב מאוחר יותר.');
+                    }
+                    break;
+                }
+                // END: VERIFIED SELLER - Event handler
                 case 'report-item': {
                     if (!currentUser) {
                         return showAlert('עליך להתחבר כדי לדווח על פריט.');
