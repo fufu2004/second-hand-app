@@ -12,9 +12,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <!-- START: Panzoom Library -->
     <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
-    <!-- END: Panzoom Library -->
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
         // On page load or when changing themes, best to add inline in `head` to avoid FOUC
@@ -42,17 +40,14 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         .thumbnail { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s ease; }
         
-        /* START: Gallery & Panzoom Styles */
         .gallery-content { width: 100%; height: 100%; }
         #gallery-panzoom-viewport { cursor: grab; }
         #gallery-panzoom-viewport.is-dragging { cursor: grabbing; }
         #gallery-image {
             max-height: 80vh;
             max-width: 90vw;
-            /* The following are important for Panzoom to work correctly */
             transform-origin: 0 0;
         }
-        /* END: Gallery & Panzoom Styles */
 
         .view { display: none; animation: fadeIn 0.3s ease-in-out; }
         .view.active { display: block; }
@@ -62,7 +57,6 @@
         .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
         .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
         
-        /* START: Promote Feature Styles */
         .item-card.promoted { 
             border: 2px solid #f59e0b; 
             box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); 
@@ -81,15 +75,12 @@
             align-items: center;
             gap: 4px;
         }
-        /* END: Promote Feature Styles */
 
-        /* Chat Styles */
         .message-bubble { max-width: 75%; }
         .message-bubble.sent { background-color: #dcf8c6; }
         .dark .message-bubble.sent { background-color: #22511f; }
         .message-bubble.received { background-color: #ffffff; }
         .dark .message-bubble.received { background-color: #374151; }
-        /* Star Rating Styles */
         .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; }
         .star-rating input { display: none; }
         .star-rating label { font-size: 2.5rem; color: #ddd; cursor: pointer; transition: color 0.2s; }
@@ -98,9 +89,7 @@
         .star-rating label:hover,
         .star-rating label:hover ~ label { color: #f59e0b; }
         .static-stars { color: #f59e0b; }
-        /* Announcement Bar Animation */
         #announcement-bar span { transition: opacity 0.5s ease-in-out; }
-        /* Notification Bell */
         .notification-badge {
             position: absolute;
             top: -5px;
@@ -146,7 +135,6 @@
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <!-- Right Side (start in RTL) -->
                 <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
-                    <!-- PWA Install Button will be injected here -->
                     <span id="header-right-content" class="flex items-center gap-2"></span>
                 </div>
 
@@ -163,9 +151,7 @@
 
                 <!-- Left Side (end in RTL) -->
                 <div id="header-left-desktop" class="flex-1 flex justify-end items-center gap-4">
-                    <!-- Auth Content injected by JS -->
                     <div id="auth-content-desktop" class="flex items-center gap-4"></div>
-                    <!-- Theme Toggle Button -->
                     <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
                         <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                         <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -176,7 +162,6 @@
 
         <!-- Mobile Auth Container -->
         <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
-            <!-- PWA Install Button will be injected here -->
             <div id="auth-content-mobile" class="w-full flex justify-center"></div>
         </div>
 
@@ -196,6 +181,12 @@
                     </select>
                     <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                 </div>
+                <!-- START: ADVANCED SEARCH FILTERS -->
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="brand-filter" placeholder="סינון לפי מותג..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
+                    <input type="text" id="location-filter" placeholder="סינון לפי עיר..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
+                </div>
+                <!-- END: ADVANCED SEARCH FILTERS -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
                     <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -211,12 +202,10 @@
                 </button>
             </div>
             <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
-            <!-- START: INFINITE SCROLL ELEMENT -->
             <div id="loading-indicator" class="text-center py-8 hidden">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto"></div>
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">טוען פריטים נוספים...</p>
             </div>
-            <!-- END: INFINITE SCROLL ELEMENT -->
             <div id="empty-state" class="text-center py-16 px-4 hidden">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                 <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
@@ -280,6 +269,10 @@
                         </select>
                     </div>
                     <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    <!-- START: ADVANCED SEARCH FIELDS IN MODAL -->
+                    <input type="text" id="item-brand" name="brand" placeholder="מותג (לדוגמה: Nike, Zara)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    <input type="text" id="item-location" name="location" placeholder="מיקום (עיר)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <!-- END: ADVANCED SEARCH FIELDS IN MODAL -->
                     <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
                     <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
                     <div id="affiliate-link-container" class="hidden"> 
@@ -305,16 +298,13 @@
         </div> 
     </div>
     
-    <!-- START: UPDATED GALLERY MODAL -->
     <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="gallery-content relative flex items-center justify-center">
-            <!-- This div is the viewport for Panzoom -->
             <div id="gallery-panzoom-viewport" class="w-full h-full">
                 <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl">
             </div>
         </div>
         
-        <!-- Controls are outside the zoomable area -->
         <div class="absolute top-4 right-4 flex gap-2">
             <button id="gallery-zoom-in" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אין">+</button>
             <button id="gallery-zoom-out" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אאוט">-</button>
@@ -324,7 +314,6 @@
         <button id="gallery-next" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הבא">&#x276F;</button>
         <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
     </div>
-    <!-- END: UPDATED GALLERY MODAL -->
 
     <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
@@ -484,6 +473,10 @@
         const conditionSelect = document.getElementById('condition-select');
         const sizeFilterInput = document.getElementById('size-filter');
         const loadingIndicator = document.getElementById('loading-indicator');
+        // START: ADVANCED SEARCH SELECTORS
+        const brandFilterInput = document.getElementById('brand-filter');
+        const locationFilterInput = document.getElementById('location-filter');
+        // END: ADVANCED SEARCH SELECTORS
 
         
         // --- Modals & Forms Selectors ---
@@ -663,15 +656,13 @@
             showModal(galleryModal);
             document.body.style.overflow = 'hidden';
             
-            // Initialize Panzoom
             panzoomInstance = Panzoom(galleryImage, {
                 maxScale: 4,
                 minScale: 1,
-                canvas: true, // Use the parent as the viewport
+                canvas: true,
                 startScale: 1,
             });
             
-            // Add wheel listener for zooming
             galleryPanzoomViewport.addEventListener('wheel', panzoomInstance.zoomWithWheel);
             
             updateGalleryImage(startIndex);
@@ -680,7 +671,6 @@
         function closeGallery() {
             hideAllModals();
             document.body.style.overflow = '';
-            // Destroy Panzoom instance to clean up
             if (panzoomInstance) {
                 galleryPanzoomViewport.removeEventListener('wheel', panzoomInstance.zoomWithWheel);
                 panzoomInstance.destroy();
@@ -690,7 +680,6 @@
 
         function updateGalleryImage(index) {
             currentImageIndex = index;
-            // Reset zoom/pan before changing image
             if (panzoomInstance) {
                 panzoomInstance.reset();
             }
@@ -1018,10 +1007,8 @@
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
             
-            // START: PROMOTE FEATURE - HTML elements
             const promotedBadgeHtml = item.isPromoted ? `<div class="promoted-badge"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg><span>מקודם</span></div>` : '';
             const promoteButtonHtml = (isOwner && !item.isPromoted && !item.sold) ? `<button data-id="${item._id}" data-action="promote-item" class="text-gray-400 hover:text-amber-500 transition" title="קדם פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>` : '';
-            // END: PROMOTE FEATURE - HTML elements
 
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
             const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
@@ -1040,6 +1027,11 @@
             const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
             const categoryHtml = `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
             
+            // START: ADVANCED SEARCH - Display brand and location
+            const brandHtml = item.brand ? `<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">${item.brand}</span>` : '';
+            const locationHtml = item.location ? `<span class="flex items-center text-xs text-gray-500 dark:text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>${item.location}</span>` : '';
+            // END: ADVANCED SEARCH - Display brand and location
+
             const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${item.owner._id}">${ownerName}</p>`;
 
             let purchaseButtonHtml = '';
@@ -1069,8 +1061,9 @@
                                 <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">${item.title}</h2>
                                 <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div>
                             </div>
-                            <div class="flex items-center my-2 gap-2"> ${categoryHtml} </div>
+                            <div class="flex items-center my-2 gap-2 flex-wrap"> ${categoryHtml} ${brandHtml} </div>
                             <p class="text-gray-600 dark:text-gray-300 text-sm flex-grow">${item.description || ''}</p>
+                            <div class="mt-2 text-sm">${locationHtml}</div>
                             <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
                                 ${!item.sold ? purchaseButtonHtml : ''}
                                 <div class="flex justify-between items-center">
@@ -1157,25 +1150,21 @@
         
         // --- START: INFINITE SCROLL DATA FETCHING ---
         
-        // This function is called to reset the feed and fetch the first page of items.
-        // It's triggered by changing any filter.
         function resetAndFetchItems() {
             fetchItems(true);
         }
 
-        // This is the main function for fetching items from the server.
         async function fetchItems(reset = false) {
-            if (isLoading) return; // Prevent multiple simultaneous fetches
+            if (isLoading) return; 
             isLoading = true;
             
             if (reset) {
                 currentPage = 1;
                 hasMorePages = true;
-                itemsFeed.innerHTML = ''; // Clear the feed for a new search
+                itemsFeed.innerHTML = ''; 
                 emptyState.classList.add('hidden');
             }
 
-            // Show skeletons on initial load, and loading indicator on subsequent loads
             if (currentPage === 1) {
                  itemsFeed.innerHTML = Array(4).fill(createSkeletonCard()).join('');
             } else {
@@ -1183,7 +1172,6 @@
             }
             
             try {
-                // Build the query string with all current filters
                 const params = new URLSearchParams({
                     page: currentPage,
                     limit: 10,
@@ -1192,6 +1180,10 @@
                     condition: conditionSelect.value,
                     size: sizeFilterInput.value.trim(),
                     searchTerm: filterInput.value.trim(),
+                    // START: ADVANCED SEARCH PARAMS
+                    brand: brandFilterInput.value.trim(),
+                    location: locationFilterInput.value.trim(),
+                    // END: ADVANCED SEARCH PARAMS
                 });
                 if (minPriceInput.value) params.append('minPrice', minPriceInput.value);
                 if (maxPriceInput.value) params.append('maxPrice', maxPriceInput.value);
@@ -1204,20 +1196,17 @@
                 }
 
                 if (currentPage === 1) {
-                    itemsFeed.innerHTML = ''; // Clear skeletons before adding real items
+                    itemsFeed.innerHTML = ''; 
                 }
                 
-                // Append new items to the feed
                 data.items.forEach(item => {
                     displayItem(item, false, itemsFeed);
                 });
 
-                // Update pagination state
                 currentPage++;
                 hasMorePages = data.currentPage < data.totalPages;
 
-                // Show empty state message if no results were found on the first page
-                if (data.totalItems === 0 && currentPage === 2) { // currentPage is already incremented
+                if (data.totalItems === 0 && currentPage === 2) { 
                     emptyState.classList.remove('hidden');
                 } else {
                     emptyState.classList.add('hidden');
@@ -1476,7 +1465,6 @@
                     throw new Error(errData.message || 'Server responded with an error'); 
                 } 
                 hideAllModals(); 
-                // No need to manually update UI, socket event will handle it
             } catch (error) { 
                 console.error('Upload/Edit failed:', error); 
                 showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
@@ -1507,6 +1495,10 @@
                     document.getElementById('item-category').value = itemToEdit.category;
                     document.getElementById('item-contact').value = itemToEdit.contact;
                     document.getElementById('item-price').value = itemToEdit.price;
+                    // START: ADVANCED SEARCH - Populate fields on edit
+                    document.getElementById('item-brand').value = itemToEdit.brand || '';
+                    document.getElementById('item-location').value = itemToEdit.location || '';
+                    // END: ADVANCED SEARCH - Populate fields on edit
                     document.getElementById('item-images').required = false;
                     uploadModalTitle.textContent = 'עריכת פריט';
                     document.getElementById('submit-btn').textContent = 'שמור שינויים';
@@ -1577,7 +1569,6 @@
                     } 
                     break;
                 }
-                // START: PROMOTE FEATURE - Event handler
                 case 'promote-item': {
                     const id = actionTarget.dataset.id;
                     const confirmed = await showCustomModal({
@@ -1610,7 +1601,6 @@
                     }
                     break;
                 }
-                // END: PROMOTE FEATURE - Event handler
                 case 'report-item': {
                     if (!currentUser) {
                         return showAlert('עליך להתחבר כדי לדווח על פריט.');
@@ -1684,7 +1674,6 @@
         });
 
         // --- Filter Event Listeners ---
-        // Use a debounce function to avoid firing too many requests while typing
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
@@ -1700,12 +1689,12 @@
         sizeFilterInput.addEventListener('input', debouncedFetch);
         minPriceInput.addEventListener('input', debouncedFetch);
         maxPriceInput.addEventListener('input', debouncedFetch);
+        brandFilterInput.addEventListener('input', debouncedFetch);
+        locationFilterInput.addEventListener('input', debouncedFetch);
         categorySelect.addEventListener('change', resetAndFetchItems);
         sortSelect.addEventListener('change', resetAndFetchItems);
         conditionSelect.addEventListener('change', resetAndFetchItems);
         favoritesFilterBtn.addEventListener('click', () => { 
-            // This is a client-side only filter for now.
-            // A more robust implementation would have this as a server-side filter.
             showAlert('סינון לפי מועדפים יתווסף בקרוב!');
         });
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
