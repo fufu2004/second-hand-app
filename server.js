@@ -175,9 +175,9 @@ passport.use(new GoogleStrategy({
 const authMiddleware = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) return res.sendStatus(401);
+    if (token == null) return res.status(401).json({ message: 'No token provided.' }); // *** FIX: Return JSON
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) return res.status(403).json({ message: 'Invalid token.' }); // *** FIX: Return JSON
         req.user = user;
         next();
     });
@@ -384,7 +384,6 @@ app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item 
 // *** NEW: Report Item Endpoint ***
 app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
     try {
-        // *** FIX: Correct object destructuring ***
         const { reason, details } = req.body;
         const reporterId = req.user.id;
         const reportedItemId = req.params.id;
