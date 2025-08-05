@@ -1,0 +1,22 @@
+{
+  "name": "סטייל מתגלגל",
+  "short_name": "סטייל מתגלגל",
+  "description": "קהילת אופנה יד שנייה - קונים חכם, מוכרים בקלות.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f5f5",
+  "theme_color": "#14b8a6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
