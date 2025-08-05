@@ -464,6 +464,28 @@
         }
         
         // --- Authentication System ---
+        
+        // *** FIXED ***: Added the missing fetchUserFavorites function
+        async function fetchUserFavorites() {
+            if (!currentUser) {
+                favorites = [];
+                return;
+            }
+            const token = localStorage.getItem('authToken');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/my-favorites`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    throw new Error('Could not fetch favorites');
+                }
+                favorites = await response.json();
+            } catch (error) {
+                console.error('Failed to fetch user favorites:', error);
+                favorites = []; // Default to empty on error
+            }
+        }
+        
         async function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
@@ -484,6 +506,7 @@
             }
             
             initializeSocket(storedToken);
+            // *** FIXED ***: The call to fetchUserFavorites will now work
             if(currentUser) await fetchUserFavorites();
             updateUIForAuthState();
             fetchHistory();
