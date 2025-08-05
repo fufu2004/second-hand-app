@@ -74,6 +74,7 @@ const UserSchema = new mongoose.Schema({
     }],
     averageRating: { type: Number, default: 0 },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+    // *** NEW: Follower system fields ***
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
@@ -128,23 +129,13 @@ const Report = mongoose.model('Report', ReportSchema);
 
 const NotificationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower', 'new-offer', 'offer-accepted', 'offer-rejected', 'counter-offer'] },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
     message: { type: String, required: true },
     link: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
-
-const OfferSchema = new mongoose.Schema({
-    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
-    buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    offerPrice: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'accepted', 'rejected', 'countered'], default: 'pending' },
-    counterPrice: { type: Number },
-}, { timestamps: true });
-const Offer = mongoose.model('Offer', OfferSchema);
 
 
 // --- הגדרות העלאת קבצים ---
@@ -623,136 +614,6 @@ app.post('/api/notifications/mark-as-read', authMiddleware, async (req, res) => 
         res.status(500).json({ message: err.message });
     }
 });
-
-// --- NEW: Offer Routes ---
-app.post('/api/offers', authMiddleware, async (req, res) => {
-    const { itemId, sellerId, offerPrice } = req.body;
-    const buyerId = req.user.id;
-
-    try {
-        const item = await Item.findById(itemId);
-        if (!item || item.sold) {
-            return res.status(404).json({ message: 'Item not available or already sold.' });
-        }
-        if (item.owner.toString() !== sellerId) {
-            return res.status(400).json({ message: 'Seller ID does not match item owner.' });
-        }
-        if (buyerId === sellerId) {
-            return res.status(400).json({ message: 'You cannot make an offer on your own item.' });
-        }
-
-        const newOffer = new Offer({
-            item: itemId,
-            buyer: buyerId,
-            seller: sellerId,
-            offerPrice: offerPrice
-        });
-
-        await newOffer.save();
-        
-        const buyer = await User.findById(buyerId);
-        const notification = new Notification({
-            user: sellerId,
-            type: 'new-offer',
-            message: `${buyer.displayName} הציע/ה ₪${offerPrice} על הפריט "${item.title}".`,
-            link: `/offers`,
-            fromUser: buyerId
-        });
-        await notification.save();
-        io.to(sellerId).emit('newNotification', notification);
-        io.to(sellerId).to(buyerId).emit('offerUpdated');
-
-        res.status(201).json(newOffer);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.get('/api/offers/received', authMiddleware, async (req, res) => {
-    try {
-        const offers = await Offer.find({ seller: req.user.id })
-            .populate('item', 'title imageUrls price')
-            .populate('buyer', 'displayName image')
-            .sort({ createdAt: -1 });
-        res.json(offers);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.get('/api/offers/sent', authMiddleware, async (req, res) => {
-    try {
-        const offers = await Offer.find({ buyer: req.user.id })
-            .populate('item', 'title imageUrls price')
-            .populate('seller', 'displayName image')
-            .sort({ createdAt: -1 });
-        res.json(offers);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-app.patch('/api/offers/:id', authMiddleware, async (req, res) => {
-    const { status, counterPrice } = req.body;
-    const offerId = req.params.id;
-    const currentUserId = req.user.id;
-
-    try {
-        const offer = await Offer.findById(offerId).populate('item').populate('buyer').populate('seller');
-        if (!offer) {
-            return res.status(404).json({ message: 'Offer not found.' });
-        }
-        if (offer.seller._id.toString() !== currentUserId) {
-            return res.status(403).json({ message: 'Only the seller can respond to an offer.' });
-        }
-
-        offer.status = status;
-        let notification;
-
-        if (status === 'accepted') {
-            await Item.findByIdAndUpdate(offer.item._id, { sold: true });
-            io.emit('itemUpdated', await Item.findById(offer.item._id).populate('owner', 'displayName email'));
-            
-            notification = new Notification({
-                user: offer.buyer._id,
-                type: 'offer-accepted',
-                message: `ההצעה שלך על "${offer.item.title}" התקבלה!`,
-                link: `/offers`,
-                fromUser: currentUserId
-            });
-
-        } else if (status === 'rejected') {
-             notification = new Notification({
-                user: offer.buyer._id,
-                type: 'offer-rejected',
-                message: `ההצעה שלך על "${offer.item.title}" נדחתה.`,
-                link: `/offers`,
-                fromUser: currentUserId
-            });
-        } else if (status === 'countered' && counterPrice) {
-            offer.counterPrice = counterPrice;
-            notification = new Notification({
-                user: offer.buyer._id,
-                type: 'counter-offer',
-                message: `${offer.seller.displayName} הגיש/ה הצעה נגדית על "${offer.item.title}".`,
-                link: `/offers`,
-                fromUser: currentUserId
-            });
-        } else {
-            return res.status(400).json({ message: 'Invalid status or missing counter price.' });
-        }
-
-        await offer.save();
-        await notification.save();
-        io.to(offer.buyer._id.toString()).emit('newNotification', notification);
-        io.to(offer.seller._id.toString()).to(offer.buyer._id.toString()).emit('offerUpdated');
-        
-        res.json(offer);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
 
 // --- הגדרת Socket.io ---
 io.use((socket, next) => {
