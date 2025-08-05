@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
 
     <!-- PWA Meta Tags -->
@@ -26,7 +26,13 @@
         .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
         .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
         .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .item-card:hover { transform: translateY(-5px); }
+        .item-card:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .dark .item-card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .skeleton-loader { background-color: #e2e8f0; border-radius: 0.75rem; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         .dark .skeleton-loader { background-color: #374151; }
