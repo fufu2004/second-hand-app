@@ -1503,6 +1503,45 @@
                     fetchHistory();
                     break;
                 }
+                case 'follow-user': {
+                    if (!currentUser) {
+                        return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
+                    }
+                    const userIdToFollow = actionTarget.dataset.userId;
+                    const token = localStorage.getItem('authToken');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/users/${userIdToFollow}/follow`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || 'Failed to follow user.');
+                        }
+                        const { isFollowing } = await response.json();
+
+                        // Update the button text and style
+                        actionTarget.textContent = isFollowing ? 'הסר עוקב' : 'עקוב';
+                        actionTarget.classList.toggle('bg-blue-500', !isFollowing);
+                        actionTarget.classList.toggle('hover:bg-blue-600', !isFollowing);
+                        actionTarget.classList.toggle('bg-gray-500', isFollowing);
+                        actionTarget.classList.toggle('hover:bg-gray-600', isFollowing);
+
+                        // Update the follower count on the page
+                        const followersCountElement = publicProfileView.querySelector('span strong');
+                        if (followersCountElement) {
+                            let currentCount = parseInt(followersCountElement.textContent, 10);
+                            followersCountElement.textContent = isFollowing ? currentCount + 1 : currentCount - 1;
+                        }
+
+                    } catch (error) {
+                        console.error('Failed to follow user:', error);
+                        showAlert(`שגיאה בפעולת המעקב: ${error.message}`);
+                    }
+                    break;
+                }
             }
         });
 
