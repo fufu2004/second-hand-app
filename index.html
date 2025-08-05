@@ -385,16 +385,53 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- PWA Service Worker Registration ---
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').then(registration => {
-              console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            }, err => {
-              console.log('ServiceWorker registration failed: ', err);
+        // --- PWA Service Worker Registration & Update ---
+        let newWorker;
+        function showUpdateBar() {
+            // Check if the bar already exists
+            if (document.getElementById('update-bar')) return;
+
+            const updateBar = document.createElement('div');
+            updateBar.id = 'update-bar';
+            updateBar.className = 'fixed bottom-0 left-0 right-0 bg-blue-800 text-white p-4 flex justify-between items-center z-50 shadow-lg';
+            updateBar.innerHTML = `
+                <span>גרסה חדשה של האפליקציה זמינה.</span>
+                <button id="reload-button" class="bg-white text-blue-800 font-bold py-1 px-3 rounded hover:bg-blue-100 transition">רענן</button>
+            `;
+            document.body.appendChild(updateBar);
+            document.getElementById('reload-button').addEventListener('click', () => {
+                newWorker.postMessage({ action: 'skipWaiting' });
             });
-          });
         }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                console.log('Service Worker registered successfully.');
+                reg.addEventListener('updatefound', () => {
+                    // An update has been found, and a new service worker is installing.
+                    newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        // Has the new service worker finished installing?
+                        if (newWorker.state === 'installed') {
+                            // If there's an existing service worker, show the update prompt.
+                            if (navigator.serviceWorker.controller) {
+                                showUpdateBar();
+                            }
+                        }
+                    });
+                });
+            }).catch(err => {
+                console.error('Service Worker registration failed:', err);
+            });
+
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                window.location.reload();
+                refreshing = true;
+            });
+        }
+
 
         // --- PWA Custom Install Prompt ---
         let deferredPrompt;
@@ -1462,369 +1499,4 @@
                     document.getElementById('submit-btn').textContent = 'שמור שינויים';
                     
                     const affiliateContainer = document.getElementById('affiliate-link-container');
-                    const promotedContainer = document.getElementById('promoted-container');
-                    if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                        affiliateContainer.classList.remove('hidden');
-                        promotedContainer.classList.remove('hidden');
-                        document.getElementById('item-affiliate-link').value = itemToEdit.affiliateLink || '';
-                        document.getElementById('item-promoted').checked = itemToEdit.isPromoted || false;
-                    } else {
-                        affiliateContainer.classList.add('hidden');
-                        promotedContainer.classList.add('hidden');
-                    }
-
-                    const previewContainer = document.getElementById('image-preview-container');
-                    previewContainer.innerHTML = '';
-                    (itemToEdit.imageUrls || []).forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.className = 'w-16 h-16 object-cover rounded-md opacity-75';
-                        previewContainer.appendChild(img);
-                    });
-                    showModal(uploadModal);
-                    break;
-                }
-                case 'delete-item': {
-                    const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
-                        title: 'אישור מחיקה',
-                        message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
-                        buttons: [
-                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
-                            { text: 'מחק', class: 'bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
-                        ]
-                    });
-
-                    if (confirmed) {
-                        const token = localStorage.getItem('authToken');
-                        if (!token) return showAlert('שגיאת אימות למחיקה.');
-                        try {
-                            const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                            if (!response.ok) {
-                                const errData = await response.json();
-                                throw new Error(errData.message || `Error ${response.status}`);
-                            }
-                        } catch (error) {
-                            console.error('Delete failed:', error);
-                            showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
-                        }
-                    }
-                    break;
-                }
-                case 'toggle-sold': {
-                    const id = actionTarget.dataset.id;
-                    const token = localStorage.getItem('authToken'); 
-                    if (!token) return showAlert('שגיאת אימות.'); 
-                    const item = allItemsCache[id]; 
-                    if (!item) return;
-                    const newStatus = !item.sold; 
-                    try { 
-                        const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); 
-                        if (!response.ok) throw new Error('Failed to update status'); 
-                    } catch (error) { 
-                        console.error('Failed to toggle sold status:', error); 
-                        showAlert('שגיאה בעדכון סטטוס הפריט.'); 
-                    } 
-                    break;
-                }
-                case 'report-item': {
-                    if (!currentUser) {
-                        return showAlert('עליך להתחבר כדי לדווח על פריט.');
-                    }
-                    const id = actionTarget.dataset.id;
-                    document.getElementById('reported-item-id').value = id;
-                    reportForm.reset();
-                    showModal(reportModal);
-                    break;
-                }
-                case 'start-chat': {
-                    const { sellerId, itemId } = actionTarget.dataset;
-                    startOrOpenChat(sellerId, itemId);
-                    break;
-                }
-                case 'open-chat': {
-                    const { conversationId } = actionTarget.dataset;
-                    showChatView(conversationId);
-                    break;
-                }
-                case 'show-chat-list': {
-                    showChatView(); // Call with no ID to show the list
-                    break;
-                }
-                 case 'show-main-view': {
-                    showView('main-view');
-                    break;
-                }
-                case 'view-profile': {
-                    const { userId } = actionTarget.dataset;
-                    showPublicProfile(userId);
-                    break;
-                }
-                case 'rate-user': {
-                    const { userId, userName } = actionTarget.dataset;
-                    openRatingModal(userId, userName);
-                    break;
-                }
-                case 'open-gallery': {
-                    const images = JSON.parse(actionTarget.dataset.images);
-                    const index = parseInt(actionTarget.dataset.index, 10);
-                    openGallery(images, index);
-                    break;
-                }
-                case 'notification-click': {
-                    const link = actionTarget.dataset.link;
-                    const type = actionTarget.dataset.type;
-                    
-                    const panel = document.getElementById('notifications-panel');
-                    if (panel) panel.style.display = 'none';
-
-                    if (type === 'new-message') {
-                        const conversationId = link.split('/').pop();
-                        if (conversationId) {
-                            showChatView(conversationId);
-                        }
-                    } else if (type === 'new-rating' || type === 'new-follower') {
-                        const userId = link.split('/').pop();
-                        if (userId) {
-                            showPublicProfile(userId);
-                        }
-                    }
-                    break;
-                }
-                case 'retry-fetch': {
-                    fetchFeed();
-                    break;
-                }
-                case 'follow-user': {
-                    if (!currentUser) {
-                        return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
-                    }
-                    const userIdToFollow = actionTarget.dataset.userId;
-                    const token = localStorage.getItem('authToken');
-                    try {
-                        const response = await fetch(`${SERVER_URL}/api/users/${userIdToFollow}/follow`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-                        if (!response.ok) {
-                            const errData = await response.json();
-                            throw new Error(errData.message || 'Failed to follow user.');
-                        }
-                        const { isFollowing } = await response.json();
-
-                        // Update the button text and style
-                        actionTarget.textContent = isFollowing ? 'הסר עוקב' : 'עקוב';
-                        actionTarget.classList.toggle('bg-blue-500', !isFollowing);
-                        actionTarget.classList.toggle('hover:bg-blue-600', !isFollowing);
-                        actionTarget.classList.toggle('bg-gray-500', isFollowing);
-                        actionTarget.classList.toggle('hover:bg-gray-600', isFollowing);
-
-                        // Update the follower count on the page
-                        const followersCountElement = publicProfileView.querySelector('#followers-count');
-                        if (followersCountElement) {
-                            let currentCount = parseInt(followersCountElement.textContent, 10);
-                            followersCountElement.textContent = isFollowing ? currentCount + 1 : currentCount - 1;
-                        }
-
-                    } catch (error) {
-                        console.error('Failed to follow user:', error);
-                        showAlert(`שגיאה בפעולת המעקב: ${error.message}`);
-                    }
-                    break;
-                }
-            }
-        });
-
-        // --- Filter Event Listeners ---
-        categorySelect.addEventListener('change', (e) => { currentFilter.category = e.target.value; applyFilters(); });
-        sortSelect.addEventListener('change', (e) => { currentFilter.sort = e.target.value; applyFilters(); });
-        minPriceInput.addEventListener('input', (e) => { currentFilter.minPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
-        maxPriceInput.addEventListener('input', (e) => { currentFilter.maxPrice = e.target.value ? Number(e.target.value) : null; applyFilters(); });
-        favoritesFilterBtn.addEventListener('click', () => { currentFilter.favorites = !currentFilter.favorites; favoritesFilterBtn.classList.toggle('bg-red-100', currentFilter.favorites); favoritesFilterBtn.querySelector('svg').classList.toggle('text-red-500', currentFilter.favorites); applyFilters(); });
-        filterInput.addEventListener('input', applyFilters);
-        document.getElementById('item-images').addEventListener('change', handleImagePreview);
-        
-        // --- Report Form Submission ---
-        reportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) return showAlert('שגיאת אימות.');
-
-            const itemId = document.getElementById('reported-item-id').value;
-            const reason = document.getElementById('report-reason').value;
-            const details = document.getElementById('report-details').value;
-
-            if (!reason) return showAlert('יש לבחור סיבה לדיווח.');
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/items/${itemId}/report`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ reason, details })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to submit report.');
-                }
-
-                hideAllModals();
-                showToast('הדיווח שלך נשלח בהצלחה. תודה!');
-            } catch (error) {
-                console.error('Failed to submit report:', error);
-                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
-            }
-        });
-
-        // *** NEW: Notification Logic ***
-        async function fetchNotifications() {
-            if (!currentUser) return;
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/notifications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Could not fetch notifications');
-                notificationsCache = await response.json();
-                updateNotificationBell();
-            } catch (error) {
-                console.error('Failed to fetch notifications:', error);
-            }
-        }
-
-        function updateNotificationBell() {
-            const badge = document.getElementById('notification-badge');
-            if (!badge) return;
-            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        function renderNotifications() {
-            const panel = document.getElementById('notifications-panel');
-            if (!panel) return;
-
-            if (notificationsCache.length === 0) {
-                panel.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">אין התראות חדשות.</div>`;
-                return;
-            }
-
-            panel.innerHTML = notificationsCache.map(n => `
-                <div data-action="notification-click" data-link="${n.link}" data-type="${n.type}" class="p-3 border-b dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${!n.isRead ? 'font-bold' : ''}">
-                    <p class="text-sm pointer-events-none">${n.message}</p>
-                    <p class="text-xs text-gray-400 pointer-events-none">${new Date(n.createdAt).toLocaleString('he-IL')}</p>
-                </div>
-            `).join('');
-        }
-
-        async function markNotificationsAsRead() {
-            const token = localStorage.getItem('authToken');
-            try {
-                await fetch(`${SERVER_URL}/api/notifications/mark-as-read`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                notificationsCache.forEach(n => n.isRead = true);
-                updateNotificationBell();
-            } catch (error) {
-                console.error('Failed to mark notifications as read:', error);
-            }
-        }
-        
-        function toggleNotificationsPanel() {
-            const panel = document.getElementById('notifications-panel');
-            if (!panel) return;
-
-            const isVisible = panel.style.display === 'block';
-            if (isVisible) {
-                panel.style.display = 'none';
-            } else {
-                renderNotifications();
-                panel.style.display = 'block';
-                markNotificationsAsRead();
-            }
-        }
-
-
-        // --- Announcement Bar Logic ---
-        const announcementBar = document.getElementById('announcement-bar');
-        const closeAnnouncementBtn = document.getElementById('close-announcement');
-        const announcementSpan = announcementBar.querySelector('span');
-
-        const announcements = [
-            "פריטים חדשים עולים כל שעה! אל תפספסו את המציאה הבאה שלכם.",
-            "קונים חכם, מוכרים בקלות. ברוכים הבאים לקהילת האופנה שלנו!",
-            "הצטרפו למהפכת האופנה המעגלית - תנו לבגדים שלכם חיים חדשים!",
-            "מצאתם פריט שאהבתם? שלחו הודעה למוכר/ת ותתחדשו!"
-        ];
-        let currentAnnouncementIndex = 0;
-        let announcementInterval;
-
-        function changeAnnouncement() {
-            if (!announcementSpan) return;
-            announcementSpan.style.opacity = '0';
-            setTimeout(() => {
-                currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
-                announcementSpan.textContent = announcements[currentAnnouncementIndex];
-                announcementSpan.style.opacity = '1';
-            }, 500);
-        }
-
-        if (announcementBar && closeAnnouncementBtn && announcementSpan) {
-            closeAnnouncementBtn.addEventListener('click', () => {
-                announcementBar.style.display = 'none';
-                if(announcementInterval) clearInterval(announcementInterval);
-            });
-            
-            announcementSpan.textContent = announcements[0];
-            announcementInterval = setInterval(changeAnnouncement, 5000);
-        }
-        
-        function populateCategoryFilter() {
-            categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
-            for (const [key, value] of Object.entries(categoryMap)) {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = value;
-                categorySelect.appendChild(option);
-            }
-        }
-
-        // --- Theme Toggle Logic ---
-        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-        const themeToggleBtn = document.getElementById('theme-toggle');
-
-        function updateThemeIcons() {
-            if (document.documentElement.classList.contains('dark')) {
-                themeToggleLightIcon.classList.remove('hidden');
-                themeToggleDarkIcon.classList.add('hidden');
-            } else {
-                themeToggleDarkIcon.classList.remove('hidden');
-                themeToggleLightIcon.classList.add('hidden');
-            }
-        }
-
-        themeToggleBtn.addEventListener('click', function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
-            updateThemeIcons();
-        });
-
-        // --- Initial Application Setup ---
-        updateThemeIcons();
-        populateCategoryFilter();
-        checkAuthState();
-    });
-    </script>
-</body>
-</html>
+                    co
