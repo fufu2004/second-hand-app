@@ -811,17 +811,19 @@
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
                 const loggedInHtmlMobile = `
-                    <div class="flex flex-col items-center gap-2 w-full px-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
-                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
-                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
-                                </button>
-                        </div>
-                        <div class="flex gap-2 w-full">
-                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
-                        </div>
+                    <div class="flex gap-2 w-full items-center">
+    <div class="relative">
+        <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <span id="notification-badge-mobile" class="notification-badge hidden"></span>
+        </button>
+        <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700" style="display: none; position: absolute; top: 100%; left: -140px; width: 320px; z-index: 50;">
+        </div>
+    </div>
+    <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+    <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+    <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+</div>
                     </div>
                 `;
                 authContentMobile.innerHTML = loggedInHtmlMobile;
@@ -2076,3 +2078,4 @@
     </script>
 </body>
 </html>
+
