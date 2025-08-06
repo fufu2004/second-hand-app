@@ -127,34 +127,24 @@
             margin-right: 4px;
             vertical-align: middle;
         }
-        /* START: DEBUG UI STYLE */
-        #debug-log-container {
-            position: fixed;
-            bottom: 80px; /* Above the add button */
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            z-index: 1000;
-            max-width: 90vw;
-            width: 350px;
-            font-size: 10px;
-            font-family: monospace;
+        
+        /* NEW PUSH BUTTON ANIMATION */
+        @keyframes pulse-bell {
+            0% { transform: scale(1); }
+            10% { transform: scale(0.9) rotate(-8deg); }
+            20% { transform: scale(0.9) rotate(8deg); }
+            30% { transform: scale(1.1) rotate(-4deg); }
+            40% { transform: scale(1.1) rotate(4deg); }
+            50% { transform: scale(1.1) rotate(-2deg); }
+            60% { transform: scale(1.1) rotate(2deg); }
+            70% { transform: scale(1); }
+            100% { transform: scale(1); }
         }
-        #debug-log {
-            max-height: 150px;
-            overflow-y: auto;
-            word-break: break-all;
+        .bell-animation {
+            animation: pulse-bell 2.5s ease-in-out infinite;
+            transform-origin: center;
         }
-        #debug-log p.error {
-            color: #ff7b7b; /* Light red */
-        }
-        #debug-log p.success {
-            color: #7bff8a; /* Light green */
-        }
-        /* END: DEBUG UI STYLE */
+
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -416,13 +406,6 @@
     <!-- Toast Notification -->
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
-    <!-- START: DEBUG UI -->
-    <div id="debug-log-container" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm w-full hidden">
-        <h4 class="font-bold text-lg mb-2">Push Debug Log</h4>
-        <div id="debug-log" class="text-sm font-mono space-y-1 max-h-48 overflow-y-auto"></div>
-    </div>
-    <!-- END: DEBUG UI -->
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- PWA Service Worker Registration ---
@@ -516,11 +499,6 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
-        // START: DEBUG UI SELECTORS
-        const debugLogContainer = document.getElementById('debug-log-container');
-        const debugLogEl = document.getElementById('debug-log');
-        // END: DEBUG UI SELECTORS
-
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -784,9 +762,6 @@
             }
         }
         
-        // =================================================================
-        // ======================= START OF FIX ============================
-        // =================================================================
         async function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
@@ -808,20 +783,15 @@
             
             initializeSocket(storedToken);
 
-            // FIX: Update the UI *before* trying to initialize features that depend on the UI.
             updateUIForAuthState();
             
             if(currentUser) {
                 await Promise.all([fetchUserFavorites(), fetchNotifications()]);
-                // This function depends on elements created in updateUIForAuthState()
                 initializePushNotifications(); 
             }
             
-            resetAndFetchItems(); // Initial fetch
+            resetAndFetchItems();
         }
-        // =================================================================
-        // ======================== END OF FIX =============================
-        // =================================================================
 
         function updateUIForAuthState() {
             const shareButtonHtml = `
@@ -836,7 +806,8 @@
 
                 const actionButtonsHtml = `
                     <div id="push-notification-container" class="hidden">
-                        <button id="push-notification-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition" title="ניהול התראות פוש">
+                        <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                            <!-- Content will be set by JS -->
                         </button>
                     </div>
                     <div class="relative">
@@ -1902,7 +1873,7 @@
             }
         }
 
-        // *** NEW: Push Notification Client Logic ***
+        // *** Push Notification Client Logic ***
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -1949,42 +1920,52 @@
 
         function updateSubscriptionButton() {
             const pushButton = document.getElementById('push-notification-btn');
-            if (!pushButton) return; // Add guard clause
-            
+            if (!pushButton) return; 
+
+            // Reset classes and state
+            pushButton.classList.remove('bell-animation', 'bg-amber-400', 'bg-green-500', 'bg-red-500', 'text-white', 'dark:bg-amber-500', 'dark:bg-green-600', 'dark:bg-red-600');
+            pushButton.disabled = false;
+
             if (Notification.permission === 'denied') {
-                pushButton.innerHTML = `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>`;
-                pushButton.title = 'התראות חסומות';
+                pushButton.innerHTML = `
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                    <span class="text-sm">התראות חסומות</span>`;
+                pushButton.title = 'התראות חסומות בהגדרות הדפדפן';
+                pushButton.classList.add('bg-red-500', 'text-white', 'dark:bg-red-600');
                 pushButton.disabled = true;
                 return;
             }
 
             if (pushSubscription) {
-                pushButton.innerHTML = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>`;
+                pushButton.innerHTML = `
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                    <span class="text-sm">מקבלים עדכונים</span>`;
                 pushButton.title = 'בטל קבלת התראות';
+                pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
             } else {
-                pushButton.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9m-9 4a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>`;
+                pushButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="text-sm">קבלו עדכונים!</span>`;
                 pushButton.title = 'הפעל קבלת התראות';
+                pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500', 'bell-animation');
             }
         }
 
         async function subscribeUser() {
             try {
-                console.log('[CLIENT DEBUG] Starting subscription process...');
                 const response = await fetch(`${SERVER_URL}/api/vapid-public-key`);
                 if (!response.ok) throw new Error('Failed to get VAPID key');
                 const vapidPublicKey = await response.text();
-                console.log('[CLIENT DEBUG] Fetched VAPID key.');
                 const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
                 const registration = await navigator.serviceWorker.ready;
-                console.log('[CLIENT DEBUG] Service worker is ready.');
                 pushSubscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: convertedVapidKey
                 });
-                console.log('[CLIENT DEBUG] User is subscribed:', pushSubscription);
 
-                console.log('[CLIENT DEBUG] Sending subscription to server...');
                 const subscribeResponse = await fetch(`${SERVER_URL}/api/subscribe`, {
                     method: 'POST',
                     body: JSON.stringify(pushSubscription),
@@ -1998,7 +1979,6 @@
                     const errorData = await subscribeResponse.json();
                     throw new Error(errorData.message || 'Failed to send subscription to server');
                 }
-                console.log('[CLIENT DEBUG] Subscription sent to server successfully.');
                 showToast('נרשמת בהצלחה לקבלת התראות!');
             } catch (err) {
                 console.error('Failed to subscribe the user: ', err);
