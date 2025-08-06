@@ -108,7 +108,7 @@
         .dark .notification-badge {
              border-color: #1f2937;
         }
-        #notifications-panel {
+        #notifications-panel, #notifications-panel-mobile {
             display: none;
             position: absolute;
             top: 100%;
@@ -117,6 +117,9 @@
             max-height: 400px;
             overflow-y: auto;
             z-index: 50;
+        }
+        #notifications-panel-mobile {
+            left: -140px; 
         }
         .verified-badge {
             color: #3b82f6; /* blue-500 */
@@ -819,16 +822,16 @@
                                 </button>
                         </div>
                         <div class="flex gap-2 w-full items-center">
+                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
                             <div class="relative">
                                 <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                                     <span id="notification-badge-mobile" class="notification-badge hidden"></span>
                                 </button>
-                                <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700" style="display: none; position: absolute; top: 100%; left: -140px; width: 320px; z-index: 50;">
+                                <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
                                 </div>
                             </div>
-                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
                             <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
                         </div>
                     </div>
@@ -863,6 +866,7 @@
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             document.getElementById('share-app-btn').addEventListener('click', shareApp);
+            
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
             });
@@ -1712,8 +1716,7 @@
                     const link = actionTarget.dataset.link;
                     const type = actionTarget.dataset.type;
                     
-                    const panel = document.getElementById('notifications-panel');
-                    if (panel) panel.style.display = 'none';
+                    document.querySelectorAll('[id^="notifications-panel"]').forEach(panel => panel.style.display = 'none');
 
                     if (type === 'new-message') {
                         const conversationId = link.split('/').pop();
@@ -1858,7 +1861,7 @@
         }
         
         function toggleNotificationsPanel(clickedButton) {
-            const panelId = clickedButton.id.replace('btn', 'panel');
+            const panelId = clickedButton.id.replace('-btn', '-panel');
             const panel = document.getElementById(panelId);
             if (!panel) return;
 
@@ -1871,6 +1874,7 @@
                 markNotificationsAsRead();
             }
         }
+
 
         // *** Push Notification Client Logic ***
         function urlBase64ToUint8Array(base64String) {
@@ -2047,6 +2051,20 @@
             }
         }
 
-       
+        // --- Initial Load ---
+        populateCategoryFilter();
+        checkAuthState();
 
-}
+        // --- Infinite Scroll Listener ---
+        window.addEventListener('scroll', () => {
+            if (isLoading || !hasMorePages || !mainView.classList.contains('active')) return;
+
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+                fetchItems();
+            }
+        });
+
+    });
+    </script>
+</body>
+</html>
