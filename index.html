@@ -155,11 +155,11 @@
     <div class="container mx-auto p-4 max-w-2xl pb-24">
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
+                <div id="header-right-desktop" class="flex-1 hidden sm:flex justify-start items-center gap-2">
                     <span id="header-right-content" class="flex items-center gap-2"></span>
                 </div>
 
-                <div class="flex-shrink-0 px-2">
+                <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
                     <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
                         <div>
@@ -169,7 +169,7 @@
                     </div>
                 </div>
 
-                <div id="header-left-desktop" class="flex-1 flex justify-end items-center gap-4">
+                <div id="header-left-desktop" class="flex-1 hidden sm:flex justify-end items-center gap-4">
                     <div id="auth-content-desktop" class="flex items-center gap-4"></div>
                     <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
                         <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
@@ -1926,7 +1926,7 @@
                     pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
                 } else {
                     pushButton.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
                         <span class="text-sm">קבלו עדכונים!</span>`;
