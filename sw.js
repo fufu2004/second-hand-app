@@ -1,5 +1,5 @@
 // The version of the cache.
-const CACHE_VERSION = 3; // Increment version again to force update
+const CACHE_VERSION = 4; // Increment version again to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 
 // The files to cache on installation.
@@ -14,15 +14,16 @@ const urlsToCache = [
 
 // Event listener for the 'install' event.
 self.addEventListener('install', event => {
-  console.log('Attempting to install new service worker...');
+  console.log(`[SW] Installing version ${CACHE_VERSION}...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('[SW] Caching core files.');
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // *** NEW: Force the new service worker to become active immediately. ***
+        // Force the new service worker to become active immediately.
+        console.log('[SW] Installation complete. Skipping waiting.');
         return self.skipWaiting();
       })
   );
@@ -30,20 +31,21 @@ self.addEventListener('install', event => {
 
 // Event listener for the 'activate' event.
 self.addEventListener('activate', event => {
+  console.log(`[SW] Activating version ${CACHE_VERSION}...`);
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-        // *** NEW: Take control of all open clients (tabs) immediately. ***
-        console.log('New service worker activated. Claiming clients.');
+        // Take control of all open clients (tabs) immediately.
+        console.log('[SW] New service worker activated. Claiming clients.');
         return self.clients.claim();
     })
   );
@@ -64,16 +66,24 @@ self.addEventListener('fetch', event => {
 
 // Event listener for the 'push' event.
 self.addEventListener('push', event => {
-  const data = event.data.json();
-  console.log('Push notification received:', data);
+  console.log('[SW] Push notification received.');
+  let data;
+  try {
+    data = event.data.json();
+  } catch (e) {
+    console.error('[SW] Push event but no data', e);
+    data = {
+        title: 'התראה חדשה',
+        body: 'קיבלת עדכון חדש.',
+        data: { url: '/' }
+    };
+  }
 
   const title = data.title || 'התראה חדשה';
-  const testIcon = 'https://placehold.co/192x192/14b8a6/FFFFFF?text=S'; 
-
   const options = {
     body: data.body || 'קיבלת עדכון חדש.',
-    icon: testIcon,
-    badge: testIcon, 
+    icon: data.icon || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
+    badge: 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
     data: {
       url: data.data.url
     }
@@ -86,6 +96,7 @@ self.addEventListener('push', event => {
 
 // Event listener for the 'notificationclick' event.
 self.addEventListener('notificationclick', event => {
+  console.log('[SW] Notification clicked.');
   event.notification.close(); 
 
   const urlToOpen = event.notification.data.url;
@@ -96,11 +107,15 @@ self.addEventListener('notificationclick', event => {
       includeUncontrolled: true
     }).then(clientList => {
       for (const client of clientList) {
-        if (client.url === urlToOpen && 'focus' in client) {
+        // If a window for the app is already open, focus it.
+        if (new URL(client.url).pathname === new URL(urlToOpen).pathname && 'focus' in client) {
+          console.log('[SW] Found an open client, focusing it.');
           return client.focus();
         }
       }
+      // If no window is open, open a new one.
       if (clients.openWindow) {
+        console.log('[SW] No open client found, opening a new one.');
         return clients.openWindow(urlToOpen);
       }
     })
