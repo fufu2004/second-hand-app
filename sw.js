@@ -1,5 +1,5 @@
 // The version of the cache.
-const CACHE_VERSION = 5; // Increment version again to force update
+const CACHE_VERSION = 6; // Increment version again to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com'; // Make sure this is the correct URL
 
