@@ -809,13 +809,10 @@
 
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
+                // MODIFICATION: Removed the push notification button container from mobile view
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2 w-full px-4">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
-                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
-                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
-                                </button>
-                        </div>
                         <div class="flex gap-2 w-full">
                             <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                             <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
@@ -1861,4 +1858,199 @@
             const panel = document.getElementById('notifications-panel');
             if (!panel) return;
 
-            const isVisible = panel.style.disp
+            const isVisible = panel.style.display === 'block';
+            if (isVisible) {
+                panel.style.display = 'none';
+            } else {
+                renderNotifications();
+                panel.style.display = 'block';
+                const unreadCount = notificationsCache.filter(n => !n.isRead).length;
+                if (unreadCount > 0) {
+                    markNotificationsAsRead();
+                }
+            }
+        }
+
+        // --- Push Notifications Logic ---
+        async function initializePushNotifications() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                console.warn('Push messaging is not supported');
+                return;
+            }
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                pushSubscription = await registration.pushManager.getSubscription();
+                updatePushSubscriptionButton(pushSubscription);
+            } catch (err) {
+                console.error('Error during push notification initialization:', err);
+            }
+        }
+
+        function updatePushSubscriptionButton(subscription) {
+            const containerDesktop = document.getElementById('push-notification-container');
+            const btnDesktop = document.getElementById('push-notification-btn');
+            const containerMobile = document.getElementById('push-notification-container-mobile');
+            const btnMobile = document.getElementById('push-notification-btn-mobile');
+            
+            const isSubscribed = subscription !== null;
+            const text = isSubscribed ? 'התראות PUSH פעילות' : 'הירשם להתראות PUSH';
+            const icon = isSubscribed ? 
+                `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` :
+                `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 bell-animation" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>`;
+            
+            const buttonHtml = `${icon}<span>${text}</span>`;
+            const buttonClasses = isSubscribed ? 
+                'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 
+                'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300';
+
+            if (btnDesktop) {
+                btnDesktop.innerHTML = buttonHtml;
+                btnDesktop.className = `flex items-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
+            }
+            if (btnMobile) {
+                btnMobile.innerHTML = buttonHtml;
+                btnMobile.className = `w-full flex items-center justify-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
+            }
+
+            [btnDesktop, btnMobile].forEach(btn => {
+                if(btn) {
+                    btn.onclick = subscription ? unsubscribePush : subscribePush;
+                }
+            });
+
+            [containerDesktop, containerMobile].forEach(c => c?.classList.remove('hidden'));
+        }
+
+        async function subscribePush() {
+            const registration = await navigator.serviceWorker.ready;
+            const token = localStorage.getItem('authToken');
+            if (!token) return showAlert('You must be logged in to subscribe.');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/vapid-public-key`);
+                const vapidPublicKey = await response.text();
+                
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: vapidPublicKey
+                });
+                
+                await fetch(`${SERVER_URL}/api/subscribe`, {
+                    method: 'POST',
+                    body: JSON.stringify(subscription),
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+                });
+
+                pushSubscription = subscription;
+                updatePushSubscriptionButton(pushSubscription);
+                showToast('נרשמת בהצלחה להתראות!');
+            } catch (err) {
+                console.error('Failed to subscribe the user: ', err);
+                showAlert('Failed to subscribe to push notifications.');
+            }
+        }
+
+        async function unsubscribePush() {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            try {
+                await pushSubscription.unsubscribe();
+                
+                await fetch(`${SERVER_URL}/api/unsubscribe`, {
+                    method: 'POST',
+                    body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+                });
+
+                pushSubscription = null;
+                updatePushSubscriptionButton(pushSubscription);
+                showToast('ההרשמה להתראות בוטלה.');
+            } catch (err) {
+                console.error('Error unsubscribing', err);
+            }
+        }
+
+
+        // --- Theme Toggle ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            themeToggleLightIcon.classList.remove('hidden');
+        } else {
+            themeToggleDarkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+            if (localStorage.getItem('color-theme')) {
+                if (localStorage.getItem('color-theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                }
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                }
+            }
+        });
+
+        // --- Announcement Bar ---
+        const announcements = [
+            "ברוכים הבאים לסטייל מתגלגל! קנייה נעימה 😊",
+            "חדש! עכשיו אפשר לדרג מוכרים ולצפות בדירוגים.",
+            "מצאתם באג? יש לכם רעיון? נשמח לשמוע מכם!",
+            "התקינו את האפליקציה למסך הבית לחוויה מהירה יותר!"
+        ];
+        let currentAnnouncementIndex = 0;
+        const announcementSpan = document.querySelector('#announcement-bar span');
+        const closeAnnouncementBtn = document.getElementById('close-announcement');
+
+        function showNextAnnouncement() {
+            announcementSpan.style.opacity = 0;
+            setTimeout(() => {
+                currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
+                announcementSpan.textContent = announcements[currentAnnouncementIndex];
+                announcementSpan.style.opacity = 1;
+            }, 500);
+        }
+        
+        announcementSpan.textContent = announcements[0];
+        setInterval(showNextAnnouncement, 7000);
+        closeAnnouncementBtn.addEventListener('click', () => {
+            document.getElementById('announcement-bar').style.display = 'none';
+        });
+
+        // --- Initial Data Load ---
+        function populateCategories() {
+            categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
+            for (const [key, value] of Object.entries(categoryMap)) {
+                categorySelect.innerHTML += `<option value="${key}">${value}</option>`;
+            }
+        }
+        
+        // --- Infinite Scroll Observer ---
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !isLoading && hasMorePages) {
+                fetchItems();
+            }
+        }, { rootMargin: "200px" });
+
+        observer.observe(loadingIndicator);
+        
+        populateCategories();
+        checkAuthState();
+    });
+    </script>
+</body>
+</html>
