@@ -711,6 +711,7 @@
         function parseJwt (token) {
             try {
                 const base64Url = token.split('.')[1];
+                if (!base64Url) return null;
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -786,7 +787,6 @@
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
-                // START: MODIFICATION - Moved push notification button inside responsive container
                 const actionButtonsHtml = `
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
@@ -806,7 +806,6 @@
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                     </div>
                 `;
-                // END: MODIFICATION
 
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
@@ -849,11 +848,22 @@
             }
 
             // Re-attach event listeners for all states
-            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
-            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
-            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
-            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-            document.getElementById('share-app-btn').addEventListener('click', shareApp);
+            // FIX: Add guards to prevent errors if elements are not found immediately after innerHTML update
+            const googleLoginBtns = document.querySelectorAll('[id^="google-login-btn"]');
+            if (googleLoginBtns) googleLoginBtns.forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+            
+            const profileBtns = document.querySelectorAll('[id^="profile-btn"]');
+            if (profileBtns) profileBtns.forEach(btn => btn.addEventListener('click', showProfileView));
+
+            const logoutBtns = document.querySelectorAll('[id^="logout-btn"]');
+            if (logoutBtns) logoutBtns.forEach(btn => btn.addEventListener('click', handleLogout));
+
+            const chatBtns = document.querySelectorAll('[id^="chat-btn"]');
+            if (chatBtns) chatBtns.forEach(btn => btn.addEventListener('click', () => showChatView()));
+
+            const shareBtn = document.getElementById('share-app-btn');
+            if (shareBtn) shareBtn.addEventListener('click', shareApp);
+
             const notificationsBtn = document.getElementById('notifications-btn');
             if (notificationsBtn) {
                 notificationsBtn.addEventListener('click', toggleNotificationsPanel);
@@ -1851,228 +1861,4 @@
             const panel = document.getElementById('notifications-panel');
             if (!panel) return;
 
-            const isVisible = panel.style.display === 'block';
-            if (isVisible) {
-                panel.style.display = 'none';
-            } else {
-                renderNotifications();
-                panel.style.display = 'block';
-                markNotificationsAsRead();
-            }
-        }
-
-        // *** Push Notification Client Logic ***
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        async function initializePushNotifications() {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                console.warn('Push messaging is not supported');
-                return;
-            }
-
-            document.querySelectorAll('[id^="push-notification-container"]').forEach(container => container.classList.remove('hidden'));
-            
-            const pushButtons = document.querySelectorAll('[id^="push-notification-btn"]');
-            if (pushButtons.length === 0) {
-                console.error("Push notification buttons not found.");
-                return;
-            }
-
-            const registration = await navigator.serviceWorker.ready;
-            pushSubscription = await registration.pushManager.getSubscription();
-            
-            updateSubscriptionButton();
-
-            pushButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (pushSubscription) {
-                        unsubscribeUser();
-                    } else {
-                        subscribeUser();
-                    }
-                });
-            });
-        }
-
-        function updateSubscriptionButton() {
-            const pushButtons = document.querySelectorAll('[id^="push-notification-btn"]');
-            if (pushButtons.length === 0) return;
-
-            pushButtons.forEach(pushButton => {
-                pushButton.classList.remove('bell-animation', 'bg-amber-400', 'bg-green-500', 'bg-red-500', 'text-white', 'dark:bg-amber-500', 'dark:bg-green-600', 'dark:bg-red-600');
-                pushButton.disabled = false;
-
-                if (Notification.permission === 'denied') {
-                    pushButton.innerHTML = `
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                        <span class="text-sm">התראות חסומות</span>`;
-                    pushButton.title = 'התראות חסומות בהגדרות הדפדפן';
-                    pushButton.classList.add('bg-red-500', 'text-white', 'dark:bg-red-600');
-                    pushButton.disabled = true;
-                    return;
-                }
-
-                if (pushSubscription) {
-                    pushButton.innerHTML = `
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                        <span class="text-sm">מקבלים עדכונים</span>`;
-                    pushButton.title = 'בטל קבלת התראות';
-                    pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
-                } else {
-                    pushButton.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                        <span class="text-sm">קבלו עדכונים!</span>`;
-                    pushButton.title = 'הפעל קבלת התראות';
-                    pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500', 'bell-animation');
-                }
-            });
-        }
-
-        async function subscribeUser() {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/vapid-public-key`);
-                if (!response.ok) throw new Error('Failed to get VAPID key');
-                const vapidPublicKey = await response.text();
-                const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-
-                const registration = await navigator.serviceWorker.ready;
-                pushSubscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: convertedVapidKey
-                });
-
-                const subscribeResponse = await fetch(`${SERVER_URL}/api/subscribe`, {
-                    method: 'POST',
-                    body: JSON.stringify(pushSubscription),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                    }
-                });
-
-                if (!subscribeResponse.ok) {
-                    const errorData = await subscribeResponse.json();
-                    throw new Error(errorData.message || 'Failed to send subscription to server');
-                }
-                showToast('נרשמת בהצלחה לקבלת התראות!');
-            } catch (err) {
-                console.error('Failed to subscribe the user: ', err);
-                showToast(`שגיאה ברישום להתראות: ${err.message}`);
-            }
-            updateSubscriptionButton();
-        }
-
-        async function unsubscribeUser() {
-            try {
-                await fetch(`${SERVER_URL}/api/unsubscribe`, {
-                    method: 'POST',
-                    body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                    }
-                });
-                await pushSubscription.unsubscribe();
-                pushSubscription = null;
-                showToast('הרישום להתראות בוטל.');
-            } catch (err) {
-                console.error('Failed to unsubscribe the user: ', err);
-                showToast('שגיאה בביטול הרישום.');
-            }
-            updateSubscriptionButton();
-        }
-
-
-        // --- Announcement Bar Logic ---
-        const announcementBar = document.getElementById('announcement-bar');
-        const closeAnnouncementBtn = document.getElementById('close-announcement');
-        const announcementSpan = announcementBar.querySelector('span');
-
-        const announcements = [
-            "פריטים חדשים עולים כל שעה! אל תפספסו את המציאה הבאה שלכם.",
-            "קונים חכם, מוכרים בקלות. ברוכים הבאים לקהילת האופנה שלנו!",
-            "הצטרפו למהפכת האופנה המעגלית - תנו לבגדים שלכם חיים חדשים!",
-            "מצאתם פריט שאהבתם? שלחו הודעה למוכר/ת ותתחדשו!"
-        ];
-        let currentAnnouncementIndex = 0;
-        let announcementInterval;
-
-        function changeAnnouncement() {
-            if (!announcementSpan) return;
-            announcementSpan.style.opacity = '0';
-            setTimeout(() => {
-                currentAnnouncementIndex = (currentAnnouncementIndex + 1) % announcements.length;
-                announcementSpan.textContent = announcements[currentAnnouncementIndex];
-                announcementSpan.style.opacity = '1';
-            }, 500);
-        }
-
-        if (announcementBar && closeAnnouncementBtn && announcementSpan) {
-            closeAnnouncementBtn.addEventListener('click', () => {
-                announcementBar.style.display = 'none';
-                if(announcementInterval) clearInterval(announcementInterval);
-            });
-            
-            announcementSpan.textContent = announcements[0];
-            announcementInterval = setInterval(changeAnnouncement, 5000);
-        }
-        
-        function populateCategoryFilter() {
-            categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
-            for (const [key, value] of Object.entries(categoryMap)) {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = value;
-                categorySelect.appendChild(option);
-            }
-        }
-
-        // --- Theme Toggle Logic ---
-        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-        const themeToggleBtn = document.getElementById('theme-toggle');
-
-        function updateThemeIcons() {
-            if (document.documentElement.classList.contains('dark')) {
-                themeToggleLightIcon.classList.remove('hidden');
-                themeToggleDarkIcon.classList.add('hidden');
-            } else {
-                themeToggleDarkIcon.classList.remove('hidden');
-                themeToggleLightIcon.classList.add('hidden');
-            }
-        }
-
-        themeToggleBtn.addEventListener('click', function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
-            updateThemeIcons();
-        });
-
-        // --- START: INFINITE SCROLL EVENT LISTENER ---
-        window.addEventListener('scroll', () => {
-            // Check if user is near the bottom of the page
-            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-            if (clientHeight + scrollTop >= scrollHeight - 500 && !isLoading && hasMorePages) {
-                fetchItems();
-            }
-        });
-        // --- END: INFINITE SCROLL EVENT LISTENER ---
-
-
-        // --- Initial Application Setup ---
-        updateThemeIcons();
-        populateCategoryFilter();
-        checkAuthState(); // This will trigger the initial fetch
-    });
-    </script>
-</body>
-</html>
+            const isVisible = panel.style.disp
