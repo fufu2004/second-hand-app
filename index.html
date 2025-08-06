@@ -809,6 +809,7 @@
 
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
+                // MODIFICATION: Removed the push notification button container from mobile view
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2 w-full px-4">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
@@ -843,6 +844,8 @@
                 authContentMobile.innerHTML = loggedOutHtmlMobile;
             }
 
+            // Re-attach event listeners for all states
+            // FIX: Add guards to prevent errors if elements are not found immediately after innerHTML update
             const googleLoginBtns = document.querySelectorAll('[id^="google-login-btn"]');
             if (googleLoginBtns) googleLoginBtns.forEach(btn => btn.addEventListener('click', handleGoogleLogin));
             
@@ -874,6 +877,7 @@
             resetAndFetchItems(); 
         }
 
+        // --- Profile View Logic ---
         async function showProfileView() { 
             showView('profile-view'); 
             profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
@@ -924,6 +928,7 @@
             } 
         }
 
+        // --- Public Profile View Logic ---
         async function showPublicProfile(userId) {
             showView('public-profile-view');
             publicProfileView.innerHTML = `
@@ -1026,6 +1031,19 @@
             }
         }
 
+
+        // --- Item Card Creation & Helpers ---
+        function getWhatsAppLink(contact, title) {
+            if (!contact) return null;
+            let digits = String(contact).replace(/\D/g, '');
+            if (digits.startsWith('9725')) { /* Correct format */ } 
+            else if (digits.startsWith('05')) { digits = '972' + digits.substring(1); } 
+            else { return null; }
+            if (digits.length !== 12) return null;
+            const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`);
+            return `https://wa.me/${digits}?text=${whatsappMessage}`;
+        }
+
         function createItemCard(item) {
             if (!item || !item.owner) {
                 console.error("Attempting to render an item with a missing owner. Skipping.", item);
@@ -1119,15 +1137,16 @@
         function createSkeletonCard() { return `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col p-4 space-y-4"><div class="skeleton-loader w-full h-48"></div><div class="flex-grow w-full space-y-3"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2"></div><div class="skeleton-loader h-10 w-full"></div></div></div>`; }
         function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
         
+        // --- Rating Logic ---
         function renderStars(rating) {
-            const roundedRating = Math.round(rating * 2) / 2;
+            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
             const fullStars = Math.floor(roundedRating);
             const halfStar = roundedRating % 1 !== 0;
             const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
             let starsHtml = '';
-            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;';
-            if (halfStar) starsHtml += '&#9734;';
-            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>';
+            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;'; // Full star
+            if (halfStar) starsHtml += '&#9734;'; // Using an empty star as a placeholder for half, can be improved with better icons
+            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>'; // Empty star
             return starsHtml;
         }
 
@@ -1179,27 +1198,29 @@
             }
         });
         
+        // --- START: INFINITE SCROLL DATA FETCHING ---
+        
         function resetAndFetchItems() {
             fetchItems(true);
         }
-        
-        async function fetchItems(reset = false) {
-            if (isLoading) return;
-            isLoading = true;
 
+        async function fetchItems(reset = false) {
+            if (isLoading) return; 
+            isLoading = true;
+            
             if (reset) {
                 currentPage = 1;
                 hasMorePages = true;
-                itemsFeed.innerHTML = '';
+                itemsFeed.innerHTML = ''; 
                 emptyState.classList.add('hidden');
             }
 
             if (currentPage === 1) {
-                itemsFeed.innerHTML = Array(4).fill(createSkeletonCard()).join('');
+                 itemsFeed.innerHTML = Array(4).fill(createSkeletonCard()).join('');
             } else {
                 loadingIndicator.classList.remove('hidden');
             }
-
+            
             try {
                 const params = new URLSearchParams({
                     page: currentPage,
@@ -1217,15 +1238,15 @@
 
                 const response = await fetch(`${SERVER_URL}/items?${params.toString()}`);
                 const data = await response.json();
-
+                
                 if (!response.ok) {
-                    throw new Error(data.message || 'תקלה בתקשורת עם השרת');
+                    throw new Error(data.message || 'Failed to fetch items');
+                }
+
+                if (currentPage === 1) {
+                    itemsFeed.innerHTML = ''; 
                 }
                 
-                if (currentPage === 1) {
-                    itemsFeed.innerHTML = '';
-                }
-
                 data.items.forEach(item => {
                     displayItem(item, false, itemsFeed);
                 });
@@ -1242,27 +1263,17 @@
             } catch (error) {
                 console.error('Failed to fetch items:', error);
                 if (currentPage === 1) {
-                    itemsFeed.innerHTML = `
-                        <div class="text-center py-16 px-4 col-span-full">
-                            <svg class="mx-auto h-12 w-12 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-gray-200">אופס, משהו השתבש</h3>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">לא הצלחנו לטעון את הפריטים. ייתכן שיש בעיה בתקשורת עם השרת.</p>
-                            <div class="mt-6">
-                                <button type="button" data-action="retry-fetch" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
-                                    נסה שוב
-                                </button>
-                            </div>
-                        </div>
-                    `;
+                    itemsFeed.innerHTML = `<p class="text-center text-red-500 col-span-full">שגיאה בטעינת הפריטים. נסה לרענן את העמוד.</p>`;
                 }
             } finally {
                 isLoading = false;
                 loadingIndicator.classList.add('hidden');
             }
         }
+        // --- END: INFINITE SCROLL DATA FETCHING ---
+
         
+        // --- Image Preview Handler ---
         function handleImagePreview(event) {
             const previewContainer = document.getElementById('image-preview-container');
             previewContainer.innerHTML = '';
@@ -1286,6 +1297,7 @@
             });
         }
         
+        // --- Share Logic ---
         function showShareModal(shareData) {
             document.getElementById('whatsapp-share-link').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
             document.getElementById('copy-link-btn').onclick = () => {
@@ -1310,6 +1322,7 @@
             }
         }
 
+        // --- Chat Logic (Rebuilt) ---
         async function startOrOpenChat(sellerId, itemId) {
             if (!currentUser) return showAlert('עליך להתחבר כדי לשלוח הודעה.');
             if (currentUser.id === sellerId) return showAlert('לא ניתן לשלוח הודעה לעצמך.');
@@ -1449,6 +1462,7 @@
             }
         }
 
+        // --- Event Listeners ---
         homeLogo.addEventListener('click', () => { showView('main-view'); resetAndFetchItems(); });
         
         openModalBtn.addEventListener('click', () => { 
@@ -1507,6 +1521,7 @@
             } 
         });
 
+        // --- Central Event Listener (Event Delegation) ---
         document.body.addEventListener('click', async (e) => {
             const target = e.target;
             const actionTarget = target.closest('[data-action]');
@@ -1668,7 +1683,7 @@
                     break;
                 }
                 case 'show-chat-list': {
-                    showChatView();
+                    showChatView(); // Call with no ID to show the list
                     break;
                 }
                  case 'show-main-view': {
@@ -1719,6 +1734,7 @@
             }
         });
 
+        // --- Filter Event Listeners ---
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
@@ -1744,6 +1760,7 @@
         });
         document.getElementById('item-images').addEventListener('change', handleImagePreview);
         
+        // --- Report Form Submission ---
         reportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const token = localStorage.getItem('authToken');
@@ -1778,6 +1795,7 @@
             }
         });
 
+        // *** NEW: Notification Logic ***
         async function fetchNotifications() {
             if (!currentUser) return;
             const token = localStorage.getItem('authToken');
@@ -1853,6 +1871,7 @@
             }
         }
 
+        // --- Push Notifications Logic ---
         async function initializePushNotifications() {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                 console.warn('Push messaging is not supported');
@@ -1870,6 +1889,8 @@
         function updatePushSubscriptionButton(subscription) {
             const containerDesktop = document.getElementById('push-notification-container');
             const btnDesktop = document.getElementById('push-notification-btn');
+            const containerMobile = document.getElementById('push-notification-container-mobile');
+            const btnMobile = document.getElementById('push-notification-btn-mobile');
             
             const isSubscribed = subscription !== null;
             const text = isSubscribed ? 'התראות PUSH פעילות' : 'הירשם להתראות PUSH';
@@ -1885,12 +1906,19 @@
             if (btnDesktop) {
                 btnDesktop.innerHTML = buttonHtml;
                 btnDesktop.className = `flex items-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
-                btnDesktop.onclick = subscription ? unsubscribePush : subscribePush;
+            }
+            if (btnMobile) {
+                btnMobile.innerHTML = buttonHtml;
+                btnMobile.className = `w-full flex items-center justify-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
             }
 
-            if(containerDesktop) {
-                containerDesktop.classList.remove('hidden');
-            }
+            [btnDesktop, btnMobile].forEach(btn => {
+                if(btn) {
+                    btn.onclick = subscription ? unsubscribePush : subscribePush;
+                }
+            });
+
+            [containerDesktop, containerMobile].forEach(c => c?.classList.remove('hidden'));
         }
 
         async function subscribePush() {
@@ -1944,6 +1972,7 @@
         }
 
 
+        // --- Theme Toggle ---
         const themeToggleBtn = document.getElementById('theme-toggle');
         const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
         const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
@@ -1976,6 +2005,7 @@
             }
         });
 
+        // --- Announcement Bar ---
         const announcements = [
             "ברוכים הבאים לסטייל מתגלגל! קנייה נעימה 😊",
             "חדש! עכשיו אפשר לדרג מוכרים ולצפות בדירוגים.",
@@ -2001,6 +2031,7 @@
             document.getElementById('announcement-bar').style.display = 'none';
         });
 
+        // --- Initial Data Load ---
         function populateCategories() {
             categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
             for (const [key, value] of Object.entries(categoryMap)) {
@@ -2008,6 +2039,7 @@
             }
         }
         
+        // --- Infinite Scroll Observer ---
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && !isLoading && hasMorePages) {
                 fetchItems();
