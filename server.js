@@ -16,7 +16,7 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
 const path = require('path');
-const webPush = require('web-push'); // *** NEW: Import web-push ***
+const webPush = require('web-push');
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -40,20 +40,14 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
 
-// *** NEW: VAPID Keys for Web Push ***
-// These keys are used to identify your application server to the push service.
-// IMPORTANT: You should generate your own keys once and store them securely in your .env file.
-// To generate keys, run this command in your terminal: npx web-push generate-vapid-keys
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
 if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     console.error("FATAL ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are missing from .env file!");
-    // In a real production environment, you might want to exit the process.
-    // process.exit(1); 
 } else {
     webPush.setVapidDetails(
-        'mailto:your-email@example.com', // Replace with your contact email
+        'mailto:your-email@example.com',
         VAPID_PUBLIC_KEY,
         VAPID_PRIVATE_KEY
     );
@@ -162,7 +156,6 @@ const NotificationSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Notification = mongoose.model('Notification', NotificationSchema);
 
-// *** NEW: Schema for Push Subscriptions ***
 const PushSubscriptionSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     subscription: {
@@ -260,9 +253,15 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// *** NEW: Route to send the VAPID Public Key to the client ***
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
+});
+
+// *** NEW: Endpoint for Service Worker logging ***
+app.post('/api/log-sw', (req, res) => {
+    const { message } = req.body;
+    console.log(`[SW LOG FROM CLIENT]: ${message}`);
+    res.status(200).send({ status: 'logged' });
 });
 
 app.get('/items', async (req, res) => {
@@ -764,11 +763,10 @@ app.post('/api/notifications/mark-as-read', authMiddleware, async (req, res) => 
     }
 });
 
-// *** NEW: Push Notification Subscription Routes ***
+// *** Push Notification Subscription Routes ***
 app.post('/api/subscribe', authMiddleware, async (req, res) => {
     const subscription = req.body;
     try {
-        // Check if subscription already exists for this endpoint
         const existingSubscription = await PushSubscription.findOne({ 'subscription.endpoint': subscription.endpoint });
         if (existingSubscription) {
             console.log('Subscription already exists.');
@@ -859,7 +857,6 @@ io.on('connection', (socket) => {
             await notification.save();
             io.to(receiverId).emit('newNotification', notification);
             
-            // *** NEW: Send Push Notification on new message ***
             const pushPayload = JSON.stringify({
                 title: `הודעה חדשה מ-${sender.displayName}`,
                 body: text,
@@ -873,7 +870,7 @@ io.on('connection', (socket) => {
             userSubscriptions.forEach(sub => {
                 webPush.sendNotification(sub.subscription, pushPayload)
                     .catch(async (err) => {
-                        if (err.statusCode === 410) { // 410 Gone: subscription is no longer valid
+                        if (err.statusCode === 410) {
                             console.log('Subscription has expired or is no longer valid. Removing.');
                             await PushSubscription.findByIdAndDelete(sub._id);
                         } else {
