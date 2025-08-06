@@ -2073,8 +2073,12 @@
         // --- Initial Application Setup ---
         updateThemeIcons();
         populateCategoryFilter();
-        checkAuthState(); // This will trigger the initial fetch
+        
+        // FIX: Ensure the entire DOM is loaded before running the main app logic
+        // to prevent race conditions and errors on startup.
+        checkAuthState(); 
     });
     </script>
 </body>
 </html>
+
