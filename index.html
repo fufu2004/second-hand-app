@@ -109,7 +109,6 @@
              border-color: #1f2937;
         }
         
-        /* START: Notification Panel Style Fix */
         #notifications-panel { /* Style for desktop panel */
             display: none;
             position: absolute;
@@ -132,7 +131,6 @@
             overflow-y: auto;
             z-index: 50;
         }
-        /* END: Notification Panel Style Fix */
 
         .verified-badge {
             color: #3b82f6; /* blue-500 */
@@ -174,7 +172,7 @@
                 <div id="header-right-desktop" class="flex-1 hidden sm:flex justify-start items-center gap-2">
                     <span id="header-right-content" class="flex items-center gap-2"></span>
                 </div>
-
+                <div id="header-right-mobile" class="flex-1 flex sm:hidden justify-start"></div>
                 <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
                     <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
@@ -478,6 +476,7 @@
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
         const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerRightMobile = document.getElementById('header-right-mobile');
         const headerRightContent = document.getElementById('header-right-content');
         const headerLeftDesktop = document.getElementById('header-left-desktop');
         const headerLeftMobile = document.getElementById('header-left-mobile');
@@ -801,6 +800,9 @@
                 </button>
             `;
             
+            // For Mobile: Always show share button on the left of the logo
+            headerRightMobile.innerHTML = shareButtonHtml;
+
             if (currentUser) {
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
