@@ -784,6 +784,9 @@
             }
         }
         
+        // =================================================================
+        // ======================= START OF FIX ============================
+        // =================================================================
         async function checkAuthState() {
             const urlParams = new URLSearchParams(window.location.search);
             const tokenFromUrl = urlParams.get('token');
@@ -804,13 +807,21 @@
             }
             
             initializeSocket(storedToken);
+
+            // FIX: Update the UI *before* trying to initialize features that depend on the UI.
+            updateUIForAuthState();
+            
             if(currentUser) {
                 await Promise.all([fetchUserFavorites(), fetchNotifications()]);
+                // This function depends on elements created in updateUIForAuthState()
                 initializePushNotifications(); 
             }
-            updateUIForAuthState();
+            
             resetAndFetchItems(); // Initial fetch
         }
+        // =================================================================
+        // ======================== END OF FIX =============================
+        // =================================================================
 
         function updateUIForAuthState() {
             const shareButtonHtml = `
@@ -1910,8 +1921,17 @@
             }
 
             const pushButtonContainer = document.getElementById('push-notification-container');
+            if (!pushButtonContainer) {
+                console.error("Push notification container not found. UI not ready?");
+                return;
+            }
             pushButtonContainer.classList.remove('hidden');
+            
             const pushButton = document.getElementById('push-notification-btn');
+            if (!pushButton) {
+                console.error("Push notification button not found.");
+                return;
+            }
 
             const registration = await navigator.serviceWorker.ready;
             pushSubscription = await registration.pushManager.getSubscription();
@@ -1929,6 +1949,8 @@
 
         function updateSubscriptionButton() {
             const pushButton = document.getElementById('push-notification-btn');
+            if (!pushButton) return; // Add guard clause
+            
             if (Notification.permission === 'denied') {
                 pushButton.innerHTML = `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>`;
                 pushButton.title = 'התראות חסומות';
