@@ -10,7 +10,8 @@
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Socket.IO is commented out as we are not connecting to a live server in this mock version -->
+    <!-- <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
@@ -164,7 +165,7 @@
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
                         <div>
                             <h1 class="text-xl sm:text-3xl font-bold text-teal-700 dark:text-teal-500 whitespace-nowrap">סטייל מתגלגל</h1>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה <span class="blinking-dot"></span> LIVE</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה</p>
                         </div>
                     </div>
                 </div>
@@ -240,7 +241,7 @@
         </div>
 
         <div id="chat-view" class="view">
-            </div>
+        </div>
 
     </div>
 
@@ -390,6 +391,133 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- MOCK BACKEND ---
+        // In a real application, this data would come from your server.
+        // We are mocking it here to make the frontend previewable and interactive without a live backend.
+        const mockApi = {
+            users: {
+                "user-1": { _id: "user-1", displayName: "ישראלה ישראלי", email: "israela@example.com", image: "https://placehold.co/96x96/a7f3d0/134e4a?text=I", averageRating: 4.5, followers: [], following: [], isVerified: true },
+                "user-2": { _id: "user-2", displayName: "משה כהן", email: "moshe@example.com", image: "https://placehold.co/96x96/bae6fd/0c4a6e?text=M", averageRating: 5, followers: [], following: [], isVerified: false },
+                "user-3": { _id: "user-3", displayName: "דניאלה לוי", email: "dani@example.com", image: "https://placehold.co/96x96/fecaca/7f1d1d?text=D", averageRating: 3.8, followers: [], following: [], isVerified: true },
+            },
+            items: [
+                { _id: "item-1", title: "שמלת ערב אלגנטית", description: "שמלת ערב שחורה קלאסית, נלבשה פעם אחת בלבד לאירוע. מתאימה כמו כפפה ליד.", price: 250, category: "dresses", ownerId: "user-1", sold: false, isPromoted: true, condition: "like-new", size: "M", brand: "Zara", location: "תל אביב", contact: "050-1234567", imageUrls: ["https://placehold.co/600x600/333/fff?text=שמלה+1", "https://placehold.co/600x600/444/fff?text=שמלה+2"], createdAt: new Date('2025-08-06T12:00:00Z') },
+                { _id: "item-2", title: "ג'ינס Levi's 501", description: "ג'ינס קלאסי של ליוויס במצב מצוין, גזרה ישרה. נמכר עקב חוסר התאמה במידה.", price: 180, category: "pants", ownerId: "user-2", sold: false, isPromoted: false, condition: "good", size: "32/32", brand: "Levi's", location: "חיפה", contact: "052-1234567", imageUrls: ["https://placehold.co/600x600/555/fff?text=ג'ינס"], createdAt: new Date('2025-08-05T10:00:00Z') },
+                { _id: "item-3", title: "תיק עור של Guess", description: "תיק צד אופנתי מעור אמיתי, עם הרבה תאים. שימושי מאוד ומצב כמו חדש.", price: 300, category: "accessories", ownerId: "user-1", sold: true, isPromoted: false, condition: "like-new", size: "One Size", brand: "Guess", location: "תל אביב", contact: "050-1234567", imageUrls: ["https://placehold.co/600x600/666/fff?text=תיק"], createdAt: new Date('2025-08-04T15:30:00Z') },
+                { _id: "item-4", title: "חולצת פסים מכופתרת", description: "חולצה מכופתרת מבד נעים ונושם, מתאימה גם לעבודה וגם ליום-יום.", price: 80, category: "shirts", ownerId: "user-3", sold: false, isPromoted: false, condition: "new-without-tags", size: "S", brand: "H&M", location: "ירושלים", contact: "054-1234567", imageUrls: ["https://placehold.co/600x600/777/fff?text=חולצה"], createdAt: new Date('2025-08-06T09:00:00Z') },
+                { _id: "item-5", title: "ז'קט ג'ינס קרופ", description: "ז'קט ג'ינס קצר (קרופ) בצבע תכלת בהיר, מושלם מעל שמלות.", price: 120, category: "jackets", ownerId: "user-2", sold: false, isPromoted: false, condition: "good", size: "L", brand: "Pull & Bear", location: "חיפה", contact: "052-1234567", imageUrls: ["https://placehold.co/600x600/888/fff?text=ז'קט"], createdAt: new Date('2025-08-03T11:00:00Z') },
+            ],
+            ratings: {
+                "user-1": [{ rater: "user-2", rating: 5, comment: "שירות מעולה, מוצר כמו חדש!", createdAt: new Date() }],
+                "user-2": [{ rater: "user-1", rating: 5, comment: "הכל היה מצוין, תודה!", createdAt: new Date() }],
+                "user-3": [{ rater: "user-1", rating: 4, comment: "המוכרת נחמדה מאוד.", createdAt: new Date() }],
+            },
+
+            // --- Mock API Functions ---
+            getItems: async function(filters) {
+                console.log("Fetching items with filters:", filters);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+                
+                let filteredItems = this.items.map(item => ({...item, owner: this.users[item.ownerId]}));
+
+                if (filters.searchTerm) {
+                    filteredItems = filteredItems.filter(item => item.title.toLowerCase().includes(filters.searchTerm.toLowerCase()));
+                }
+                if (filters.category && filters.category !== 'all') {
+                    filteredItems = filteredItems.filter(item => item.category === filters.category);
+                }
+                if (filters.condition && filters.condition !== 'all') {
+                    filteredItems = filteredItems.filter(item => item.condition === filters.condition);
+                }
+                if (filters.minPrice) {
+                    filteredItems = filteredItems.filter(item => item.price >= filters.minPrice);
+                }
+                if (filters.maxPrice) {
+                    filteredItems = filteredItems.filter(item => item.price <= filters.maxPrice);
+                }
+                if (filters.brand) {
+                    filteredItems = filteredItems.filter(item => item.brand.toLowerCase().includes(filters.brand.toLowerCase()));
+                }
+                if (filters.location) {
+                    filteredItems = filteredItems.filter(item => item.location.toLowerCase().includes(filters.location.toLowerCase()));
+                }
+                if (filters.size) {
+                    filteredItems = filteredItems.filter(item => item.size.toLowerCase().includes(filters.size.toLowerCase()));
+                }
+
+                // Sorting
+                filteredItems.sort((a, b) => {
+                    if (a.isPromoted && !b.isPromoted) return -1;
+                    if (!a.isPromoted && b.isPromoted) return 1;
+
+                    switch (filters.sort) {
+                        case 'price_asc': return a.price - b.price;
+                        case 'price_desc': return b.price - a.price;
+                        case 'newest':
+                        default:
+                            return new Date(b.createdAt) - new Date(a.createdAt);
+                    }
+                });
+                
+                const page = filters.page || 1;
+                const limit = filters.limit || 10;
+                const totalItems = filteredItems.length;
+                const totalPages = Math.ceil(totalItems / limit);
+                const paginatedItems = filteredItems.slice((page - 1) * limit, page * limit);
+
+                return {
+                    items: paginatedItems,
+                    totalPages: totalPages,
+                    currentPage: page,
+                    totalItems: totalItems
+                };
+            },
+            getMyItems: async function(userId) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                return this.items.filter(item => item.ownerId === userId).map(item => ({...item, owner: this.users[item.ownerId]}));
+            },
+            addItem: async function(itemData, userId) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const newItem = {
+                    _id: `item-${Date.now()}`,
+                    ...itemData,
+                    ownerId: userId,
+                    sold: false,
+                    isPromoted: false,
+                    imageUrls: ["https://placehold.co/600x600/999/fff?text=פריט+חדש"], // Mock image
+                    createdAt: new Date()
+                };
+                this.items.push(newItem);
+                return {...newItem, owner: this.users[userId]};
+            },
+            updateItem: async function(itemId, updateData) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const itemIndex = this.items.findIndex(item => item._id === itemId);
+                if (itemIndex > -1) {
+                    this.items[itemIndex] = { ...this.items[itemIndex], ...updateData };
+                    return {...this.items[itemIndex], owner: this.users[this.items[itemIndex].ownerId]};
+                }
+                return null;
+            },
+            deleteItem: async function(itemId) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                this.items = this.items.filter(item => item._id !== itemId);
+                return true;
+            },
+            getUserProfile: async function(userId) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                return this.users[userId];
+            },
+            getUserItems: async function(userId) {
+                 await new Promise(resolve => setTimeout(resolve, 300));
+                 return this.items.filter(item => item.ownerId === userId).map(item => ({...item, owner: this.users[item.ownerId]}));
+            },
+            getUserRatings: async function(userId) {
+                 await new Promise(resolve => setTimeout(resolve, 300));
+                 return (this.ratings[userId] || []).map(r => ({...r, rater: this.users[r.rater]}));
+            }
+        };
+
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -400,57 +528,9 @@
             });
           });
         }
-
-        // --- PWA Custom Install Prompt ---
-        let deferredPrompt;
-        const installButtonContainerDesktop = document.getElementById('header-right-desktop');
-        const installButtonContainerMobile = document.getElementById('auth-container-mobile');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          showInstallPromotion();
-        });
-
-        function showInstallPromotion() {
-            const installButtonHtml = `
-                <button id="install-pwa-btn" class="flex items-center gap-2 bg-teal-500 text-white font-semibold py-2 px-3 text-sm rounded-md shadow-sm hover:bg-teal-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    <span>התקנת אפליקציה</span>
-                </button>
-            `;
-            
-            const desktopBtnWrapper = document.createElement('div');
-            desktopBtnWrapper.innerHTML = installButtonHtml;
-            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
-
-            const mobileBtnWrapper = document.createElement('div');
-            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
-            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
-            installButtonContainerMobile.prepend(mobileBtnWrapper);
-
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
-                btn.addEventListener('click', handleInstallClick);
-            });
-        }
-
-        async function handleInstallClick() {
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => btn.parentElement.remove());
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-        }
-
-        window.addEventListener('appinstalled', () => {
-          deferredPrompt = null;
-          console.log('PWA was installed');
-        });
-
-
+        
         // --- Configuration ---
-        const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
-        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
+        const ADMIN_EMAIL = 'admin@example.com'; // Mock admin email
         const CLIENT_URL = window.location.origin;
 
         // --- UI Element Selectors ---
@@ -509,19 +589,12 @@
         const toastNotification = document.getElementById('toast-notification');
 
         // --- Global State ---
-        let socket;
-        let currentUser = null;
+        let currentUser = null; // Start as logged out
         let allItemsCache = {}; 
         let galleryImages = [];
         let currentImageIndex = 0;
-        let favorites = []; 
-        let currentConversationId = null;
-        let currentConversationDetails = null;
-        let notificationsCache = [];
         let panzoomInstance = null;
-        let currentUserProfile = null; 
-        let pushSubscription = null; 
-
+        
         // --- Infinite Scroll State ---
         let currentPage = 1;
         let isLoading = false;
@@ -540,72 +613,6 @@
             'accessories': 'אקססוריז', 
             'general': 'כללי' 
         };
-        
-        function initializeSocket(token) {
-            if (socket) {
-                socket.disconnect();
-            }
-            
-            socket = io(SERVER_URL, {
-                auth: { token: token }
-            });
-
-            socket.off('connect');
-            socket.off('newItem');
-            socket.off('itemDeleted');
-            socket.off('itemUpdated');
-            socket.off('newMessage');
-            socket.off('newConversation');
-            socket.off('newNotification');
-
-            socket.on('connect', () => {
-                console.log('Connected to server with socket ID:', socket.id);
-            });
-
-            socket.on('newItem', (item) => { 
-                if (filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
-                    displayItem(item, true, itemsFeed);
-                } else {
-                    showToast("פריט חדש עלה! נקה סינונים כדי לראות.");
-                }
-            });
-            socket.on('itemDeleted', (itemId) => { 
-                const itemElement = document.getElementById(`item-${itemId}`);
-                if (itemElement) itemElement.remove();
-                const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); 
-                if (itemElementProfile) itemElementProfile.remove(); 
-            });
-            socket.on('itemUpdated', (updatedItem) => { 
-                const card = document.getElementById(`item-${updatedItem._id}`);
-                if(card) {
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = createItemCard(updatedItem);
-                    card.replaceWith(tempDiv.firstChild);
-                }
-                const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); 
-                if (profileFeedCard) { 
-                    const tempDiv = document.createElement('div'); 
-                    tempDiv.innerHTML = createItemCard(updatedItem); 
-                    profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); 
-                } 
-            });
-            
-            socket.on('newMessage', (message) => {
-                if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
-                    appendMessage(message);
-                }
-            });
-
-            socket.on('newConversation', (data) => {
-                showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
-            });
-
-            socket.on('newNotification', (notification) => {
-                notificationsCache.unshift(notification);
-                updateNotificationBell();
-                showToast(notification.message);
-            });
-        }
         
         // --- Custom Modal System ---
         let modalResolver;
@@ -654,7 +661,7 @@
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
         allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
-        // --- START: UPDATED Gallery (Lightbox) System with Panzoom ---
+        // --- Gallery (Lightbox) System with Panzoom ---
         function openGallery(images, startIndex = 0) {
             if (!images || images.length === 0) return;
             galleryImages = images;
@@ -706,73 +713,10 @@
             if (e.key === 'ArrowRight') galleryNext.click(); 
             if (e.key === 'ArrowLeft') galleryPrev.click(); 
         });
-        // --- END: UPDATED Gallery System ---
-
-        function parseJwt (token) {
-            try {
-                const base64Url = token.split('.')[1];
-                if (!base64Url) return null;
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                return JSON.parse(jsonPayload);
-            } catch (e) {
-                console.error("Invalid token:", e);
-                return null;
-            }
-        }
         
-        // --- Authentication System ---
-        
-        async function fetchUserFavorites() {
-            if (!currentUser) {
-                favorites = [];
-                return;
-            }
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/my-favorites`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) {
-                    throw new Error('Could not fetch favorites');
-                }
-                favorites = await response.json();
-            } catch (error) {
-                console.error('Failed to fetch user favorites:', error);
-                favorites = []; 
-            }
-        }
-        
-        async function checkAuthState() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const tokenFromUrl = urlParams.get('token');
-
-            if (tokenFromUrl) {
-                localStorage.setItem('authToken', tokenFromUrl);
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            const storedToken = localStorage.getItem('authToken');
-            
-            if (storedToken) {
-                const decodedUser = parseJwt(storedToken);
-                currentUser = (decodedUser && decodedUser.id) ? decodedUser : null;
-                if (!currentUser) localStorage.removeItem('authToken');
-            } else {
-                currentUser = null;
-            }
-            
-            initializeSocket(storedToken);
-
+        // --- Authentication System (Mocked) ---
+        function checkAuthState() {
             updateUIForAuthState();
-            
-            if(currentUser) {
-                await Promise.all([fetchUserFavorites(), fetchNotifications()]);
-                initializePushNotifications(); 
-            }
-            
             resetAndFetchItems();
         }
 
@@ -784,35 +728,33 @@
             `;
             
             if (currentUser) {
-                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
+                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.displayName}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
+                // --- FIX START ---
+                // Wrapped all desktop-specific auth buttons in a single container
+                // that is hidden on mobile (hidden) and shown on desktop (sm:flex).
                 const actionButtonsHtml = `
-                    <div class="relative">
-                        <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                            <span id="notification-badge" class="notification-badge hidden"></span>
-                        </button>
-                        <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
-                        </div>
-                    </div>
                     <div class="hidden sm:flex items-center gap-3">
-                        <div id="push-notification-container" class="hidden">
-                            <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                        <div class="relative">
+                            <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                <span id="notification-badge" class="notification-badge hidden"></span>
                             </button>
+                            <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+                            </div>
                         </div>
                         <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
                         <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                     </div>
                 `;
-
                 authContentDesktop.innerHTML = actionButtonsHtml;
+                // --- FIX END ---
                 
-                // MODIFICATION: Removed the push notification button container from mobile view
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2 w-full px-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
+                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.displayName}</span>
                         <div class="flex gap-2 w-full">
                             <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                             <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
@@ -821,83 +763,62 @@
                     </div>
                 `;
                 authContentMobile.innerHTML = loggedInHtmlMobile;
-                updateNotificationBell();
-
             } else {
                 headerRightContent.innerHTML = shareButtonHtml;
                 const loginButtonHtml = `
                     <div class="hidden sm:flex">
-                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                            <span>התחברות עם Google</span>
+                        <button id="mock-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path></svg>
+                            <span>התחברות (דמו)</span>
                         </button>
                     </div>
                 `;
                 authContentDesktop.innerHTML = loginButtonHtml;
 
                 const loggedOutHtmlMobile = `
-                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                        <span>התחברות עם Google</span>
+                     <button id="mock-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path></svg>
+                        <span>התחברות (דמו)</span>
                     </button>
                 `;
                 authContentMobile.innerHTML = loggedOutHtmlMobile;
             }
 
             // Re-attach event listeners for all states
-            // FIX: Add guards to prevent errors if elements are not found immediately after innerHTML update
-            const googleLoginBtns = document.querySelectorAll('[id^="google-login-btn"]');
-            if (googleLoginBtns) googleLoginBtns.forEach(btn => btn.addEventListener('click', handleGoogleLogin));
-            
-            const profileBtns = document.querySelectorAll('[id^="profile-btn"]');
-            if (profileBtns) profileBtns.forEach(btn => btn.addEventListener('click', showProfileView));
-
-            const logoutBtns = document.querySelectorAll('[id^="logout-btn"]');
-            if (logoutBtns) logoutBtns.forEach(btn => btn.addEventListener('click', handleLogout));
-
-            const chatBtns = document.querySelectorAll('[id^="chat-btn"]');
-            if (chatBtns) chatBtns.forEach(btn => btn.addEventListener('click', () => showChatView()));
-
+            document.querySelectorAll('[id^="mock-login-btn"]').forEach(btn => btn.addEventListener('click', handleMockLogin));
+            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
+            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
+            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             const shareBtn = document.getElementById('share-app-btn');
             if (shareBtn) shareBtn.addEventListener('click', shareApp);
-
-            const notificationsBtn = document.getElementById('notifications-btn');
-            if (notificationsBtn) {
-                notificationsBtn.addEventListener('click', toggleNotificationsPanel);
-            }
         }
         
-        function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
+        function handleMockLogin() { 
+            currentUser = mockApi.users["user-1"]; // Log in as Israela
+            checkAuthState(); 
+        }
         function handleLogout() { 
-            localStorage.removeItem('authToken'); 
             currentUser = null; 
-            initializeSocket(null);
             showView('main-view'); 
-            updateUIForAuthState(); 
-            resetAndFetchItems(); 
+            checkAuthState();
         }
 
         // --- Profile View Logic ---
         async function showProfileView() { 
+            if (!currentUser) {
+                showAlert("עליך להתחבר כדי לראות את הפרופיל שלך.");
+                return;
+            }
             showView('profile-view'); 
             profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) { 
-                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; 
-                return; 
-            } 
+            
             try { 
-                const [itemsResponse, userResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${SERVER_URL}/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                const [items, userProfile] = await Promise.all([
+                    mockApi.getMyItems(currentUser._id),
+                    mockApi.getUserProfile(currentUser._id)
                 ]);
                 
-                if (!itemsResponse.ok || !userResponse.ok) throw new Error('Could not fetch user data'); 
-                
-                const items = await itemsResponse.json(); 
-                currentUserProfile = await userResponse.json(); 
-                
-                if (currentUserProfile.isVerified) {
+                if (userProfile.isVerified) {
                     verificationStatusContainer.innerHTML = `
                         <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-full">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
@@ -939,19 +860,15 @@
                 <div class="space-y-6">${Array(2).fill(createSkeletonCard()).join('')}</div>`;
 
             try {
-                const [userResponse, itemsResponse, ratingsResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/users/${userId}`),
-                    fetch(`${SERVER_URL}/users/${userId}/items`),
-                    fetch(`${SERVER_URL}/users/${userId}/ratings`)
+                const [user, items, ratings] = await Promise.all([
+                    mockApi.getUserProfile(userId),
+                    mockApi.getUserItems(userId),
+                    mockApi.getUserRatings(userId)
                 ]);
 
-                if (!userResponse.ok || !itemsResponse.ok || !ratingsResponse.ok) {
+                if (!user) {
                     throw new Error('Failed to load profile data.');
                 }
-
-                const user = await userResponse.json();
-                const items = await itemsResponse.json();
-                const ratings = await ratingsResponse.json();
 
                 let itemsHtml = '';
                 if (items.length > 0) {
@@ -985,13 +902,9 @@
                     ratingsHtml = `<div class="text-center py-8 px-4"><p class="text-gray-500 dark:text-gray-400">עדיין אין דירוגים עבור מוכר זה.</p></div>`;
                 }
 
-                const rateButtonHtml = (currentUser && currentUser.id !== userId) ? 
+                const rateButtonHtml = (currentUser && currentUser._id !== userId) ? 
                     `<button data-action="rate-user" data-user-id="${userId}" data-user-name="${user.displayName}" class="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition">דרג את ${user.displayName}</button>` : '';
 
-                const isFollowing = currentUser ? user.followers.includes(currentUser.id) : false;
-                const followButtonHtml = (currentUser && currentUser.id !== userId) ?
-                    `<button data-action="follow-user" data-user-id="${userId}" class="mt-4 ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold py-2 px-4 rounded-md transition">${isFollowing ? 'הסר עוקב' : 'עקוב'}</button>` : '';
-                
                 const verifiedBadgeHtml = user.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
 
                 publicProfileView.innerHTML = `
@@ -1000,15 +913,10 @@
                         <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
                             <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200 dark:border-teal-700">
                             <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center">${user.displayName} ${verifiedBadgeHtml}</h2>
-                            <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                                <span><strong>${user.followers.length}</strong> עוקבים</span>
-                                <span><strong>${user.following.length}</strong> נעקבים</span>
-                            </div>
                             <div class="flex items-center gap-2 text-lg">
                                 <div class="static-stars">${renderStars(user.averageRating)}</div>
                                 <span class="text-gray-600 dark:text-gray-400">(${ratings.length} דירוגים)</span>
                             </div>
-                            ${followButtonHtml}
                             ${rateButtonHtml}
                         </div>
                     </div>
@@ -1016,7 +924,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">המלתחה של ${user.displayName}</h3>
-                            <div class="space-y-6">${itemsHtml}</div>
+                            <div class="grid grid-cols-1 gap-4">${itemsHtml}</div>
                         </div>
                         <div>
                             <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">ביקורות אחרונות</h3>
@@ -1033,17 +941,6 @@
 
 
         // --- Item Card Creation & Helpers ---
-        function getWhatsAppLink(contact, title) {
-            if (!contact) return null;
-            let digits = String(contact).replace(/\D/g, '');
-            if (digits.startsWith('9725')) { /* Correct format */ } 
-            else if (digits.startsWith('05')) { digits = '972' + digits.substring(1); } 
-            else { return null; }
-            if (digits.length !== 12) return null;
-            const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`);
-            return `https://wa.me/${digits}?text=${whatsappMessage}`;
-        }
-
         function createItemCard(item) {
             if (!item || !item.owner) {
                 console.error("Attempting to render an item with a missing owner. Skipping.", item);
@@ -1051,15 +948,12 @@
             }
             allItemsCache[item._id] = item;
             
-            const isOwner = currentUser && item.owner._id === currentUser.id;
+            const isOwner = currentUser && item.owner._id === currentUser._id;
             const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
-            const isPostByAdmin = item.affiliateLink && item.affiliateLink.length > 0;
             
             const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
-            
             const promotedBadgeHtml = item.isPromoted ? `<div class="promoted-badge"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg><span>מקודם</span></div>` : '';
-            const promoteButtonHtml = (isOwner && !item.isPromoted && !item.sold) ? `<button data-id="${item._id}" data-action="promote-item" class="text-gray-400 hover:text-amber-500 transition" title="קדם פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>` : '';
-
+            
             const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
             const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
             const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="toggle-sold" class="text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
@@ -1068,10 +962,6 @@
             const reportButtonHtml = (currentUser && !isOwner) ? `<button data-id="${item._id}" data-action="report-item" class="text-gray-400 hover:text-amber-500 transition" title="דיווח על פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 01-1-1V6z" clip-rule="evenodd" /></svg></button>` : '';
             
             let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
-            if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                ownerName = 'מנהל';
-            }
-
             const ownerInitial = ownerName ? ownerName.charAt(0).toUpperCase() : '?';
             const imageUrlsJson = JSON.stringify(item.imageUrls || []);
             const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
@@ -1087,13 +977,7 @@
             let purchaseButtonHtml = '';
             const purchaseButtonClasses = "purchase-btn mt-2 block w-1/2 mx-auto text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
             
-            if (isPostByAdmin) {
-                const buttonText = 'לרכישה';
-                const link = item.affiliateLink || getWhatsAppLink(item.contact, item.title);
-                const colorClasses = 'bg-amber-500 hover:bg-amber-600';
-                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
-                purchaseButtonHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>` : `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
-            } else if (!isOwner) {
+            if (!isOwner) {
                 const buttonText = 'שלחי הודעה';
                 const colorClasses = 'bg-green-500 hover:bg-green-600';
                 const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>`;
@@ -1122,7 +1006,6 @@
                                         ${ownerNameHtml} ${verifiedBadgeHtml}
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        ${promoteButtonHtml}
                                         ${reportButtonHtml}
                                         ${soldButtonHtml} 
                                         ${editButtonHtml} 
@@ -1139,14 +1022,14 @@
         
         // --- Rating Logic ---
         function renderStars(rating) {
-            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
+            const roundedRating = Math.round(rating * 2) / 2;
             const fullStars = Math.floor(roundedRating);
             const halfStar = roundedRating % 1 !== 0;
             const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
             let starsHtml = '';
-            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;'; // Full star
-            if (halfStar) starsHtml += '&#9734;'; // Using an empty star as a placeholder for half, can be improved with better icons
-            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>'; // Empty star
+            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;';
+            if (halfStar) starsHtml += '&#9734;'; 
+            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>';
             return starsHtml;
         }
 
@@ -1162,43 +1045,11 @@
 
         ratingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                return showAlert('עליך להתחבר כדי לדרג.');
-            }
-
-            const ratedUserId = document.getElementById('rated-user-id').value;
-            const rating = ratingForm.elements.rating.value;
-            const comment = document.getElementById('rating-comment').value;
-
-            try {
-                const response = await fetch(`${SERVER_URL}/users/${ratedUserId}/rate`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ rating: Number(rating), comment })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to submit rating.');
-                }
-
-                hideAllModals();
-                showToast('הדירוג שלך נשלח בהצלחה!');
-                if (publicProfileView.classList.contains('active')) {
-                    showPublicProfile(ratedUserId);
-                }
-
-            } catch (error) {
-                console.error('Failed to submit rating:', error);
-                showAlert(`שגיאה בשליחת הדירוג: ${error.message}`);
-            }
+            hideAllModals();
+            showToast('הדירוג שלך נשלח בהצלחה! (הדגמה)');
         });
         
-        // --- START: INFINITE SCROLL DATA FETCHING ---
+        // --- Data Fetching & Rendering ---
         
         function resetAndFetchItems() {
             fetchItems(true);
@@ -1222,7 +1073,7 @@
             }
             
             try {
-                const params = new URLSearchParams({
+                const filters = {
                     page: currentPage,
                     limit: 10,
                     sort: sortSelect.value,
@@ -1232,17 +1083,12 @@
                     searchTerm: filterInput.value.trim(),
                     brand: brandFilterInput.value.trim(),
                     location: locationFilterInput.value.trim(),
-                });
-                if (minPriceInput.value) params.append('minPrice', minPriceInput.value);
-                if (maxPriceInput.value) params.append('maxPrice', maxPriceInput.value);
+                    minPrice: minPriceInput.value,
+                    maxPrice: maxPriceInput.value
+                };
 
-                const response = await fetch(`${SERVER_URL}/items?${params.toString()}`);
-                const data = await response.json();
+                const data = await mockApi.getItems(filters);
                 
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to fetch items');
-                }
-
                 if (currentPage === 1) {
                     itemsFeed.innerHTML = ''; 
                 }
@@ -1254,7 +1100,7 @@
                 currentPage++;
                 hasMorePages = data.currentPage < data.totalPages;
 
-                if (data.totalItems === 0 && currentPage === 2) { 
+                if (data.totalItems === 0 && itemsFeed.innerHTML === '') { 
                     emptyState.classList.remove('hidden');
                 } else {
                     emptyState.classList.add('hidden');
@@ -1270,8 +1116,6 @@
                 loadingIndicator.classList.add('hidden');
             }
         }
-        // --- END: INFINITE SCROLL DATA FETCHING ---
-
         
         // --- Image Preview Handler ---
         function handleImagePreview(event) {
@@ -1301,165 +1145,43 @@
         function showShareModal(shareData) {
             document.getElementById('whatsapp-share-link').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
             document.getElementById('copy-link-btn').onclick = () => {
-                navigator.clipboard.writeText(shareData.url).then(() => {
+                // Using a fallback for clipboard API due to potential iframe restrictions
+                const textArea = document.createElement("textarea");
+                textArea.value = shareData.url;
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
                     showToast('הקישור הועתק!');
                     hideAllModals();
-                }).catch(err => console.error('Failed to copy text: ', err));
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showAlert('שגיאה בהעתקת הקישור.');
+                }
+                document.body.removeChild(textArea);
             };
             showModal(shareModal);
         }
 
         async function shareApp() {
             const shareData = { title: 'סטייל מתגלגל', text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!', url: CLIENT_URL };
-            try {
-                if (navigator.share) {
-                    await navigator.share(shareData);
-                } else {
-                    showShareModal(shareData);
-                }
-            } catch (err) {
-                console.error('Error sharing:', err);
-            }
+            showShareModal(shareData);
         }
 
-        // --- Chat Logic (Rebuilt) ---
-        async function startOrOpenChat(sellerId, itemId) {
-            if (!currentUser) return showAlert('עליך להתחבר כדי לשלוח הודעה.');
-            if (currentUser.id === sellerId) return showAlert('לא ניתן לשלוח הודעה לעצמך.');
-
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/conversations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ sellerId, itemId })
-                });
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to start conversation');
-                }
-                const conversation = await response.json();
-                await showChatView(conversation._id);
-            } catch (error) {
-                console.error('Error starting chat:', error);
-                showAlert(`שגיאה בפתיחת הצ'אט: ${error.message}`);
-            }
-        }
-
-        async function showChatView(conversationId = null) {
+        // --- Chat Logic (Mocked) ---
+        async function showChatView() {
             showView('chat-view');
-            if (conversationId) {
-                currentConversationId = conversationId;
-                await renderFullChatInterface(conversationId);
-            } else {
-                currentConversationId = null; 
-                currentConversationDetails = null;
-                await renderConversationsListView();
-            }
-        }
-        
-        async function renderConversationsListView() {
-            chatView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען שיחות...</p></div>`;
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                chatView.innerHTML = `<p class="text-center p-8 text-red-500">עליך להתחבר כדי לראות את ההודעות שלך.</p>`;
-                return;
-            }
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/my-conversations`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) throw new Error('Failed to fetch conversations');
-                const conversations = await response.json();
-
-                let conversationsHtml = `<div class="p-4"><h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2><button data-action="show-main-view" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>`;
-                if (conversations.length === 0) {
-                    conversationsHtml += `<p class="text-center text-gray-500 dark:text-gray-400 mt-8">אין לך שיחות עדיין.</p>`;
-                } else {
-                    conversationsHtml += `<div class="space-y-3">`;
-                    conversations.forEach(convo => {
-                        const otherParticipant = convo.participants.find(p => p._id !== currentUser.id);
-                        if (otherParticipant) {
-                            conversationsHtml += `<div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" data-action="open-chat" data-conversation-id="${convo._id}"><img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4"><div class="flex-grow"><p class="font-bold text-gray-800 dark:text-gray-100">${otherParticipant.displayName}</p><p class="text-sm text-gray-600 dark:text-gray-400">לגבי: ${convo.item.title}</p></div><img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover"></div>`;
-                        }
-                    });
-                    conversationsHtml += `</div>`;
-                }
-                conversationsHtml += `</div>`;
-                chatView.innerHTML = conversationsHtml;
-
-            } catch (error) {
-                console.error('Error rendering conversations list:', error);
-                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת השיחות.</p>`;
-            }
-        }
-
-        async function renderFullChatInterface(conversationId) {
-            const token = localStorage.getItem('authToken');
-            try {
-                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!convoResponse.ok) {
-                    const errData = await convoResponse.json();
-                    throw new Error(errData.message || 'Failed to fetch conversation details');
-                }
-                currentConversationDetails = await convoResponse.json();
-
-                const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
-                const messages = await messagesResponse.json();
-
-                const otherParticipant = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
-                if (!otherParticipant) throw new Error("Could not identify the other participant in the chat.");
-
-                chatView.innerHTML = `<div class="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-gray-800 rounded-lg shadow-lg"><div class="flex items-center p-3 border-b dark:border-gray-700"><button data-action="show-chat-list" class="text-teal-500 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button><img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3"><span class="font-bold">${otherParticipant.displayName}</span></div><div id="messages-container" class="flex-grow p-4 space-y-4 overflow-y-auto"></div><div class="p-4 border-t dark:border-gray-700"><div id="message-form-container" class="flex items-center gap-2"><input type="text" id="message-input" placeholder="כתוב הודעה..." class="flex-grow p-2 border rounded-full focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 dark:border-gray-600" autocomplete="off"><button type="button" id="send-message-btn" class="bg-teal-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" transform="rotate(180)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button></div></div></div>`;
-
-                messages.forEach(appendMessage);
-
-                document.getElementById('send-message-btn').addEventListener('click', handleSendMessage);
-                document.getElementById('message-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSendMessage();
-                    }
-                });
-
-            } catch (error) {
-                console.error("Error rendering chat:", error);
-                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת הצ'אט: ${error.message}</p>`;
-            }
-        }
-        
-        function appendMessage(message) {
-            const messagesContainer = document.getElementById('messages-container');
-            if (!messagesContainer) return;
-
-            const isSent = message.sender._id === currentUser.id;
-            const bubbleClasses = isSent ? 'message-bubble sent self-end rounded-lg p-3' : 'message-bubble received self-start rounded-lg p-3';
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
-            messageEl.innerHTML = `<div class="${bubbleClasses}">${message.text}</div>`;
-            
-            messagesContainer.appendChild(messageEl);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function handleSendMessage() {
-            const input = document.getElementById('message-input');
-            if(!input) return;
-            const text = input.value.trim();
-
-            if (text && currentConversationDetails && currentUser) {
-                const receiver = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
-                if (!receiver) return showAlert("שגיאה: לא ניתן היה למצוא את הנמען בשיחה.");
-                
-                socket.emit('sendMessage', {
-                    conversationId: currentConversationDetails._id,
-                    senderId: currentUser.id,
-                    receiverId: receiver._id,
-                    text: text
-                });
-                input.value = '';
-            }
+            chatView.innerHTML = `
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2>
+                    <button data-action="show-main-view" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>
+                    <div class="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <h3 class="text-lg font-semibold">צ'אט (הדגמה)</h3>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">בגרסה המלאה, כל השיחות שלך יופיעו כאן.</p>
+                    </div>
+                </div>
+            `;
         }
 
         // --- Event Listeners ---
@@ -1471,7 +1193,7 @@
             editingItemIdInput.value = ''; 
             uploadModalTitle.textContent = 'העלאת פריט חדש'; 
             document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; 
-            document.getElementById('item-images').required = true; 
+            document.getElementById('image-images').required = true; 
             document.getElementById('image-preview-container').innerHTML = ''; 
             
             const affiliateContainer = document.getElementById('affiliate-link-container');
@@ -1491,28 +1213,29 @@
 
         uploadForm.addEventListener('submit', async (e) => { 
             e.preventDefault(); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
+            if (!currentUser) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
+            
             const isEditing = !!editingItemIdInput.value;
-            const formData = new FormData(uploadForm);
-            
-            const imageFiles = document.getElementById('item-images').files;
-            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
-            
             const submitBtn = document.getElementById('submit-btn'); 
             submitBtn.disabled = true; 
             submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
             
-            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
-            const method = isEditing ? 'PATCH' : 'POST'; 
+            const formData = new FormData(uploadForm);
+            const itemData = Object.fromEntries(formData.entries());
             
             try { 
-                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
-                if (!response.ok) { 
-                    const errData = await response.json(); 
-                    throw new Error(errData.message || 'Server responded with an error'); 
-                } 
+                if (isEditing) {
+                    await mockApi.updateItem(editingItemIdInput.value, itemData);
+                    showToast("הפריט עודכן בהצלחה!");
+                } else {
+                    await mockApi.addItem(itemData, currentUser._id);
+                    showToast("הפריט נוסף בהצלחה!");
+                }
                 hideAllModals(); 
+                resetAndFetchItems();
+                if (profileView.classList.contains('active')) {
+                    showProfileView();
+                }
             } catch (error) { 
                 console.error('Upload/Edit failed:', error); 
                 showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
@@ -1545,30 +1268,12 @@
                     document.getElementById('item-price').value = itemToEdit.price;
                     document.getElementById('item-brand').value = itemToEdit.brand || '';
                     document.getElementById('item-location').value = itemToEdit.location || '';
+                    document.getElementById('item-size').value = itemToEdit.size || '';
+                    document.getElementById('item-condition').value = itemToEdit.condition || '';
                     document.getElementById('item-images').required = false;
                     uploadModalTitle.textContent = 'עריכת פריט';
                     document.getElementById('submit-btn').textContent = 'שמור שינויים';
-                    
-                    const affiliateContainer = document.getElementById('affiliate-link-container');
-                    const promotedContainer = document.getElementById('promoted-container');
-                    if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                        affiliateContainer.classList.remove('hidden');
-                        promotedContainer.classList.remove('hidden');
-                        document.getElementById('item-affiliate-link').value = itemToEdit.affiliateLink || '';
-                        document.getElementById('item-promoted').checked = itemToEdit.isPromoted || false;
-                    } else {
-                        affiliateContainer.classList.add('hidden');
-                        promotedContainer.classList.add('hidden');
-                    }
 
-                    const previewContainer = document.getElementById('image-preview-container');
-                    previewContainer.innerHTML = '';
-                    (itemToEdit.imageUrls || []).forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.className = 'w-16 h-16 object-cover rounded-md opacity-75';
-                        previewContainer.appendChild(img);
-                    });
                     showModal(uploadModal);
                     break;
                 }
@@ -1584,88 +1289,29 @@
                     });
 
                     if (confirmed) {
-                        const token = localStorage.getItem('authToken');
-                        if (!token) return showAlert('שגיאת אימות למחיקה.');
-                        try {
-                            const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                            if (!response.ok) {
-                                const errData = await response.json();
-                                throw new Error(errData.message || `Error ${response.status}`);
-                            }
-                        } catch (error) {
-                            console.error('Delete failed:', error);
-                            showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
-                        }
+                        await mockApi.deleteItem(id);
+                        showToast("הפריט נמחק.");
+                        document.getElementById(`item-${id}`)?.remove();
                     }
                     break;
                 }
                 case 'toggle-sold': {
                     const id = actionTarget.dataset.id;
-                    const token = localStorage.getItem('authToken'); 
-                    if (!token) return showAlert('שגיאת אימות.'); 
                     const item = allItemsCache[id]; 
                     if (!item) return;
                     const newStatus = !item.sold; 
-                    try { 
-                        const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); 
-                        if (!response.ok) throw new Error('Failed to update status'); 
-                    } catch (error) { 
-                        console.error('Failed to toggle sold status:', error); 
-                        showAlert('שגיאה בעדכון סטטוס הפריט.'); 
-                    } 
-                    break;
-                }
-                case 'promote-item': {
-                    const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
-                        title: 'קידום פריט',
-                        message: 'קידום פריט יציג אותו בראש הפיד למשך 24 שעות ויגדיל את החשיפה שלו. <br><br> (כרגע הפיצ\'ר בחינם לצורך הדגמה)',
-                        buttons: [
-                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
-                            { text: 'קדם עכשיו', class: 'bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
-                        ]
-                    });
-
-                    if (confirmed) {
-                        const token = localStorage.getItem('authToken');
-                        if (!token) return showAlert('שגיאת אימות.');
-                        try {
-                            const response = await fetch(`${SERVER_URL}/api/items/${id}/promote`, { 
-                                method: 'POST', 
-                                headers: { 'Authorization': `Bearer ${token}` } 
-                            });
-                            if (!response.ok) {
-                                const errData = await response.json();
-                                throw new Error(errData.message || `Error ${response.status}`);
-                            }
-                            showToast('הפריט קודם בהצלחה!');
-                            resetAndFetchItems();
-                        } catch (error) {
-                            console.error('Promotion failed:', error);
-                            showAlert(`שגיאה בקידום הפריט: ${error.message}`, 'שגיאת קידום');
-                        }
-                    }
-                    break;
-                }
-                case 'start-verification': {
-                    const token = localStorage.getItem('authToken');
-                    if (!token) return showAlert('שגיאת אימות.');
-                    try {
-                        const response = await fetch(`${SERVER_URL}/api/users/start-verification`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        const data = await response.json();
-                        showAlert(data.message, 'אימות מוכר');
-                    } catch (error) {
-                        showAlert('אירעה שגיאה. נסה שוב מאוחר יותר.');
+                    const updatedItem = await mockApi.updateItem(id, { sold: newStatus });
+                    
+                    const card = document.getElementById(`item-${id}`);
+                    if(card) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = createItemCard(updatedItem);
+                        card.replaceWith(tempDiv.firstChild);
                     }
                     break;
                 }
                 case 'report-item': {
-                    if (!currentUser) {
-                        return showAlert('עליך להתחבר כדי לדווח על פריט.');
-                    }
+                    if (!currentUser) return showAlert('עליך להתחבר כדי לדווח על פריט.');
                     const id = actionTarget.dataset.id;
                     document.getElementById('reported-item-id').value = id;
                     reportForm.reset();
@@ -1673,17 +1319,7 @@
                     break;
                 }
                 case 'start-chat': {
-                    const { sellerId, itemId } = actionTarget.dataset;
-                    startOrOpenChat(sellerId, itemId);
-                    break;
-                }
-                case 'open-chat': {
-                    const { conversationId } = actionTarget.dataset;
-                    showChatView(conversationId);
-                    break;
-                }
-                case 'show-chat-list': {
-                    showChatView(); // Call with no ID to show the list
+                    showAlert("הצ'אט זמין בגרסה המלאה של האפליקציה.", "הדגמה");
                     break;
                 }
                  case 'show-main-view': {
@@ -1705,30 +1341,6 @@
                     const images = JSON.parse(actionTarget.dataset.images);
                     const index = parseInt(actionTarget.dataset.index, 10);
                     openGallery(images, index);
-                    break;
-                }
-                case 'notification-click': {
-                    const link = actionTarget.dataset.link;
-                    const type = actionTarget.dataset.type;
-                    
-                    const panel = document.getElementById('notifications-panel');
-                    if (panel) panel.style.display = 'none';
-
-                    if (type === 'new-message') {
-                        const conversationId = link.split('/').pop();
-                        if (conversationId) {
-                            showChatView(conversationId);
-                        }
-                    } else if (type === 'new-rating' || type === 'new-follower') {
-                        const userId = link.split('/').pop();
-                        if (userId) {
-                            showPublicProfile(userId);
-                        }
-                    }
-                    break;
-                }
-                case 'retry-fetch': {
-                    resetAndFetchItems();
                     break;
                 }
             }
@@ -1763,214 +1375,9 @@
         // --- Report Form Submission ---
         reportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) return showAlert('שגיאת אימות.');
-
-            const itemId = document.getElementById('reported-item-id').value;
-            const reason = document.getElementById('report-reason').value;
-            const details = document.getElementById('report-details').value;
-
-            if (!reason) return showAlert('יש לבחור סיבה לדיווח.');
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/items/${itemId}/report`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ reason, details })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to submit report.');
-                }
-
-                hideAllModals();
-                showToast('הדיווח שלך נשלח בהצלחה. תודה!');
-            } catch (error) {
-                console.error('Failed to submit report:', error);
-                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
-            }
+            hideAllModals();
+            showToast('הדיווח שלך נשלח בהצלחה. תודה! (הדגמה)');
         });
-
-        // *** NEW: Notification Logic ***
-        async function fetchNotifications() {
-            if (!currentUser) return;
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/notifications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Could not fetch notifications');
-                notificationsCache = await response.json();
-                updateNotificationBell();
-            } catch (error) {
-                console.error('Failed to fetch notifications:', error);
-            }
-        }
-
-        function updateNotificationBell() {
-            const badge = document.getElementById('notification-badge');
-            if (!badge) return;
-            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        function renderNotifications() {
-            const panel = document.getElementById('notifications-panel');
-            if (!panel) return;
-
-            if (notificationsCache.length === 0) {
-                panel.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">אין התראות חדשות.</div>`;
-                return;
-            }
-
-            panel.innerHTML = notificationsCache.map(n => `
-                <div data-action="notification-click" data-link="${n.link}" data-type="${n.type}" class="p-3 border-b dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${!n.isRead ? 'font-bold' : ''}">
-                    <p class="text-sm pointer-events-none">${n.message}</p>
-                    <p class="text-xs text-gray-400 pointer-events-none">${new Date(n.createdAt).toLocaleString('he-IL')}</p>
-                </div>
-            `).join('');
-        }
-
-        async function markNotificationsAsRead() {
-            const token = localStorage.getItem('authToken');
-            try {
-                await fetch(`${SERVER_URL}/api/notifications/mark-as-read`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                notificationsCache.forEach(n => n.isRead = true);
-                updateNotificationBell();
-            } catch (error) {
-                console.error('Failed to mark notifications as read:', error);
-            }
-        }
-        
-        function toggleNotificationsPanel() {
-            const panel = document.getElementById('notifications-panel');
-            if (!panel) return;
-
-            const isVisible = panel.style.display === 'block';
-            if (isVisible) {
-                panel.style.display = 'none';
-            } else {
-                renderNotifications();
-                panel.style.display = 'block';
-                const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-                if (unreadCount > 0) {
-                    markNotificationsAsRead();
-                }
-            }
-        }
-
-        // --- Push Notifications Logic ---
-        async function initializePushNotifications() {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                console.warn('Push messaging is not supported');
-                return;
-            }
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                pushSubscription = await registration.pushManager.getSubscription();
-                updatePushSubscriptionButton(pushSubscription);
-            } catch (err) {
-                console.error('Error during push notification initialization:', err);
-            }
-        }
-
-        function updatePushSubscriptionButton(subscription) {
-            const containerDesktop = document.getElementById('push-notification-container');
-            const btnDesktop = document.getElementById('push-notification-btn');
-            const containerMobile = document.getElementById('push-notification-container-mobile');
-            const btnMobile = document.getElementById('push-notification-btn-mobile');
-            
-            const isSubscribed = subscription !== null;
-            const text = isSubscribed ? 'התראות PUSH פעילות' : 'הירשם להתראות PUSH';
-            const icon = isSubscribed ? 
-                `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` :
-                `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 bell-animation" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>`;
-            
-            const buttonHtml = `${icon}<span>${text}</span>`;
-            const buttonClasses = isSubscribed ? 
-                'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 
-                'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300';
-
-            if (btnDesktop) {
-                btnDesktop.innerHTML = buttonHtml;
-                btnDesktop.className = `flex items-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
-            }
-            if (btnMobile) {
-                btnMobile.innerHTML = buttonHtml;
-                btnMobile.className = `w-full flex items-center justify-center gap-2 font-semibold py-2 px-3 text-sm rounded-md shadow-sm transition ${buttonClasses}`;
-            }
-
-            [btnDesktop, btnMobile].forEach(btn => {
-                if(btn) {
-                    btn.onclick = subscription ? unsubscribePush : subscribePush;
-                }
-            });
-
-            [containerDesktop, containerMobile].forEach(c => c?.classList.remove('hidden'));
-        }
-
-        async function subscribePush() {
-            const registration = await navigator.serviceWorker.ready;
-            const token = localStorage.getItem('authToken');
-            if (!token) return showAlert('You must be logged in to subscribe.');
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/vapid-public-key`);
-                const vapidPublicKey = await response.text();
-                
-                const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: vapidPublicKey
-                });
-                
-                await fetch(`${SERVER_URL}/api/subscribe`, {
-                    method: 'POST',
-                    body: JSON.stringify(subscription),
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-                });
-
-                pushSubscription = subscription;
-                updatePushSubscriptionButton(pushSubscription);
-                showToast('נרשמת בהצלחה להתראות!');
-            } catch (err) {
-                console.error('Failed to subscribe the user: ', err);
-                showAlert('Failed to subscribe to push notifications.');
-            }
-        }
-
-        async function unsubscribePush() {
-            const token = localStorage.getItem('authToken');
-            if (!token) return;
-
-            try {
-                await pushSubscription.unsubscribe();
-                
-                await fetch(`${SERVER_URL}/api/unsubscribe`, {
-                    method: 'POST',
-                    body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-                });
-
-                pushSubscription = null;
-                updatePushSubscriptionButton(pushSubscription);
-                showToast('ההרשמה להתראות בוטלה.');
-            } catch (err) {
-                console.error('Error unsubscribing', err);
-            }
-        }
-
 
         // --- Theme Toggle ---
         const themeToggleBtn = document.getElementById('theme-toggle');
@@ -2010,7 +1417,7 @@
             "ברוכים הבאים לסטייל מתגלגל! קנייה נעימה 😊",
             "חדש! עכשיו אפשר לדרג מוכרים ולצפות בדירוגים.",
             "מצאתם באג? יש לכם רעיון? נשמח לשמוע מכם!",
-            "התקינו את האפליקציה למסך הבית לחוויה מהירה יותר!"
+            "זוהי גרסת הדגמה. חלק מהתכונות מנוטרלות."
         ];
         let currentAnnouncementIndex = 0;
         const announcementSpan = document.querySelector('#announcement-bar span');
