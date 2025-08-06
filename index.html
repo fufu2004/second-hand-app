@@ -392,8 +392,6 @@
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
     <script>
-    // FIX: Wrap the entire script logic in a DOMContentLoaded event listener
-    // to ensure all HTML elements are available before the script runs.
     document.addEventListener('DOMContentLoaded', () => {
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
@@ -1799,7 +1797,7 @@
             }
         });
 
-        // *** NEW: Notification Logic ***
+        // *** Notification Logic ***
         async function fetchNotifications() {
             if (!currentUser) return;
             const token = localStorage.getItem('authToken');
@@ -1864,6 +1862,13 @@
             const panelId = clickedButton.id.replace('-btn', '-panel');
             const panel = document.getElementById(panelId);
             if (!panel) return;
+
+            // Close all other panels
+            document.querySelectorAll('[id^="notifications-panel"]').forEach(p => {
+                if (p.id !== panelId) {
+                    p.style.display = 'none';
+                }
+            });
 
             const isVisible = panel.style.display === 'block';
             if (isVisible) {
