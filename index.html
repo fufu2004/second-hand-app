@@ -388,6 +388,13 @@
     <!-- Toast Notification -->
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
+    <!-- START: DEBUG UI -->
+    <div id="debug-log-container" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm w-full hidden">
+        <h4 class="font-bold text-lg mb-2">Push Debug Log</h4>
+        <div id="debug-log" class="text-sm font-mono space-y-1 max-h-48 overflow-y-auto"></div>
+    </div>
+    <!-- END: DEBUG UI -->
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- PWA Service Worker Registration ---
@@ -2051,3 +2058,4 @@
     </script>
 </body>
 </html>
+
