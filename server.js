@@ -257,7 +257,6 @@ app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
 });
 
-// *** NEW: Endpoint for Service Worker logging ***
 app.post('/api/log-sw', (req, res) => {
     const { message } = req.body;
     console.log(`[SW LOG FROM CLIENT]: ${message}`);
@@ -867,17 +866,25 @@ io.on('connection', (socket) => {
             });
             
             const userSubscriptions = await PushSubscription.find({ user: receiverId });
-            userSubscriptions.forEach(sub => {
-                webPush.sendNotification(sub.subscription, pushPayload)
-                    .catch(async (err) => {
-                        if (err.statusCode === 410) {
-                            console.log('Subscription has expired or is no longer valid. Removing.');
-                            await PushSubscription.findByIdAndDelete(sub._id);
-                        } else {
-                            console.error('Error sending push notification:', err);
-                        }
-                    });
-            });
+
+            // *** NEW DEBUG LOGGING ***
+            console.log(`[PUSH DEBUG] Found ${userSubscriptions.length} subscriptions for user ${receiverId}.`);
+
+            if (userSubscriptions.length > 0) {
+                console.log(`[PUSH DEBUG] Attempting to send push to ${userSubscriptions.length} subscription(s)...`);
+                userSubscriptions.forEach(sub => {
+                    webPush.sendNotification(sub.subscription, pushPayload)
+                        .then(() => console.log('[PUSH DEBUG] Push notification sent successfully.'))
+                        .catch(async (err) => {
+                            if (err.statusCode === 410) {
+                                console.log('[PUSH DEBUG] Subscription has expired. Removing.');
+                                await PushSubscription.findByIdAndDelete(sub._id);
+                            } else {
+                                console.error('[PUSH DEBUG] Error sending push notification:', err.body);
+                            }
+                        });
+                });
+            }
 
         } catch (error) {
             console.error('Error sending message:', error);
