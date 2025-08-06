@@ -127,6 +127,34 @@
             margin-right: 4px;
             vertical-align: middle;
         }
+        /* START: DEBUG UI STYLE */
+        #debug-log-container {
+            position: fixed;
+            bottom: 80px; /* Above the add button */
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+            max-width: 90vw;
+            width: 350px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+        #debug-log {
+            max-height: 150px;
+            overflow-y: auto;
+            word-break: break-all;
+        }
+        #debug-log p.error {
+            color: #ff7b7b; /* Light red */
+        }
+        #debug-log p.success {
+            color: #7bff8a; /* Light green */
+        }
+        /* END: DEBUG UI STYLE */
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -488,6 +516,10 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
+        // START: DEBUG UI SELECTORS
+        const debugLogContainer = document.getElementById('debug-log-container');
+        const debugLogEl = document.getElementById('debug-log');
+        // END: DEBUG UI SELECTORS
 
         
         // --- Modals & Forms Selectors ---
@@ -2058,4 +2090,3 @@
     </script>
 </body>
 </html>
-
