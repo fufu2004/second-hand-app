@@ -2038,43 +2038,4 @@
             }
         }
 
-        // --- Theme Toggle Logic ---
-        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-        const themeToggleBtn = document.getElementById('theme-toggle');
-
-        function updateThemeIcons() {
-            if (document.documentElement.classList.contains('dark')) {
-                themeToggleLightIcon.classList.remove('hidden');
-                themeToggleDarkIcon.classList.add('hidden');
-            } else {
-                themeToggleDarkIcon.classList.remove('hidden');
-                themeToggleLightIcon.classList.add('hidden');
-            }
-        }
-
-        themeToggleBtn.addEventListener('click', function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
-            updateThemeIcons();
-        });
-
-        // --- START: INFINITE SCROLL EVENT LISTENER ---
-        window.addEventListener('scroll', () => {
-            // Check if user is near the bottom of the page
-            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-            if (clientHeight + scrollTop >= scrollHeight - 500 && !isLoading && hasMorePages) {
-                fetchItems();
-            }
-        });
-        // --- END: INFINITE SCROLL EVENT LISTENER ---
-
-
-        // --- Initial Application Setup ---
-        updateThemeIcons();
-        populateCategoryFilter();
-        checkAuthState(); // This will trigger the initial fetch
-    });
-    </script>
-</body>
-</html>
+       
