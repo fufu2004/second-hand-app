@@ -389,11 +389,14 @@
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
     <script>
+    // FIX: Wrap the entire script logic in a DOMContentLoaded event listener
+    // to ensure all HTML elements are available before the script runs.
     document.addEventListener('DOMContentLoaded', () => {
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').then(registration => {
+            const swUrl = `${window.location.origin}/sw.js`;
+            navigator.serviceWorker.register(swUrl).then(registration => {
               console.log('ServiceWorker registration successful with scope: ', registration.scope);
             }, err => {
               console.log('ServiceWorker registration failed: ', err);
@@ -786,7 +789,6 @@
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
-                // START: MODIFICATION - Moved push notification button inside responsive container
                 const actionButtonsHtml = `
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
@@ -806,24 +808,29 @@
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                     </div>
                 `;
-                // END: MODIFICATION
 
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
                 const loggedInHtmlMobile = `
-                    <div class="flex gap-2 w-full items-center">
-    <div class="relative">
-        <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-            <span id="notification-badge-mobile" class="notification-badge hidden"></span>
-        </button>
-        <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700" style="display: none; position: absolute; top: 100%; left: -140px; width: 320px; z-index: 50;">
-        </div>
-    </div>
-    <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-    <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-    <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
-</div>
+                    <div class="flex flex-col items-center gap-2 w-full px-4">
+                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
+                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
+                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                                </button>
+                        </div>
+                        <div class="flex gap-2 w-full items-center">
+                            <div class="relative">
+                                <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                    <span id="notification-badge-mobile" class="notification-badge hidden"></span>
+                                </button>
+                                <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700" style="display: none; position: absolute; top: 100%; left: -140px; width: 320px; z-index: 50;">
+                                </div>
+                            </div>
+                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                        </div>
                     </div>
                 `;
                 authContentMobile.innerHTML = loggedInHtmlMobile;
@@ -856,10 +863,9 @@
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             document.getElementById('share-app-btn').addEventListener('click', shareApp);
-            const notificationsBtn = document.getElementById('notifications-btn');
-            if (notificationsBtn) {
-                notificationsBtn.addEventListener('click', toggleNotificationsPanel);
-            }
+            document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
+                btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
+            });
         }
         
         function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
@@ -1807,19 +1813,21 @@
         }
 
         function updateNotificationBell() {
-            const badge = document.getElementById('notification-badge');
-            if (!badge) return;
+            const badges = document.querySelectorAll('[id^="notification-badge"]');
+            if (badges.length === 0) return;
             const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-            if (unreadCount > 0) {
-                badge.textContent = unreadCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
+
+            badges.forEach(badge => {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
         }
 
-        function renderNotifications() {
-            const panel = document.getElementById('notifications-panel');
+        function renderNotifications(panel) {
             if (!panel) return;
 
             if (notificationsCache.length === 0) {
@@ -1849,15 +1857,16 @@
             }
         }
         
-        function toggleNotificationsPanel() {
-            const panel = document.getElementById('notifications-panel');
+        function toggleNotificationsPanel(clickedButton) {
+            const panelId = clickedButton.id.replace('btn', 'panel');
+            const panel = document.getElementById(panelId);
             if (!panel) return;
 
             const isVisible = panel.style.display === 'block';
             if (isVisible) {
                 panel.style.display = 'none';
             } else {
-                renderNotifications();
+                renderNotifications(panel);
                 panel.style.display = 'block';
                 markNotificationsAsRead();
             }
@@ -1931,10 +1940,10 @@
                     pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
                 } else {
                     pushButton.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                         <span class="text-sm">קבלו עדכונים!</span>`;
                     pushButton.title = 'הפעל קבלת התראות';
-                    pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500', 'bell-animation');
+                    pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500');
                 }
             });
         }
@@ -2038,44 +2047,6 @@
             }
         }
 
-        // --- Theme Toggle Logic ---
-        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-        const themeToggleBtn = document.getElementById('theme-toggle');
+       
 
-        function updateThemeIcons() {
-            if (document.documentElement.classList.contains('dark')) {
-                themeToggleLightIcon.classList.remove('hidden');
-                themeToggleDarkIcon.classList.add('hidden');
-            } else {
-                themeToggleDarkIcon.classList.remove('hidden');
-                themeToggleLightIcon.classList.add('hidden');
-            }
-        }
-
-        themeToggleBtn.addEventListener('click', function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
-            updateThemeIcons();
-        });
-
-        // --- START: INFINITE SCROLL EVENT LISTENER ---
-        window.addEventListener('scroll', () => {
-            // Check if user is near the bottom of the page
-            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-            if (clientHeight + scrollTop >= scrollHeight - 500 && !isLoading && hasMorePages) {
-                fetchItems();
-            }
-        });
-        // --- END: INFINITE SCROLL EVENT LISTENER ---
-
-
-        // --- Initial Application Setup ---
-        updateThemeIcons();
-        populateCategoryFilter();
-        checkAuthState(); // This will trigger the initial fetch
-    });
-    </script>
-</body>
-</html>
-
+}
