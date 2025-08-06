@@ -1,5 +1,5 @@
 // The version of the cache.
-const CACHE_VERSION = 2; // Increment version to ensure the new service worker is installed
+const CACHE_VERSION = 3; // Increment version again to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 
 // The files to cache on installation.
@@ -13,36 +13,22 @@ const urlsToCache = [
 ];
 
 // Event listener for the 'install' event.
-// This is where we cache the core files of the app.
 self.addEventListener('install', event => {
+  console.log('Attempting to install new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
-  );
-});
-
-// Event listener for the 'fetch' event.
-// This intercepts network requests and serves files from the cache if available.
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response from cache
-        if (response) {
-          return response;
-        }
-        // Not in cache - fetch from network
-        return fetch(event.request);
-      }
-    )
+      .then(() => {
+        // *** NEW: Force the new service worker to become active immediately. ***
+        return self.skipWaiting();
+      })
   );
 });
 
 // Event listener for the 'activate' event.
-// This is where we clean up old caches.
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -55,29 +41,41 @@ self.addEventListener('activate', event => {
           }
         })
       );
+    }).then(() => {
+        // *** NEW: Take control of all open clients (tabs) immediately. ***
+        console.log('New service worker activated. Claiming clients.');
+        return self.clients.claim();
     })
   );
 });
 
-// *** NEW: Event listener for the 'push' event ***
-// This is triggered when the service worker receives a push message from the server.
+
+// Event listener for the 'fetch' event.
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        return response || fetch(event.request);
+      }
+    )
+  );
+});
+
+
+// Event listener for the 'push' event.
 self.addEventListener('push', event => {
   const data = event.data.json();
   console.log('Push notification received:', data);
 
   const title = data.title || 'התראה חדשה';
-  // Using a very simple, reliable placeholder to test if the issue is with the original icon URL.
   const testIcon = 'https://placehold.co/192x192/14b8a6/FFFFFF?text=S'; 
 
   const options = {
     body: data.body || 'קיבלת עדכון חדש.',
-    // The 'icon' is the main image shown in the notification.
     icon: testIcon,
-    // The 'badge' is a small monochrome icon used on Android. 
-    // It's best practice for this to be a simple, single-color version of your logo.
     badge: testIcon, 
     data: {
-      url: data.data.url // URL to open when the notification is clicked
+      url: data.data.url
     }
   };
 
@@ -86,10 +84,9 @@ self.addEventListener('push', event => {
   );
 });
 
-// *** NEW: Event listener for the 'notificationclick' event ***
-// This is triggered when a user clicks on a notification.
+// Event listener for the 'notificationclick' event.
 self.addEventListener('notificationclick', event => {
-  event.notification.close(); // Close the notification
+  event.notification.close(); 
 
   const urlToOpen = event.notification.data.url;
 
@@ -98,13 +95,11 @@ self.addEventListener('notificationclick', event => {
       type: 'window',
       includeUncontrolled: true
     }).then(clientList => {
-      // If a window for the app is already open, focus it.
       for (const client of clientList) {
         if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
       }
-      // If no window is open, open a new one.
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
