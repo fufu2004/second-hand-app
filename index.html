@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
 
-    <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#14b8a6"/>
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
@@ -128,7 +127,6 @@
             vertical-align: middle;
         }
         
-        /* NEW PUSH BUTTON ANIMATION */
         @keyframes pulse-bell {
             0% { transform: scale(1); }
             10% { transform: scale(0.9) rotate(-8deg); }
@@ -149,22 +147,18 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
 
-    <!-- Announcement Bar -->
     <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
         <span></span>
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
     <div class="container mx-auto p-4 max-w-2xl pb-24">
-        <!-- Header -->
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <!-- Right Side (start in RTL) -->
                 <div id="header-right-desktop" class="flex-1 flex justify-start items-center gap-2">
                     <span id="header-right-content" class="flex items-center gap-2"></span>
                 </div>
 
-                <!-- Center: Logo -->
                 <div class="flex-shrink-0 px-2">
                     <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
@@ -175,7 +169,6 @@
                     </div>
                 </div>
 
-                <!-- Left Side (end in RTL) -->
                 <div id="header-left-desktop" class="flex-1 flex justify-end items-center gap-4">
                     <div id="auth-content-desktop" class="flex items-center gap-4"></div>
                     <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
@@ -186,12 +179,10 @@
             </div>
         </header>
 
-        <!-- Mobile Auth Container -->
         <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
             <div id="auth-content-mobile" class="w-full flex justify-center"></div>
         </div>
 
-        <!-- Main Feed View -->
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -237,10 +228,8 @@
             </div>
         </div>
 
-        <!-- Public Profile View -->
         <div id="public-profile-view" class="view"></div>
 
-        <!-- Profile View -->
         <div id="profile-view" class="view">
             <div class="my-6 text-center">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
@@ -250,19 +239,15 @@
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
 
-        <!-- NEW: Chat View -->
         <div id="chat-view" class="view">
-            <!-- This will be populated by JavaScript -->
-        </div>
+            </div>
 
     </div>
 
-    <!-- Floating Add Button -->
     <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
     </button>
 
-    <!-- Modals -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
             <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2> 
@@ -356,7 +341,6 @@
         </div>
     </div>
     
-    <!-- Rating Modal -->
     <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
             <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">דרג את המוכר</h2>
@@ -378,7 +362,6 @@
         </div>
     </div>
     
-    <!-- Report Modal -->
     <div id="report-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
             <h2 class="text-xl font-bold mb-4 text-center text-red-700 dark:text-red-400">דיווח על פריט</h2>
@@ -403,7 +386,6 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
     <script>
@@ -807,8 +789,7 @@
                 const actionButtonsHtml = `
                     <div id="push-notification-container" class="hidden">
                         <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
-                            <!-- Content will be set by JS -->
-                        </button>
+                            </button>
                     </div>
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
@@ -827,12 +808,16 @@
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
                 const loggedInHtmlMobile = `
-                    <div class="flex flex-col items-center gap-2">
+                    <div class="flex flex-col items-center gap-2 w-full px-4">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
-                        <div class="flex gap-2">
-                            <button id="chat-btn-mobile" class="text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                            <button id="logout-btn-mobile" class="text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
+                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                                </button>
+                        </div>
+                        <div class="flex gap-2 w-full">
+                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
                         </div>
                     </div>
                 `;
@@ -1891,16 +1876,11 @@
                 return;
             }
 
-            const pushButtonContainer = document.getElementById('push-notification-container');
-            if (!pushButtonContainer) {
-                console.error("Push notification container not found. UI not ready?");
-                return;
-            }
-            pushButtonContainer.classList.remove('hidden');
+            document.querySelectorAll('[id^="push-notification-container"]').forEach(container => container.classList.remove('hidden'));
             
-            const pushButton = document.getElementById('push-notification-btn');
-            if (!pushButton) {
-                console.error("Push notification button not found.");
+            const pushButtons = document.querySelectorAll('[id^="push-notification-btn"]');
+            if (pushButtons.length === 0) {
+                console.error("Push notification buttons not found.");
                 return;
             }
 
@@ -1909,48 +1889,51 @@
             
             updateSubscriptionButton();
 
-            pushButton.addEventListener('click', () => {
-                if (pushSubscription) {
-                    unsubscribeUser();
-                } else {
-                    subscribeUser();
-                }
+            pushButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (pushSubscription) {
+                        unsubscribeUser();
+                    } else {
+                        subscribeUser();
+                    }
+                });
             });
         }
 
         function updateSubscriptionButton() {
-            const pushButton = document.getElementById('push-notification-btn');
-            if (!pushButton) return; 
+            const pushButtons = document.querySelectorAll('[id^="push-notification-btn"]');
+            if (pushButtons.length === 0) return;
 
-            // Reset classes and state
-            pushButton.classList.remove('bell-animation', 'bg-amber-400', 'bg-green-500', 'bg-red-500', 'text-white', 'dark:bg-amber-500', 'dark:bg-green-600', 'dark:bg-red-600');
-            pushButton.disabled = false;
+            pushButtons.forEach(pushButton => {
+                pushButton.classList.remove('bell-animation', 'bg-amber-400', 'bg-green-500', 'bg-red-500', 'text-white', 'dark:bg-amber-500', 'dark:bg-green-600', 'dark:bg-red-600');
+                pushButton.disabled = false;
 
-            if (Notification.permission === 'denied') {
-                pushButton.innerHTML = `
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                    <span class="text-sm">התראות חסומות</span>`;
-                pushButton.title = 'התראות חסומות בהגדרות הדפדפן';
-                pushButton.classList.add('bg-red-500', 'text-white', 'dark:bg-red-600');
-                pushButton.disabled = true;
-                return;
-            }
+                if (Notification.permission === 'denied') {
+                    pushButton.innerHTML = `
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        <span class="text-sm">התראות חסומות</span>`;
+                    pushButton.title = 'התראות חסומות בהגדרות הדפדפן';
+                    pushButton.classList.add('bg-red-500', 'text-white', 'dark:bg-red-600');
+                    pushButton.disabled = true;
+                    return;
+                }
 
-            if (pushSubscription) {
-                pushButton.innerHTML = `
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                    <span class="text-sm">מקבלים עדכונים</span>`;
-                pushButton.title = 'בטל קבלת התראות';
-                pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
-            } else {
-                pushButton.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span class="text-sm">קבלו עדכונים!</span>`;
-                pushButton.title = 'הפעל קבלת התראות';
-                pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500', 'bell-animation');
-            }
+                if (pushSubscription) {
+                    pushButton.innerHTML = `
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                        <span class="text-sm">מקבלים עדכונים</span>`;
+                    pushButton.title = 'בטל קבלת התראות';
+                    pushButton.classList.add('bg-green-500', 'text-white', 'dark:bg-green-600');
+                } else {
+                    pushButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <span class="text-sm">קבלו עדכונים!</span>`;
+                    pushButton.title = 'הפעל קבלת התראות';
+                    pushButton.classList.add('bg-amber-400', 'dark:bg-amber-500', 'bell-animation');
+                }
+            });
         }
 
         async function subscribeUser() {
