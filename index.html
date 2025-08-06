@@ -108,7 +108,9 @@
         .dark .notification-badge {
              border-color: #1f2937;
         }
-        #notifications-panel, #notifications-panel-mobile {
+        
+        /* START: Notification Panel Style Fix */
+        #notifications-panel { /* Style for desktop panel */
             display: none;
             position: absolute;
             top: 100%;
@@ -118,10 +120,20 @@
             overflow-y: auto;
             z-index: 50;
         }
-        #notifications-panel-mobile {
-            left: auto;
-            right: 0;
+        #notifications-panel-mobile { /* New style for mobile panel */
+            display: none;
+            position: fixed;
+            top: 75px; /* Position below the header */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90vw;
+            max-width: 350px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 50;
         }
+        /* END: Notification Panel Style Fix */
+
         .verified-badge {
             color: #3b82f6; /* blue-500 */
             width: 1.1rem;
@@ -181,7 +193,7 @@
                     </button>
                 </div>
                 <div id="header-left-mobile" class="flex-1 flex sm:hidden justify-end"></div>
-                </div>
+            </div>
         </header>
 
         <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
