@@ -1,6 +1,18 @@
 // The version of the cache.
-const CACHE_VERSION = 4; // Increment version again to force update
+const CACHE_VERSION = 5; // Increment version again to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
+const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com'; // Make sure this is the correct URL
+
+// A function to log messages to the server for debugging on mobile
+function logToServer(message) {
+    fetch(`${SERVER_URL}/api/log-sw`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: message }),
+    }).catch(err => console.error('[SW] Failed to log to server:', err));
+}
 
 // The files to cache on installation.
 const urlsToCache = [
@@ -14,16 +26,15 @@ const urlsToCache = [
 
 // Event listener for the 'install' event.
 self.addEventListener('install', event => {
-  console.log(`[SW] Installing version ${CACHE_VERSION}...`);
+  logToServer(`[SW] Installing version ${CACHE_VERSION}...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] Caching core files.');
+        logToServer('[SW] Caching core files.');
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // Force the new service worker to become active immediately.
-        console.log('[SW] Installation complete. Skipping waiting.');
+        logToServer('[SW] Installation complete. Skipping waiting.');
         return self.skipWaiting();
       })
   );
@@ -31,21 +42,20 @@ self.addEventListener('install', event => {
 
 // Event listener for the 'activate' event.
 self.addEventListener('activate', event => {
-  console.log(`[SW] Activating version ${CACHE_VERSION}...`);
+  logToServer(`[SW] Activating version ${CACHE_VERSION}...`);
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('[SW] Deleting old cache:', cacheName);
+            logToServer(`[SW] Deleting old cache: ${cacheName}`);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-        // Take control of all open clients (tabs) immediately.
-        console.log('[SW] New service worker activated. Claiming clients.');
+        logToServer('[SW] New service worker activated. Claiming clients.');
         return self.clients.claim();
     })
   );
@@ -66,12 +76,13 @@ self.addEventListener('fetch', event => {
 
 // Event listener for the 'push' event.
 self.addEventListener('push', event => {
-  console.log('[SW] Push notification received.');
+  logToServer('[SW] Push notification received.');
   let data;
   try {
     data = event.data.json();
+    logToServer(`[SW] Push data: ${JSON.stringify(data)}`);
   } catch (e) {
-    console.error('[SW] Push event but no data', e);
+    logToServer(`[SW] Push event but no data or failed to parse: ${e.message}`);
     data = {
         title: 'התראה חדשה',
         body: 'קיבלת עדכון חדש.',
@@ -91,12 +102,14 @@ self.addEventListener('push', event => {
 
   event.waitUntil(
     self.registration.showNotification(title, options)
+      .then(() => logToServer('[SW] Notification shown successfully.'))
+      .catch(err => logToServer(`[SW] Error showing notification: ${err.message}`))
   );
 });
 
 // Event listener for the 'notificationclick' event.
 self.addEventListener('notificationclick', event => {
-  console.log('[SW] Notification clicked.');
+  logToServer('[SW] Notification clicked.');
   event.notification.close(); 
 
   const urlToOpen = event.notification.data.url;
@@ -107,15 +120,13 @@ self.addEventListener('notificationclick', event => {
       includeUncontrolled: true
     }).then(clientList => {
       for (const client of clientList) {
-        // If a window for the app is already open, focus it.
         if (new URL(client.url).pathname === new URL(urlToOpen).pathname && 'focus' in client) {
-          console.log('[SW] Found an open client, focusing it.');
+          logToServer('[SW] Found an open client, focusing it.');
           return client.focus();
         }
       }
-      // If no window is open, open a new one.
       if (clients.openWindow) {
-        console.log('[SW] No open client found, opening a new one.');
+        logToServer('[SW] No open client found, opening a new one.');
         return clients.openWindow(urlToOpen);
       }
     })
