@@ -156,27 +156,6 @@
             animation: pulse-bell 2.5s ease-in-out infinite;
             transform-origin: center;
         }
-        
-        /* START: Banner Styles */
-        .promo-slide {
-            display: none;
-            animation: fadeInBanner 1.5s;
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            cursor: pointer;
-        }
-
-        .promo-slide.active {
-            display: block;
-        }
-        @keyframes fadeInBanner {
-            from { opacity: 0.4 }
-            to { opacity: 1 }
-        }
-        /* END: Banner Styles */
 
     </style>
 </head>
@@ -253,9 +232,6 @@
                     <span>הצג מועדפים בלבד</span>
                 </button>
             </div>
-            
-            <div id="promo-carousel" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-                </div>
 
             <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
             <div id="loading-indicator" class="text-center py-8 hidden">
@@ -467,7 +443,6 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
-        const bannerContainer = document.getElementById('promo-carousel');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -818,7 +793,6 @@
             }
             
             resetAndFetchItems();
-            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
         }
 
         function updateUIForAuthState() {
@@ -928,61 +902,6 @@
             updateUIForAuthState(); 
             resetAndFetchItems(); 
         }
-        
-        // --- START: Banner Logic ---
-        function initializeBanners() {
-            const staticBanners = [
-                {
-                    imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg',
-                    link: 'https://www.example.com/sale',
-                    altText: 'Summer Sale Banner'
-                },
-                {
-                    imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg',
-                    link: 'https://www.example.com/new-arrivals',
-                    altText: 'New Arrivals Banner'
-                }
-            ];
-
-            try {
-                if (staticBanners && staticBanners.length > 0) {
-                    bannerContainer.innerHTML = ''; // Clear previous
-                    staticBanners.forEach(banner => {
-                        const slide = document.createElement('div');
-                        slide.className = 'promo-slide';
-                        slide.style.backgroundImage = `url('${banner.imageUrl}')`;
-                        slide.setAttribute('data-link', banner.link);
-                        slide.setAttribute('aria-label', banner.altText);
-                        slide.setAttribute('role', 'button');
-                        bannerContainer.appendChild(slide);
-                    });
-                    startBannerRotation();
-                } else {
-                    bannerContainer.style.display = 'none';
-                }
-            } catch (error) {
-                console.error("Could not initialize banners:", error);
-                bannerContainer.style.display = 'none';
-            }
-        }
-
-        function startBannerRotation() {
-            const slides = bannerContainer.querySelectorAll('.promo-slide');
-            if (slides.length <= 1) {
-                if(slides.length === 1) slides[0].classList.add('active');
-                return;
-            };
-
-            let currentSlide = 0;
-            slides[currentSlide].classList.add('active');
-
-            setInterval(() => {
-                slides[currentSlide].classList.remove('active');
-                currentSlide = (currentSlide + 1) % slides.length;
-                slides[currentSlide].classList.add('active');
-            }, 5000); // Change slide every 5 seconds
-        }
-        // --- END: Banner Logic ---
 
         // --- Profile View Logic ---
         async function showProfileView() { 
@@ -1632,14 +1551,6 @@
         document.body.addEventListener('click', async (e) => {
             const target = e.target;
             const actionTarget = target.closest('[data-action]');
-            const promoSlide = target.closest('.promo-slide');
-
-            if (promoSlide) {
-                const link = promoSlide.dataset.link;
-                if (link) {
-                    window.open(link, '_blank', 'noopener,noreferrer');
-                }
-            }
             
             if (!actionTarget) return;
 
