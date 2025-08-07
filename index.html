@@ -185,11 +185,13 @@
                 </div>
                 
                 <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4">
+                    <!-- Header buttons like notifications and install will be injected here -->
                 </div>
             </div>
         </header>
         
-        <div id="actions-bar" class="my-4 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-sm flex flex-wrap justify-center items-center gap-2 sm:gap-4">
+        <div id="actions-bar" class="my-4 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-sm flex justify-start items-center gap-2 sm:gap-4 overflow-x-auto">
+             <!-- Action buttons like profile, chat, etc., will be injected here -->
         </div>
 
         <div id="main-view" class="view active">
@@ -1016,22 +1018,23 @@
             `;
             
             headerRightContent.innerHTML = themeToggleBtnHtml + shareButtonHtml;
-            actionsBar.innerHTML = ''; // Clear previous buttons
+            
+            // Clear previous buttons
+            actionsBar.innerHTML = '';
+            headerLeft.innerHTML = '';
 
-            if (deferredPrompt) {
-                actionsBar.innerHTML += `
-                    <button id="install-app-btn" class="flex items-center gap-2 bg-amber-400 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="התקן את האפליקציה">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                        <span>התקנה</span>
-                    </button>
-                `;
-            }
+            const installButtonHtml = `
+                <button id="install-app-btn" class="flex items-center gap-2 bg-amber-400 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="התקן את האפליקציה">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    <span class="hidden sm:inline">התקנה</span>
+                </button>
+            `;
 
             if (currentUser) {
-                const usernameHtml = `<span class="text-sm text-gray-700 dark:text-gray-300">שלום, ${currentUser.name}</span>`;
+                const usernameHtml = `<span class="hidden sm:block text-sm text-gray-700 dark:text-gray-300">שלום, ${currentUser.name}</span>`;
                 actionsBar.innerHTML += usernameHtml;
 
-                const actionButtons = `
+                const notificationButtonHtml = `
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
@@ -1039,6 +1042,11 @@
                         </button>
                         <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700"></div>
                     </div>
+                `;
+                headerLeft.innerHTML += notificationButtonHtml;
+                if (deferredPrompt) headerLeft.innerHTML += installButtonHtml;
+
+                const actionButtons = `
                     <div id="push-notification-container" class="hidden">
                         <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות..."></button>
                     </div>
@@ -1051,7 +1059,8 @@
                 updateNotificationBell();
 
             } else {
-                 actionsBar.innerHTML += `
+                if (deferredPrompt) headerLeft.innerHTML += installButtonHtml;
+                actionsBar.innerHTML += `
                     <button id="google-login-btn" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                         <span>התחברות עם Google</span>
