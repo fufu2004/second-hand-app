@@ -83,6 +83,18 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
 }
 
 // --- הגדרת מודלים למסד הנתונים ---
+
+// --- START: New Shop Model ---
+const ShopSchema = new mongoose.Schema({
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    logoUrl: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+const Shop = mongoose.model('Shop', ShopSchema);
+// --- END: New Shop Model ---
+
 const UserSchema = new mongoose.Schema({ 
     googleId: { type: String, required: true }, 
     displayName: String, 
@@ -98,7 +110,8 @@ const UserSchema = new mongoose.Schema({
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    isVerified: { type: Boolean, default: false }
+    isVerified: { type: Boolean, default: false },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' } // Link to the shop
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -174,23 +187,19 @@ const PushSubscriptionSchema = new mongoose.Schema({
 });
 const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
 
-// --- START: New User Session Model ---
 const UserSessionSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     loginAt: { type: Date, default: Date.now },
     logoutAt: { type: Date }
 });
 const UserSession = mongoose.model('UserSession', UserSessionSchema);
-// --- END: New User Session Model ---
 
-// --- START: New Subscriber Model ---
 const SubscriberSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     displayName: { type: String, required: true },
     subscribedAt: { type: Date, default: Date.now }
 });
 const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
-// --- END: New Subscriber Model ---
 
 
 // --- הגדרות העלאת קבצים ---
@@ -288,14 +297,12 @@ passport.use(new GoogleStrategy({
         });
         await newUser.save();
         
-        // --- START: Add new user to Subscribers list ---
         await Subscriber.findOneAndUpdate(
             { email: newUser.email },
             { displayName: newUser.displayName },
             { upsert: true, new: true }
         );
         console.log(`User ${newUser.email} was added/updated in the subscribers list.`);
-        // --- END: Add new user to Subscribers list ---
 
         return done(null, newUser);
     } catch (err) {
@@ -345,7 +352,6 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// --- START: New Admin Dashboard Endpoint ---
 app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const recentSessions = await UserSession.find()
@@ -362,9 +368,7 @@ app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req
         res.status(500).json({ message: 'Failed to fetch dashboard data.' });
     }
 });
-// --- END: New Admin Dashboard Endpoint ---
 
-// --- START: New Subscribers Endpoint for Admin ---
 app.get('/api/admin/subscribers', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
@@ -374,9 +378,7 @@ app.get('/api/admin/subscribers', authMiddleware, adminMiddleware, async (req, r
         res.status(500).json({ message: 'Failed to fetch subscribers.' });
     }
 });
-// --- END: New Subscribers Endpoint for Admin ---
 
-// --- START: New CSV Export Endpoint ---
 app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
@@ -406,7 +408,6 @@ app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (re
         res.status(500).json({ message: 'Failed to export subscribers.' });
     }
 });
-// --- END: New CSV Export Endpoint ---
 
 
 app.get('/api/vapid-public-key', (req, res) => {
