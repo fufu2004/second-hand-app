@@ -2292,6 +2292,40 @@
             showModal(uploadModal);
         });
 
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.');
+            const isEditing = !!editingItemIdInput.value;
+            const formData = new FormData(uploadForm);
+            
+            const imageFiles = document.getElementById('item-images').files;
+            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
+            
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...';
+            
+            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`;
+            const method = isEditing ? 'PATCH' : 'POST';
+            
+            try {
+                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Server responded with an error');
+                }
+                hideAllModals();
+                showToast('הפריט פורסם בהצלחה!');
+                showProfileView(); // Navigate to profile view to see the new item.
+            } catch (error) {
+                console.error('Upload/Edit failed:', error);
+                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
         // --- Init ---
         // FIXED: Populate categories on load
         function populateCategories() {
