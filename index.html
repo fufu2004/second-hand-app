@@ -221,10 +221,6 @@
             <div id="auth-content-mobile" class="w-full flex justify-center"></div>
         </div>
         
-        <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-             <!-- Banner slides will be injected here by JavaScript -->
-        </div>
-
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -258,6 +254,11 @@
                     <span>הצג מועדפים בלבד</span>
                 </button>
             </div>
+            
+            <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
+                <!-- Banner slides will be injected here by JavaScript -->
+            </div>
+
             <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
             <div id="loading-indicator" class="text-center py-8 hidden">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto"></div>
