@@ -1952,6 +1952,28 @@
             const action = actionTarget.dataset.action;
             
             switch (action) {
+                case 'toggle-verification': {
+                    const userId = actionTarget.dataset.userId;
+                    const isVerified = actionTarget.checked;
+                    const token = localStorage.getItem('authToken');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/users/${userId}/set-verified`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ isVerified })
+                        });
+                        if (!response.ok) throw new Error('Failed to update verification status');
+                        showToast(`סטטוס האימות של המשתמש עודכן.`);
+                    } catch (error) {
+                        console.error('Verification toggle error:', error);
+                        showAlert('שגיאה בעדכון סטטוס האימות.');
+                        actionTarget.checked = !isVerified; // Revert checkbox on error
+                    }
+                    break;
+                }
                 case 'download-csv': {
                     const button = actionTarget;
                     const originalContent = button.innerHTML;
