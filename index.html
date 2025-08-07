@@ -2266,6 +2266,32 @@
             }
         });
 
+        openModalBtn.addEventListener('click', () => {
+            if (!currentUser) {
+                return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
+            }
+            uploadForm.reset();
+            editingItemIdInput.value = '';
+            uploadModalTitle.textContent = 'העלאת פריט חדש';
+            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!';
+            document.getElementById('item-images').required = true;
+            document.getElementById('image-preview-container').innerHTML = '';
+            
+            const affiliateContainer = document.getElementById('affiliate-link-container');
+            const promotedContainer = document.getElementById('promoted-container');
+            if (currentUser && currentUser.email === ADMIN_EMAIL) {
+                affiliateContainer.classList.remove('hidden');
+                promotedContainer.classList.remove('hidden');
+            } else {
+                affiliateContainer.classList.add('hidden');
+                promotedContainer.classList.add('hidden');
+            }
+            document.getElementById('item-affiliate-link').value = '';
+            document.getElementById('item-promoted').checked = false;
+
+            showModal(uploadModal);
+        });
+
         // --- Init ---
         // FIXED: Populate categories on load
         function populateCategories() {
