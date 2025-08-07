@@ -576,6 +576,49 @@
             'general': 'כללי' 
         };
         
+        // --- Banner Logic ---
+        const bannerContainer = document.getElementById('banner-container');
+        const bannerSlides = [
+            {
+                img: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                text: 'קולקציית קיץ חדשה בקהילה'
+            },
+            {
+                img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                text: 'מכרי את הארון ותרוויחי'
+            },
+            {
+                img: 'https://images.unsplash.com/photo-1591047139829-d916e6ca4431?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                text: 'הצטרפי למהפכת האופנה המעגלית'
+            }
+        ];
+        let currentSlideIndex = 0;
+
+        function initializeBanner() {
+            if (!bannerContainer) return;
+            bannerSlides.forEach((slide, index) => {
+                const slideDiv = document.createElement('div');
+                slideDiv.className = `banner-slide absolute inset-0 w-full h-full ${index === 0 ? 'active' : ''}`;
+                slideDiv.innerHTML = `
+                    <img src="${slide.img}" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                        <h2 class="text-white text-2xl font-bold text-center px-4">${slide.text}</h2>
+                    </div>
+                `;
+                bannerContainer.appendChild(slideDiv);
+            });
+
+            setInterval(nextBannerSlide, 5000); // Change slide every 5 seconds
+        }
+
+        function nextBannerSlide() {
+            const slides = bannerContainer.querySelectorAll('.banner-slide');
+            slides[currentSlideIndex].classList.remove('active');
+            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+            slides[currentSlideIndex].classList.add('active');
+        }
+
+
         function initializeSocket(token) {
             if (socket) {
                 socket.disconnect();
@@ -2119,6 +2162,7 @@
 
         // --- Initial Load ---
         populateCategoryFilter();
+        initializeBanner();
         checkAuthState();
 
         // --- Infinite Scroll Listener ---
