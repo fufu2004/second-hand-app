@@ -214,13 +214,7 @@
         </div>
         
         <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-            <div class="banner-slide active" style="display: block;">
-                <img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="w-full h-full object-cover">
-                <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                    <h2 class="text-white text-2xl font-bold text-center px-4">קולקציית קיץ חדשה בקהילה</h2>
-                </div>
-            </div>
-        </div>
+             </div>
 
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
@@ -437,18 +431,57 @@
 
         // --- UI Element Selectors ---
         const mainView = document.getElementById('main-view');
-        // ... (all other selectors remain the same)
+        const profileView = document.getElementById('profile-view');
+        const publicProfileView = document.getElementById('public-profile-view');
+        const itemsFeed = document.getElementById('items-feed');
+        const profileItemsFeed = document.getElementById('profile-items-feed');
+        const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerRightMobile = document.getElementById('header-right-mobile');
+        const headerRightContent = document.getElementById('header-right-content');
+        const headerLeftDesktop = document.getElementById('header-left-desktop');
+        const headerLeftMobile = document.getElementById('header-left-mobile');
+        const authContentDesktop = document.getElementById('auth-content-desktop');
+        const authContainerMobile = document.getElementById('auth-container-mobile');
+        const authContentMobile = document.getElementById('auth-content-mobile');
+        const homeLogo = document.getElementById('home-logo');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const filterInput = document.getElementById('filter-input');
+        const categorySelect = document.getElementById('category-select');
+        const sortSelect = document.getElementById('sort-select');
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
+        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
+        const emptyState = document.getElementById('empty-state');
+        const chatView = document.getElementById('chat-view');
+        const conditionSelect = document.getElementById('condition-select');
+        const sizeFilterInput = document.getElementById('size-filter');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const brandFilterInput = document.getElementById('brand-filter');
+        const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
         const uploadModal = document.getElementById('upload-modal');
-        // ... (all other selectors remain the same)
+        const galleryModal = document.getElementById('gallery-modal');
+        const customModal = document.getElementById('custom-modal');
+        const shareModal = document.getElementById('share-modal');
+        const ratingModal = document.getElementById('rating-modal');
+        const reportModal = document.getElementById('report-modal'); 
+        const uploadForm = document.getElementById('upload-form');
+        const ratingForm = document.getElementById('rating-form');
+        const reportForm = document.getElementById('report-form'); 
+        const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
         // --- Gallery Elements Selectors ---
         const galleryImage = document.getElementById('gallery-image');
-        // ... (all other selectors remain the same)
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+        const galleryCounter = document.getElementById('gallery-counter');
+        const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
+        const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
         const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
         
         const toastNotification = document.getElementById('toast-notification');
@@ -543,10 +576,7 @@
             'accessories': 'אקססוריז', 
             'general': 'כללי' 
         };
-
-        // ... (The rest of your existing script from `initializeSocket` down to `populateCategoryFilter`)
-        // Make sure to REMOVE the old banner logic from here.
-
+        
         function initializeSocket(token) {
             if (socket) {
                 socket.disconnect();
@@ -2079,6 +2109,7 @@
         }
         
         function populateCategoryFilter() {
+            const categorySelect = document.getElementById('category-select');
             categorySelect.innerHTML = '<option value="all">כל הקטגוריות</option>';
             for (const [key, value] of Object.entries(categoryMap)) {
                 const option = document.createElement('option');
@@ -2104,50 +2135,59 @@
     });
     </script>
     <script>
-        // --- ISOLATED BANNER SCRIPT ---
-        try {
-            const bannerContainer = document.getElementById('banner-container');
-            if (bannerContainer) {
-                const bannerSlides = [
-                    {
-                        img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                        text: 'מכרי את הארון ותרוויחי'
-                    },
-                    {
-                        img: 'https://images.unsplash.com/photo-1591047139829-d916e6ca4431?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                        text: 'הצטרפי למהפכת האופנה המעגלית'
-                    }
-                ];
-                let currentSlideIndex = 0;
+        // --- ISOLATED & ROBUST BANNER SCRIPT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const bannerContainer = document.getElementById('banner-container');
+                if (bannerContainer) {
+                    const allSlidesData = [
+                        {
+                            img: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                            text: 'קולקציית קיץ חדשה בקהילה'
+                        },
+                        {
+                            img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                            text: 'מכרי את הארון ותרוויחי'
+                        },
+                        {
+                            img: 'https://images.unsplash.com/photo-1591047139829-d916e6ca4431?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                            text: 'הצטרפי למהפכת האופנה המעגלית'
+                        }
+                    ];
+                    let currentSlideIndex = 0;
 
-                // Add the other slides
-                bannerSlides.forEach(slide => {
-                    const slideDiv = document.createElement('div');
-                    slideDiv.className = 'banner-slide absolute inset-0 w-full h-full';
-                    slideDiv.innerHTML = `
-                        <img src="${slide.img}" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                            <h2 class="text-white text-2xl font-bold text-center px-4">${slide.text}</h2>
-                        </div>
-                    `;
-                    bannerContainer.appendChild(slideDiv);
-                });
+                    // Clear any existing content and build fresh
+                    bannerContainer.innerHTML = ''; 
 
-                // Start the animation
-                setInterval(() => {
-                    const slides = bannerContainer.querySelectorAll('.banner-slide');
-                    if (slides.length > 1) {
-                        slides[currentSlideIndex].classList.remove('active');
-                        slides[currentSlideIndex].style.display = 'none';
-                        currentSlideIndex = (currentSlideIndex + 1) % slides.length;
-                        slides[currentSlideIndex].classList.add('active');
-                         slides[currentSlideIndex].style.display = 'block';
-                    }
-                }, 5000);
+                    allSlidesData.forEach((slideData, index) => {
+                        const slideDiv = document.createElement('div');
+                        slideDiv.className = 'banner-slide absolute inset-0 w-full h-full';
+                        if (index === 0) {
+                            slideDiv.classList.add('active');
+                        }
+                        slideDiv.innerHTML = `
+                            <img src="${slideData.img}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                                <h2 class="text-white text-2xl font-bold text-center px-4">${slideData.text}</h2>
+                            </div>
+                        `;
+                        bannerContainer.appendChild(slideDiv);
+                    });
+
+                    // Start the animation interval
+                    setInterval(() => {
+                        const slides = bannerContainer.querySelectorAll('.banner-slide');
+                        if (slides.length > 1) {
+                            slides[currentSlideIndex].classList.remove('active');
+                            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+                            slides[currentSlideIndex].classList.add('active');
+                        }
+                    }, 5000);
+                }
+            } catch (e) {
+                console.error("Error in isolated banner script:", e);
             }
-        } catch (e) {
-            console.error("Error in isolated banner script:", e);
-        }
+        });
     </script>
 </body>
 </html>
