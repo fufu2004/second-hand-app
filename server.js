@@ -253,6 +253,27 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
+// START: Banner API Endpoint
+app.get('/api/banners', (req, res) => {
+    // For now, we'll return a hardcoded list.
+    // In the future, you could fetch this from a 'Banners' collection in your database.
+    const banners = [
+        {
+            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg',
+            link: 'https://www.example.com/sale',
+            altText: 'Summer Sale Banner'
+        },
+        {
+            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg',
+            link: 'https://www.example.com/new-arrivals',
+            altText: 'New Arrivals Banner'
+        }
+    ];
+    res.json(banners);
+});
+// END: Banner API Endpoint
+
+
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
 });
