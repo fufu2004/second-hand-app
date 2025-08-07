@@ -376,6 +376,38 @@ app.get('/api/admin/subscribers', authMiddleware, adminMiddleware, async (req, r
 });
 // --- END: New Subscribers Endpoint for Admin ---
 
+// --- START: New CSV Export Endpoint ---
+app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
+        if (!subscribers || subscribers.length === 0) {
+            return res.status(404).send('No subscribers found.');
+        }
+
+        const fields = ['displayName', 'email', 'subscribedAt'];
+        const csvHeader = fields.join(',') + '\n';
+
+        const csvRows = subscribers.map(sub => {
+            return [
+                `"${sub.displayName.replace(/"/g, '""')}"`, // Handle quotes in names
+                `"${sub.email}"`,
+                `"${sub.subscribedAt.toISOString()}"`
+            ].join(',');
+        }).join('\n');
+
+        const csv = csvHeader + csvRows;
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="subscribers.csv"');
+        res.status(200).send(csv);
+
+    } catch (error) {
+        console.error('Error exporting subscribers to CSV:', error);
+        res.status(500).json({ message: 'Failed to export subscribers.' });
+    }
+});
+// --- END: New CSV Export Endpoint ---
+
 
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
