@@ -222,7 +222,8 @@
         </div>
         
         <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-             </div>
+             <!-- BANNER_SLIDES_HERE -->
+        </div>
 
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
@@ -467,7 +468,7 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
-        const bannerContainer = document.getElementById('banner-container'); // <-- Added Banner Selector
+        const bannerContainer = document.getElementById('banner-container');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -818,7 +819,7 @@
             }
             
             resetAndFetchItems();
-            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
+            startBannerRotation(); // <-- CALLING THE BANNER ROTATION FUNCTION
         }
 
         function updateUIForAuthState() {
@@ -930,36 +931,12 @@
         }
         
         // --- START: Banner Logic ---
-        async function initializeBanners() {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/banners`);
-                if (!response.ok) throw new Error('Failed to fetch banners');
-                const banners = await response.json();
-
-                if (banners && banners.length > 0) {
-                    bannerContainer.innerHTML = ''; // Clear previous
-                    banners.forEach(banner => {
-                        const slide = document.createElement('a');
-                        slide.href = banner.link;
-                        slide.target = '_blank';
-                        slide.rel = 'noopener noreferrer';
-                        slide.className = 'banner-slide';
-                        slide.innerHTML = `<img src="${banner.imageUrl}" alt="${banner.altText}">`;
-                        bannerContainer.appendChild(slide);
-                    });
-                    startBannerRotation();
-                } else {
-                    bannerContainer.style.display = 'none';
-                }
-            } catch (error) {
-                console.error("Could not initialize banners:", error);
-                bannerContainer.style.display = 'none';
-            }
-        }
-
         function startBannerRotation() {
             const slides = bannerContainer.querySelectorAll('.banner-slide');
-            if (slides.length === 0) return;
+            if (slides.length <= 1) {
+                if(slides.length === 1) slides[0].classList.add('active');
+                return;
+            };
 
             let currentSlide = 0;
             slides[currentSlide].classList.add('active');
