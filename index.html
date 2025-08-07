@@ -931,15 +931,24 @@
         }
         
         // --- START: Banner Logic ---
-        async function initializeBanners() {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/banners`);
-                if (!response.ok) throw new Error('Failed to fetch banners');
-                const banners = await response.json();
+        function initializeBanners() {
+            const staticBanners = [
+                {
+                    imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg',
+                    link: 'https://www.example.com/sale',
+                    altText: 'Summer Sale Banner'
+                },
+                {
+                    imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg',
+                    link: 'https://www.example.com/new-arrivals',
+                    altText: 'New Arrivals Banner'
+                }
+            ];
 
-                if (banners && banners.length > 0) {
+            try {
+                if (staticBanners && staticBanners.length > 0) {
                     bannerContainer.innerHTML = ''; // Clear previous
-                    banners.forEach(banner => {
+                    staticBanners.forEach(banner => {
                         const slide = document.createElement('a');
                         slide.href = banner.link;
                         slide.target = '_blank';
