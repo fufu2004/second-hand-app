@@ -166,7 +166,7 @@
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
-    <div class="container mx-auto p-4 max-w-2xl pb-24">
+    <div class="container mx-auto p-4 max-w-4xl pb-24">
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <div id="header-right-desktop" class="flex-1 hidden sm:flex justify-start items-center gap-2">
@@ -256,10 +256,16 @@
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
 
-        <div id="chat-view" class="view">
-            </div>
+        <div id="chat-view" class="view"></div>
 
-    </div>
+        <div id="admin-view" class="view">
+            <div class="my-6">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">פאנל ניהול</h2>
+                <div id="admin-dashboard-content">
+                    </div>
+            </div>
+        </div>
+        </div>
 
     <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -417,6 +423,7 @@
         const mainView = document.getElementById('main-view');
         const profileView = document.getElementById('profile-view');
         const publicProfileView = document.getElementById('public-profile-view');
+        const adminView = document.getElementById('admin-view'); // New Admin View
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
         const headerRightDesktop = document.getElementById('header-right-desktop');
@@ -808,6 +815,10 @@
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
+                const adminButton = (currentUser.email === ADMIN_EMAIL) 
+                    ? `<button id="admin-btn-desktop" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">פאנל ניהול</button>` 
+                    : '';
+
                 const actionButtonsHtml = `
                     <div class="relative">
                         <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
@@ -822,6 +833,7 @@
                             <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
                             </button>
                         </div>
+                        ${adminButton}
                         <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
                         <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
@@ -829,6 +841,10 @@
                 `;
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
+                const adminButtonMobile = (currentUser.email === ADMIN_EMAIL) 
+                    ? `<button id="admin-btn-mobile" class="w-full text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition">פאנל ניהול</button>` 
+                    : '';
+
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2 w-full px-4">
                         <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
@@ -836,6 +852,7 @@
                             <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
                             </button>
                         </div>
+                        ${adminButtonMobile}
                         <div class="flex gap-2 w-full">
                             <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
                             <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
@@ -887,6 +904,7 @@
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
             document.querySelectorAll('[id^="share-app-btn"]').forEach(btn => btn.addEventListener('click', shareApp));
+            document.querySelectorAll('[id^="admin-btn"]').forEach(btn => btn.addEventListener('click', showAdminView));
             
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
@@ -902,6 +920,78 @@
             updateUIForAuthState(); 
             resetAndFetchItems(); 
         }
+
+        // --- START: Admin View Logic ---
+        async function showAdminView() {
+            showView('admin-view');
+            const contentDiv = document.getElementById('admin-dashboard-content');
+            contentDiv.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען נתוני ניהול...</p></div>`;
+
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                contentDiv.innerHTML = `<p class="text-center p-8 text-red-500">שגיאת אימות. אנא התחבר מחדש.</p>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/dashboard-data`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch admin data or not authorized.');
+                }
+                const data = await response.json();
+
+                const sessionsHtml = data.recentSessions.map(session => {
+                    const loginTime = new Date(session.loginAt).toLocaleString('he-IL');
+                    const logoutTime = session.logoutAt ? new Date(session.logoutAt).toLocaleString('he-IL') : 'עדיין מחובר';
+                    return `
+                        <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td class="p-3 flex items-center gap-3">
+                                <img src="${session.user.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${session.user.displayName}" class="w-10 h-10 rounded-full">
+                                <div>
+                                    <div class="font-bold">${session.user.displayName}</div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">${session.user.email}</div>
+                                </div>
+                            </td>
+                            <td class="p-3">${loginTime}</td>
+                            <td class="p-3">${logoutTime}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                contentDiv.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200">משתמשים מחוברים כרגע</h3>
+                        <p class="text-4xl font-bold text-indigo-500">${data.connectedUsersCount}</p>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">50 התחברויות אחרונות</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right">
+                                <thead class="bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="p-3">משתמש</th>
+                                        <th class="p-3">זמן כניסה</th>
+                                        <th class="p-3">זמן יציאה</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${sessionsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Error fetching admin data:', error);
+                contentDiv.innerHTML = `<p class="text-center p-8 text-red-500">שגיאה בטעינת נתוני הניהול. ודא שאתה מחובר כ-Admin.</p>`;
+            }
+        }
+        // --- END: Admin View Logic ---
+
 
         // --- Profile View Logic ---
         async function showProfileView() { 
