@@ -989,8 +989,11 @@ app.post('/api/shops', authMiddleware, upload.single('logo'), async (req, res) =
             owner: req.user.id,
             name: req.body.name,
             description: req.body.description,
-            logoUrl: logoUrl
         };
+        
+        if (logoUrl) {
+            shopData.logoUrl = logoUrl;
+        }
 
         let shop = await Shop.findOneAndUpdate({ owner: req.user.id }, shopData, { new: true, upsert: true });
 
