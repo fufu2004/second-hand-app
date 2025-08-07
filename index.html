@@ -590,7 +590,7 @@
             });
 
             socket.on('newItem', (item) => { 
-                if (filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
+                if (mainView.classList.contains('active') && filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
                     displayItem(item, true, itemsFeed);
                 } else {
                     showToast("פריט חדש עלה! נקה סינונים כדי לראות.");
@@ -799,7 +799,10 @@
                 initializePushNotifications(); 
             }
             
-            resetAndFetchItems();
+            // Only fetch items if we are not on a special view determined by URL, etc.
+            if (mainView.classList.contains('active')) {
+                resetAndFetchItems();
+            }
         }
 
         function updateUIForAuthState() {
@@ -814,9 +817,11 @@
             if (currentUser) {
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
+                
+                const isAdmin = currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-                const adminButton = (currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) 
-                    ? `<button id="admin-btn-desktop" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">פאנל ניהול</button>` 
+                const adminButton = isAdmin 
+                    ? `<button data-action="show-admin-view" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">פאנל ניהול</button>` 
                     : '';
 
                 const actionButtonsHtml = `
@@ -834,15 +839,15 @@
                             </button>
                         </div>
                         ${adminButton}
-                        <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
-                        <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
-                        <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
+                        <button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
+                        <button data-action="show-profile" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
+                        <button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                     </div>
                 `;
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
-                const adminButtonMobile = (currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) 
-                    ? `<button id="admin-btn-mobile" class="w-full text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition">פאנל ניהול</button>` 
+                const adminButtonMobile = isAdmin
+                    ? `<button data-action="show-admin-view" class="w-full text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition">פאנל ניהול</button>` 
                     : '';
 
                 const loggedInHtmlMobile = `
@@ -854,9 +859,9 @@
                         </div>
                         ${adminButtonMobile}
                         <div class="flex gap-2 w-full">
-                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                            <button data-action="show-chat" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button data-action="show-profile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button data-action="logout" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
                         </div>
                     </div>
                 `;
@@ -881,7 +886,7 @@
                 headerLeftMobile.innerHTML = '';
                 const loginButtonHtml = `
                     <div class="hidden sm:flex">
-                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <button data-action="login" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                             <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                             <span>התחברות עם Google</span>
                         </button>
@@ -890,21 +895,13 @@
                 authContentDesktop.innerHTML = loginButtonHtml;
 
                 const loggedOutHtmlMobile = `
-                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                     <button data-action="login" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                         <span>התחברות עם Google</span>
                     </button>
                 `;
                 authContentMobile.innerHTML = loggedOutHtmlMobile;
             }
-
-            // Re-attach event listeners for all states
-            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
-            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
-            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
-            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-            document.querySelectorAll('[id^="share-app-btn"]').forEach(btn => btn.addEventListener('click', shareApp));
-            document.querySelectorAll('[id^="admin-btn"]').forEach(btn => btn.addEventListener('click', showAdminView));
             
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
@@ -1578,65 +1575,6 @@
             }
         }
 
-        // --- Event Listeners ---
-        homeLogo.addEventListener('click', () => { showView('main-view'); resetAndFetchItems(); });
-        
-        openModalBtn.addEventListener('click', () => { 
-            if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
-            uploadForm.reset(); 
-            editingItemIdInput.value = ''; 
-            uploadModalTitle.textContent = 'העלאת פריט חדש'; 
-            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; 
-            document.getElementById('item-images').required = true; 
-            document.getElementById('image-preview-container').innerHTML = ''; 
-            
-            const affiliateContainer = document.getElementById('affiliate-link-container');
-            const promotedContainer = document.getElementById('promoted-container');
-            if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                affiliateContainer.classList.remove('hidden');
-                promotedContainer.classList.remove('hidden');
-            } else {
-                affiliateContainer.classList.add('hidden');
-                promotedContainer.classList.add('hidden');
-            }
-            document.getElementById('item-affiliate-link').value = '';
-            document.getElementById('item-promoted').checked = false;
-
-            showModal(uploadModal); 
-        });
-
-        uploadForm.addEventListener('submit', async (e) => { 
-            e.preventDefault(); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
-            const isEditing = !!editingItemIdInput.value;
-            const formData = new FormData(uploadForm);
-            
-            const imageFiles = document.getElementById('item-images').files;
-            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
-            
-            const submitBtn = document.getElementById('submit-btn'); 
-            submitBtn.disabled = true; 
-            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
-            
-            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
-            const method = isEditing ? 'PATCH' : 'POST'; 
-            
-            try { 
-                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
-                if (!response.ok) { 
-                    const errData = await response.json(); 
-                    throw new Error(errData.message || 'Server responded with an error'); 
-                } 
-                hideAllModals(); 
-            } catch (error) { 
-                console.error('Upload/Edit failed:', error); 
-                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
-            } finally { 
-                submitBtn.disabled = false; 
-            } 
-        });
-
         // --- Central Event Listener (Event Delegation) ---
         document.body.addEventListener('click', async (e) => {
             const target = e.target;
@@ -1647,6 +1585,16 @@
             const action = actionTarget.dataset.action;
             
             switch (action) {
+                case 'login': handleGoogleLogin(); break;
+                case 'logout': handleLogout(); break;
+                case 'show-profile': showProfileView(); break;
+                case 'show-chat': showChatView(); break;
+                case 'show-admin-view': showAdminView(); break;
+                case 'show-main-view': showView('main-view'); resetAndFetchItems(); break;
+                case 'show-chat-list': showChatView(); break;
+                case 'retry-fetch': resetAndFetchItems(); break;
+                case 'start-verification': showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...'); break;
+
                 case 'edit-item': {
                     const id = actionTarget.dataset.id;
                     const itemToEdit = allItemsCache[id];
@@ -1808,23 +1756,7 @@
                     showChatView(conversationId);
                     break;
                 }
-                case 'show-main-view': {
-                    showView('main-view');
-                    resetAndFetchItems();
-                    break;
-                }
-                case 'show-chat-list': {
-                    showChatView();
-                    break;
-                }
-                case 'retry-fetch': {
-                    resetAndFetchItems();
-                    break;
-                }
-                 case 'start-verification': {
-                    showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...');
-                    break;
-                }
+
                 case 'report-item': {
                     const itemId = actionTarget.dataset.id;
                     if (!currentUser) return showAlert('עליך להתחבר כדי לדווח על פריט.');
