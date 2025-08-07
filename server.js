@@ -253,25 +253,6 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// START: Banner API Endpoint
-app.get('/api/banners', (req, res) => {
-    const banners = [
-        {
-            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg',
-            link: 'https://www.example.com/sale',
-            altText: 'Summer Sale Banner'
-        },
-        {
-            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg',
-            link: 'https://www.example.com/new-arrivals',
-            altText: 'New Arrivals Banner'
-        }
-    ];
-    res.json(banners);
-});
-// END: Banner API Endpoint
-
-
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
 });
@@ -879,6 +860,44 @@ io.on('connection', (socket) => {
             await notification.save();
             io.to(receiverId).emit('newNotification', notification);
             
+            // --- START: New Email Notification Logic ---
+            try {
+                const receiver = await User.findById(receiverId);
+                const conversation = await Conversation.findById(conversationId).populate('item', 'title');
+
+                if (receiver && receiver.email && conversation && conversation.item && SENDGRID_API_KEY) {
+                    const msg = {
+                        to: receiver.email,
+                        from: {
+                            name: 'סטייל מתגלגל',
+                            email: SENDER_EMAIL_ADDRESS
+                        },
+                        subject: `קיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}"`,
+                        html: `
+                            <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
+                                <h2>היי ${receiver.displayName},</h2>
+                                <p>קיבלת הודעה חדשה מ<strong>${sender.displayName}</strong> בנוגע לפריט שלך: <strong>"${conversation.item.title}"</strong>.</p>
+                                <p><strong>ההודעה:</strong></p>
+                                <blockquote style="border-right: 2px solid #eee; padding-right: 15px; margin-right: 0;">
+                                    ${text}
+                                </blockquote>
+                                <p>כדי להשיב, לחץ על הכפתור למטה:</p>
+                                <a href="${CLIENT_URL}?openChat=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px;">לצפייה בהודעה</a>
+                                <p>תודה,<br>צוות סטייל מתגלגל</p>
+                            </div>
+                        `
+                    };
+                    sgMail.send(msg).then(() => {
+                        console.log(`Email sent to ${receiver.email}`);
+                    }).catch(error => {
+                        console.error("Failed to send new message email:", error.toString());
+                    });
+                }
+            } catch (emailError) {
+                console.error('Error preparing email notification:', emailError);
+            }
+            // --- END: New Email Notification Logic ---
+
             const pushPayload = JSON.stringify({
                 title: `הודעה חדשה מ-${sender.displayName}`,
                 body: text,
