@@ -161,6 +161,14 @@
         .banner-slide {
             display: none;
             animation: fadeInBanner 1.5s;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .banner-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .banner-slide.active {
             display: block;
@@ -459,6 +467,7 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
+        const bannerContainer = document.getElementById('banner-container'); // <-- Added Banner Selector
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -809,6 +818,7 @@
             }
             
             resetAndFetchItems();
+            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
         }
 
         function updateUIForAuthState() {
@@ -918,6 +928,49 @@
             updateUIForAuthState(); 
             resetAndFetchItems(); 
         }
+        
+        // --- START: Banner Logic ---
+        async function initializeBanners() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/banners`);
+                if (!response.ok) throw new Error('Failed to fetch banners');
+                const banners = await response.json();
+
+                if (banners && banners.length > 0) {
+                    bannerContainer.innerHTML = ''; // Clear previous
+                    banners.forEach(banner => {
+                        const slide = document.createElement('a');
+                        slide.href = banner.link;
+                        slide.target = '_blank';
+                        slide.rel = 'noopener noreferrer';
+                        slide.className = 'banner-slide';
+                        slide.innerHTML = `<img src="${banner.imageUrl}" alt="${banner.altText}">`;
+                        bannerContainer.appendChild(slide);
+                    });
+                    startBannerRotation();
+                } else {
+                    bannerContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Could not initialize banners:", error);
+                bannerContainer.style.display = 'none';
+            }
+        }
+
+        function startBannerRotation() {
+            const slides = bannerContainer.querySelectorAll('.banner-slide');
+            if (slides.length === 0) return;
+
+            let currentSlide = 0;
+            slides[currentSlide].classList.add('active');
+
+            setInterval(() => {
+                slides[currentSlide].classList.remove('active');
+                currentSlide = (currentSlide + 1) % slides.length;
+                slides[currentSlide].classList.add('active');
+            }, 5000); // Change slide every 5 seconds
+        }
+        // --- END: Banner Logic ---
 
         // --- Profile View Logic ---
         async function showProfileView() { 
@@ -1659,4 +1712,151 @@
                 }
                 case 'promote-item': {
                     const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModa
+                    const confirmed = await showCustomModal({
+                        title: 'קידום פריט',
+                        message: 'פעולה זו תקדם את הפריט לראש הפיד למשך 24 שעות. האם להמשיך?',
+                        buttons: [
+                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
+                            { text: 'כן, קדם', class: 'bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
+                        ]
+                    });
+                    if (confirmed) {
+                        const token = localStorage.getItem('authToken');
+                        if (!token) return showAlert('שגיאת אימות.');
+                        try {
+                            const response = await fetch(`${SERVER_URL}/api/items/${id}/promote`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (!response.ok) throw new Error('Failed to promote item');
+                            showToast('הפריט קודם בהצלחה!');
+                        } catch (error) {
+                            showAlert(`שגיאה בקידום הפריט: ${error.message}`);
+                        }
+                    }
+                    break;
+                }
+                case 'open-gallery': {
+                    const images = JSON.parse(actionTarget.dataset.images);
+                    const index = parseInt(actionTarget.dataset.index, 10) || 0;
+                    openGallery(images, index);
+                    break;
+                }
+                case 'view-profile': {
+                    const userId = actionTarget.dataset.userId;
+                    showPublicProfile(userId);
+                    break;
+                }
+                case 'rate-user': {
+                    const userId = actionTarget.dataset.userId;
+                    const userName = actionTarget.dataset.userName;
+                    openRatingModal(userId, userName);
+                    break;
+                }
+                case 'follow-user': {
+                    const userId = actionTarget.dataset.userId;
+                    const token = localStorage.getItem('authToken');
+                    if (!token) return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/users/${userId}/follow`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (!response.ok) throw new Error('Failed to follow/unfollow');
+                        const { isFollowing } = await response.json();
+                        actionTarget.textContent = isFollowing ? 'הסר עוקב' : 'עקוב';
+                        actionTarget.classList.toggle('bg-gray-500', isFollowing);
+                        actionTarget.classList.toggle('hover:bg-gray-600', isFollowing);
+                        actionTarget.classList.toggle('bg-blue-500', !isFollowing);
+                        actionTarget.classList.toggle('hover:bg-blue-600', !isFollowing);
+                        showToast(isFollowing ? 'עכשיו את/ה עוקב/ת' : 'המעקב הוסר');
+                    } catch (error) {
+                        console.error('Follow error:', error);
+                        showAlert('שגיאה בפעולת המעקב.');
+                    }
+                    break;
+                }
+                case 'start-chat': {
+                    const sellerId = actionTarget.dataset.sellerId;
+                    const itemId = actionTarget.dataset.itemId;
+                    startOrOpenChat(sellerId, itemId);
+                    break;
+                }
+                case 'open-chat': {
+                    const conversationId = actionTarget.dataset.conversationId;
+                    showChatView(conversationId);
+                    break;
+                }
+                case 'show-main-view': {
+                    showView('main-view');
+                    resetAndFetchItems();
+                    break;
+                }
+                case 'show-chat-list': {
+                    showChatView();
+                    break;
+                }
+                case 'retry-fetch': {
+                    resetAndFetchItems();
+                    break;
+                }
+                 case 'start-verification': {
+                    showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...');
+                    break;
+                }
+                case 'report-item': {
+                    const itemId = actionTarget.dataset.id;
+                    if (!currentUser) return showAlert('עליך להתחבר כדי לדווח על פריט.');
+                    reportForm.reset();
+                    document.getElementById('reported-item-id').value = itemId;
+                    showModal(reportModal);
+                    break;
+                }
+            }
+        });
+
+        // --- Other Event Listeners ---
+        [filterInput, categorySelect, sortSelect, minPriceInput, maxPriceInput, conditionSelect, sizeFilterInput, brandFilterInput, locationFilterInput].forEach(el => {
+            el.addEventListener('change', () => {
+                resetAndFetchItems();
+            });
+        });
+
+        document.getElementById('item-images').addEventListener('change', handleImagePreview);
+        
+        reportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) return showAlert('שגיאת אימות.');
+            
+            const itemId = document.getElementById('reported-item-id').value;
+            const reason = document.getElementById('report-reason').value;
+            const details = document.getElementById('report-details').value;
+
+            if (!reason) return showAlert('יש לבחור סיבה לדיווח.');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/items/${itemId}/report`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ reason, details })
+                });
+                if (!response.ok) {
+                     const errData = await response.json();
+                     throw new Error(errData.message || 'Failed to submit report');
+                }
+                hideAllModals();
+                showToast('הדיווח שלך נשלח. תודה!');
+            } catch (error) {
+                console.error('Report submission failed:', error);
+                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+            }
+        });
+
+        // --- Init ---
+        checkAuthState();
+
+    });
+    </script>
+</body>
+</html>
