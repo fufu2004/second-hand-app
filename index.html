@@ -613,6 +613,7 @@
 
         function nextBannerSlide() {
             const slides = bannerContainer.querySelectorAll('.banner-slide');
+            if(slides.length === 0) return;
             slides[currentSlideIndex].classList.remove('active');
             currentSlideIndex = (currentSlideIndex + 1) % slides.length;
             slides[currentSlideIndex].classList.add('active');
@@ -2162,7 +2163,7 @@
 
         // --- Initial Load ---
         populateCategoryFilter();
-        initializeBanner();
+        initializeBanner(); // <-- This line activates the banner
         checkAuthState();
 
         // --- Infinite Scroll Listener ---
