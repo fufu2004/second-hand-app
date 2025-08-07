@@ -403,7 +403,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        
+      try {
         // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
         const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
@@ -476,48 +476,10 @@
 
         // --- PWA Custom Install Prompt ---
         let deferredPrompt;
-        const installButtonContainerDesktop = document.getElementById('header-right-desktop');
-        const installButtonContainerMobile = document.getElementById('auth-container-mobile');
-
+        
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           deferredPrompt = e;
-          showInstallPromotion();
-        });
-
-        function showInstallPromotion() {
-            const installButtonHtml = `
-                <button id="install-pwa-btn" class="flex items-center gap-2 bg-teal-500 text-white font-semibold py-2 px-3 text-sm rounded-md shadow-sm hover:bg-teal-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    <span>התקנת אפליקציה</span>
-                </button>
-            `;
-            
-            const desktopBtnWrapper = document.createElement('div');
-            desktopBtnWrapper.innerHTML = installButtonHtml;
-            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
-
-            const mobileBtnWrapper = document.createElement('div');
-            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
-            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
-            installButtonContainerMobile.prepend(mobileBtnWrapper);
-
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
-                btn.addEventListener('click', handleInstallClick);
-            });
-        }
-
-        async function handleInstallClick() {
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => btn.parentElement.remove());
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-        }
-
-        window.addEventListener('appinstalled', () => {
-          deferredPrompt = null;
-          console.log('PWA was installed');
         });
 
         // --- Global State ---
@@ -819,19 +781,12 @@
                 const mobileButtonContainer = document.createElement('div');
                 mobileButtonContainer.className = "sm:hidden flex items-center gap-2";
                 
-                // Bell icon (Mobile)
-                const bellContainerMobile = document.createElement('div');
-                bellContainerMobile.className = 'relative';
-                bellContainerMobile.innerHTML = `<button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg><span id="notification-badge-mobile" class="notification-badge hidden"></span></button><div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700"></div>`;
-                mobileButtonContainer.appendChild(bellContainerMobile);
-                
-                // Hamburger/Menu Icon (you can replace this with a real menu later)
-                // For now, let's add the admin button here directly if admin.
                 if (isAdmin) {
                     mobileButtonContainer.innerHTML += `<button data-action="show-admin-view" class="text-center text-sm bg-indigo-500 text-white py-2 px-3 rounded-md hover:bg-indigo-600 transition">ניהול</button>`;
                 }
+                 mobileButtonContainer.innerHTML += `<button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition">הודעות</button>`;
+                 mobileButtonContainer.innerHTML += `<button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition">יציאה</button>`;
                 headerLeft.appendChild(mobileButtonContainer);
-
 
                 // --- Desktop Action Bar ---
                 if (isAdmin) {
@@ -1542,7 +1497,7 @@
                 case 'show-profile': showProfileView(); break;
                 case 'show-chat': showChatView(); break;
                 case 'show-admin-view': showAdminView(); break;
-                case 'show-main-view': showView('main-view'); resetAndFetchItems(); break;
+                case 'show-main-view': showView('main-view'); if (!itemsFeed.innerHTML.includes('item-card')) { resetAndFetchItems(); } break;
                 case 'show-chat-list': showChatView(); break;
                 case 'retry-fetch': resetAndFetchItems(); break;
                 case 'start-verification': showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...'); break;
@@ -1818,6 +1773,21 @@
         // --- Init ---
         checkAuthState();
 
+      } catch (error) {
+            console.error("!!! CRITICAL ERROR ON PAGE LOAD !!!");
+            console.error("An unexpected error stopped the page from loading correctly.");
+            console.error("THE ERROR WAS:", error);
+            const mainView = document.getElementById('main-view');
+            if (mainView) {
+                mainView.innerHTML = `
+                    <div class="text-center p-8 text-red-500">
+                        <h2 class="text-2xl font-bold">שגיאה קריטית</h2>
+                        <p>אירעה שגיאה בלתי צפויה בטעינת העמוד.</p>
+                        <p>אנא פתח את חלון ה-Console (F12) ושלח את השגיאה האדומה לתמיכה.</p>
+                    </div>
+                `;
+            }
+      }
     });
     </script>
 </body>
