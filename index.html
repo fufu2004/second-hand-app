@@ -259,9 +259,9 @@
 
         <div id="profile-view" class="view">
             <div class="my-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
-                <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
-                <div id="verification-status-container" class="mt-4"></div>
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">האזור האישי שלי</h2>
+                <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים והחנות שלך</p>
+                <div id="profile-actions-container" class="mt-4 flex justify-center gap-4"></div>
             </div>
             <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
         </div>
@@ -276,6 +276,21 @@
                 </div>
             </div>
         </div>
+
+        <!-- NEW: Shops View -->
+        <div id="shops-view" class="view">
+            <div class="my-6 text-center">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">חנויות הקהילה</h2>
+                <p class="text-gray-500 dark:text-gray-400">גלו את החנויות של המוכרים המאומתים שלנו</p>
+            </div>
+            <main id="shops-feed" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></main>
+        </div>
+
+        <!-- NEW: Single Shop View -->
+        <div id="single-shop-view" class="view">
+            <!-- Content will be injected by JS -->
+        </div>
+
     </div>
 
     <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
@@ -420,6 +435,28 @@
         </div>
     </div>
 
+    <!-- NEW: Shop Management Modal -->
+    <div id="shop-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
+            <h2 id="shop-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">ניהול החנות שלי</h2>
+            <form id="shop-form">
+                <div class="space-y-4">
+                    <input type="text" id="shop-name" name="name" placeholder="שם החנות" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                    <textarea id="shop-description" name="description" placeholder="ספרו קצת על החנות שלכם..." class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
+                    <div>
+                        <label for="shop-logo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">לוגו החנות</label>
+                        <input type="file" id="shop-logo" name="logo" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*">
+                        <div id="shop-logo-preview-container" class="mt-2"></div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-shop-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שמור שינויים</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
     <script>
@@ -456,7 +493,10 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
-        const verificationStatusContainer = document.getElementById('verification-status-container');
+        const profileActionsContainer = document.getElementById('profile-actions-container');
+        const shopsView = document.getElementById('shops-view');
+        const shopsFeed = document.getElementById('shops-feed');
+        const singleShopView = document.getElementById('single-shop-view');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -466,9 +506,11 @@
         const shareModal = document.getElementById('share-modal');
         const ratingModal = document.getElementById('rating-modal');
         const reportModal = document.getElementById('report-modal'); 
+        const shopModal = document.getElementById('shop-modal');
         const uploadForm = document.getElementById('upload-form');
         const ratingForm = document.getElementById('rating-form');
         const reportForm = document.getElementById('report-form'); 
+        const shopForm = document.getElementById('shop-form');
         const uploadModalTitle = document.getElementById('upload-modal-title');
         const editingItemIdInput = document.getElementById('editing-item-id');
         
@@ -671,6 +713,9 @@
             
             if (viewId === 'admin-view') {
                 fetchAdminDashboardData();
+            }
+            if (viewId === 'shops-view') {
+                fetchShops();
             }
         }
         function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
@@ -1013,7 +1058,7 @@
             updateUIForAuthState();
             
             if(currentUser) {
-                await Promise.all([fetchUserFavorites(), fetchNotifications()]);
+                await Promise.all([fetchUserProfile(), fetchUserFavorites(), fetchNotifications()]);
                 initializePushNotifications(); 
             }
             
@@ -1067,8 +1112,9 @@
                     <div id="push-notification-container" class="hidden">
                         <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות..."></button>
                     </div>
+                    <button data-action="show-shops-view" class="text-center text-sm bg-pink-500 text-white py-2 px-4 rounded-md hover:bg-pink-600 transition whitespace-nowrap">חנויות</button>
                     <button id="chat-btn" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
-                    <button id="profile-btn" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
+                    <button id="profile-btn" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">האזור האישי</button>
                     ${currentUser.email === ADMIN_EMAIL ? `<button id="admin-btn" class="text-center text-sm bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition whitespace-nowrap">פאנל ניהול</button>` : ''}
                     <button id="logout-btn" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                 `;
@@ -1078,7 +1124,8 @@
             } else {
                 if (deferredPrompt) installAppContainer.innerHTML = installButtonHtml;
                 headerLeft.innerHTML = shareButtonHtml;
-                actionsBar.innerHTML += `
+                 actionsBar.innerHTML += `
+                    <button data-action="show-shops-view" class="text-center text-sm bg-pink-500 text-white py-2 px-4 rounded-md hover:bg-pink-600 transition whitespace-nowrap">חנויות</button>
                     <button id="google-login-btn" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                         <span>התחברות עם Google</span>
@@ -1143,6 +1190,19 @@
         }
         
         // --- Profile View Logic ---
+        async function fetchUserProfile() {
+            const token = localStorage.getItem('authToken'); 
+            if (!token || !currentUser) return null;
+            try {
+                const response = await fetch(`${SERVER_URL}/api/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) throw new Error('Could not fetch user profile'); 
+                currentUserProfile = await response.json();
+            } catch(error) {
+                console.error("Failed to fetch user profile:", error);
+                currentUserProfile = null;
+            }
+        }
+
         async function showProfileView() { 
             showView('profile-view'); 
             profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
@@ -1152,33 +1212,26 @@
                 return; 
             } 
             try { 
-                const [itemsResponse, userResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${SERVER_URL}/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } })
-                ]);
-                
-                if (!itemsResponse.ok || !userResponse.ok) throw new Error('Could not fetch user data'); 
-                
+                const itemsResponse = await fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!itemsResponse.ok) throw new Error('Could not fetch user items'); 
                 const items = await itemsResponse.json(); 
-                currentUserProfile = await userResponse.json(); 
-                
-                if (currentUserProfile.isVerified) {
-                    verificationStatusContainer.innerHTML = `
-                        <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-full">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                            <span>אתה מוכר מאומת</span>
-                        </div>
-                    `;
-                } else {
-                    verificationStatusContainer.innerHTML = `
-                        <button data-action="start-verification" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition">
-                            הפוך למוכר מאומת
-                        </button>
-                    `;
-                }
 
+                if (!currentUserProfile) await fetchUserProfile();
+
+                if (currentUserProfile) {
+                    if (currentUserProfile.isVerified) {
+                        const buttonText = currentUserProfile.shop ? 'נהל את החנות שלי' : 'צור חנות חדשה';
+                        profileActionsContainer.innerHTML = `
+                            <button data-action="manage-shop" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition">${buttonText}</button>
+                        `;
+                    } else {
+                        profileActionsContainer.innerHTML = `
+                            <button data-action="start-verification" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition">הפוך למוכר מאומת</button>
+                        `;
+                    }
+                }
+                
                 profileItemsFeed.innerHTML = ''; 
-                allItemsCache = {}; 
                 if (items.length === 0) { 
                     profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-gray-200">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; 
                 } else { 
@@ -1193,7 +1246,7 @@
             } 
         }
 
-        // --- Public Profile View Logic ---
+        // --- Public Profile & Shops View Logic ---
         async function showPublicProfile(userId) {
             showView('public-profile-view');
             publicProfileView.innerHTML = `
@@ -1259,6 +1312,8 @@
                 
                 const verifiedBadgeHtml = user.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
 
+                const shopButtonHtml = user.shop ? `<button data-action="view-shop" data-shop-id="${user.shop}" class="mt-4 bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded-md transition">צפה בחנות</button>` : '';
+
                 publicProfileView.innerHTML = `
                     <div class="my-6">
                         <button data-action="show-main-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
@@ -1273,8 +1328,11 @@
                                 <div class="static-stars">${renderStars(user.averageRating)}</div>
                                 <span class="text-gray-600 dark:text-gray-400">(${ratings.length} דירוגים)</span>
                             </div>
-                            ${followButtonHtml}
-                            ${rateButtonHtml}
+                            <div class="flex gap-2">
+                                ${shopButtonHtml}
+                                ${followButtonHtml}
+                                ${rateButtonHtml}
+                            </div>
                         </div>
                     </div>
                     
@@ -2091,6 +2149,19 @@
                     reportForm.reset();
                     document.getElementById('reported-item-id').value = itemId;
                     showModal(reportModal);
+                    break;
+                }
+                case 'show-shops-view': {
+                    showView('shops-view');
+                    break;
+                }
+                case 'view-shop': {
+                    const shopId = actionTarget.dataset.shopId;
+                    showSingleShopView(shopId);
+                    break;
+                }
+                case 'manage-shop': {
+                    openShopModal();
                     break;
                 }
             }
