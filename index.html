@@ -255,9 +255,8 @@
                 </button>
             </div>
             
-            <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-                <!-- Banner slides will be injected here by JavaScript -->
-            </div>
+            <div id="promo-carousel" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
+                </div>
 
             <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
             <div id="loading-indicator" class="text-center py-8 hidden">
@@ -469,7 +468,7 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
-        const bannerContainer = document.getElementById('banner-container');
+        const bannerContainer = document.getElementById('promo-carousel');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
