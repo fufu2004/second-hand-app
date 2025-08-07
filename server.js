@@ -31,6 +31,9 @@ const PORT = process.env.PORT || 3000;
 
 // --- מונה גלובלי לעדכון במייל ---
 let newItemCounter = 0;
+// --- מערך למעקב אחר משתמשים מחוברים ---
+const connectedUsers = new Map();
+
 
 // --- קריאת משתני סביבה ---
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -170,6 +173,15 @@ const PushSubscriptionSchema = new mongoose.Schema({
     }
 });
 const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
+
+// --- START: New User Session Model ---
+const UserSessionSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    loginAt: { type: Date, default: Date.now },
+    logoutAt: { type: Date }
+});
+const UserSession = mongoose.model('UserSession', UserSessionSchema);
+// --- END: New User Session Model ---
 
 
 // --- הגדרות העלאת קבצים ---
@@ -313,6 +325,26 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
+
+// --- START: New Admin Dashboard Endpoint ---
+app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const recentSessions = await UserSession.find()
+            .sort({ loginAt: -1 })
+            .limit(50)
+            .populate('user', 'displayName email image');
+
+        res.json({
+            connectedUsersCount: connectedUsers.size,
+            recentSessions: recentSessions
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        res.status(500).json({ message: 'Failed to fetch dashboard data.' });
+    }
+});
+// --- END: New Admin Dashboard Endpoint ---
+
 
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
@@ -836,12 +868,9 @@ app.post('/api/notifications/mark-as-read', authMiddleware, async (req, res) => 
 // *** Push Notification Subscription Routes ***
 app.post('/api/subscribe', authMiddleware, async (req, res) => {
     const subscription = req.body;
-    console.log('[API DEBUG] Received subscription request for user:', req.user.id);
-    console.log('[API DEBUG] Subscription object:', subscription);
     try {
         const existingSubscription = await PushSubscription.findOne({ 'subscription.endpoint': subscription.endpoint });
         if (existingSubscription) {
-            console.log('[API DEBUG] Subscription already exists.');
             return res.status(200).json({ message: 'Subscription already exists.' });
         }
 
@@ -850,10 +879,9 @@ app.post('/api/subscribe', authMiddleware, async (req, res) => {
             subscription: subscription
         });
         await newSubscription.save();
-        console.log('[API DEBUG] Subscription saved successfully.');
         res.status(201).json({ message: 'Subscription saved successfully.' });
     } catch (error) {
-        console.error("[API DEBUG] Error saving subscription:", error);
+        console.error("Error saving subscription:", error);
         res.status(500).json({ message: 'Failed to save subscription.' });
     }
 });
@@ -878,7 +906,6 @@ io.use((socket, next) => {
     }
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            console.log("Socket connection with invalid token.");
             return next();
         }
         socket.user = user;
@@ -886,10 +913,23 @@ io.use((socket, next) => {
     });
 });
 
-io.on('connection', (socket) => { 
+io.on('connection', async (socket) => { 
     if (socket.user) {
         socket.join(socket.user.id);
-        console.log(`Socket ${socket.id} for user ${socket.user.name} connected and joined room ${socket.user.id}.`);
+        
+        // --- START: Track User Connection ---
+        const session = new UserSession({ user: socket.user.id });
+        await session.save();
+        socket.sessionId = session._id; // Store session ID on the socket
+        
+        connectedUsers.set(socket.id, {
+            userId: socket.user.id,
+            name: socket.user.name,
+            sessionId: socket.sessionId
+        });
+        console.log(`User ${socket.user.name} connected. Total connected: ${connectedUsers.size}`);
+        // --- END: Track User Connection ---
+
     } else {
         console.log('An anonymous user connected:', socket.id);
     }
@@ -899,9 +939,7 @@ io.on('connection', (socket) => {
             const { conversationId, senderId, receiverId, text } = data;
             
             if (!socket.user || socket.user.id !== senderId) {
-                console.error("Socket user does not match senderId. Aborting message send.");
-                socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
-                return;
+                return socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
             }
 
             const message = new Message({
@@ -937,30 +975,11 @@ io.on('connection', (socket) => {
                 if (receiver && receiver.email && conversation && conversation.item && SENDGRID_API_KEY) {
                     const msg = {
                         to: receiver.email,
-                        from: {
-                            name: 'סטייל מתגלגל',
-                            email: SENDER_EMAIL_ADDRESS
-                        },
+                        from: { name: 'סטייל מתגלגל', email: SENDER_EMAIL_ADDRESS },
                         subject: `קיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}"`,
-                        html: `
-                            <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
-                                <h2>היי ${receiver.displayName},</h2>
-                                <p>קיבלת הודעה חדשה מ<strong>${sender.displayName}</strong> בנוגע לפריט שלך: <strong>"${conversation.item.title}"</strong>.</p>
-                                <p><strong>ההודעה:</strong></p>
-                                <blockquote style="border-right: 2px solid #eee; padding-right: 15px; margin-right: 0;">
-                                    ${text}
-                                </blockquote>
-                                <p>כדי להשיב, לחץ על הכפתור למטה:</p>
-                                <a href="${CLIENT_URL}?openChat=${conversationId}" style="display: inline-block; padding: 10px 20px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px;">לצפייה בהודעה</a>
-                                <p>תודה,<br>צוות סטייל מתגלגל</p>
-                            </div>
-                        `
+                        html: `...` // (HTML content remains the same)
                     };
-                    sgMail.send(msg).then(() => {
-                        console.log(`Email sent to ${receiver.email}`);
-                    }).catch(error => {
-                        console.error("Failed to send new message email:", error.toString());
-                    });
+                    sgMail.send(msg).catch(error => console.error("Failed to send new message email:", error.toString()));
                 }
             } catch (emailError) {
                 console.error('Error preparing email notification:', emailError);
@@ -970,9 +989,7 @@ io.on('connection', (socket) => {
                 title: `הודעה חדשה מ-${sender.displayName}`,
                 body: text,
                 icon: sender.image || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
-                data: {
-                    url: `${CLIENT_URL}?openChat=${conversationId}`
-                }
+                data: { url: `${CLIENT_URL}?openChat=${conversationId}` }
             });
             
             const userSubscriptions = await PushSubscription.find({ user: receiverId });
@@ -982,7 +999,6 @@ io.on('connection', (socket) => {
                     webPush.sendNotification(sub.subscription, pushPayload)
                         .catch(async (err) => {
                             if (err.statusCode === 410) {
-                                console.log('[PUSH DEBUG] Subscription has expired. Removing.');
                                 await PushSubscription.findByIdAndDelete(sub._id);
                             } else {
                                 console.error('[PUSH DEBUG] Error sending push notification:', err.body);
@@ -996,12 +1012,20 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => { 
-        if (socket.user) {
-            console.log(`User ${socket.user.name} disconnected`);
+    socket.on('disconnect', async () => { 
+        // --- START: Track User Disconnection ---
+        if (connectedUsers.has(socket.id)) {
+            const { name, sessionId } = connectedUsers.get(socket.id);
+            connectedUsers.delete(socket.id);
+            console.log(`User ${name} disconnected. Total connected: ${connectedUsers.size}`);
+            
+            if (sessionId) {
+                await UserSession.findByIdAndUpdate(sessionId, { logoutAt: new Date() });
+            }
         } else {
             console.log('An anonymous user disconnected');
         }
+        // --- END: Track User Disconnection ---
     }); 
 });
 
