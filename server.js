@@ -17,7 +17,6 @@ const streamifier = require('streamifier');
 const sgMail = require('@sendgrid/mail');
 const path = require('path');
 const webPush = require('web-push');
-const fs = require('fs'); // <-- הוספנו את ספריית מערכת הקבצים
 
 // --- הגדרות ראשוניות ---
 const app = express();
@@ -178,7 +177,7 @@ const upload = multer({ storage: storage });
 app.use(cors());
 app.use(express.json());
 
-// app.use(express.static(path.join(__dirname))); // <-- העברנו את זה לסוף הקובץ
+app.use(express.static(path.join(__dirname)));
 
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
@@ -254,7 +253,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
-// START: Banner API Endpoint (נשאר למקרה הצורך, אבל לא בשימוש בגישה החדשה)
+// START: Banner API Endpoint
 app.get('/api/banners', (req, res) => {
     const banners = [
         {
@@ -924,32 +923,6 @@ io.on('connection', (socket) => {
 });
 
 // --- נתיב להגשת קובץ ה-HTML ---
-// ** שינוי: הגשה דינמית של קובץ ה-HTML הראשי **
-app.get('/', (req, res) => {
-    const banners = [
-        { imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg', link: '#', altText: 'Banner 1' },
-        { imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg', link: '#', altText: 'Banner 2' }
-    ];
-
-    const bannerHtml = banners.map(banner => `
-        <a href="${banner.link}" target="_blank" rel="noopener noreferrer" class="banner-slide">
-            <img src="${banner.imageUrl}" alt="${banner.altText}">
-        </a>
-    `).join('');
-
-    fs.readFile(path.join(__dirname, 'index.html'), 'utf8', (err, data) => {
-        if (err) {
-            console.error("Cannot read index.html", err);
-            return res.status(500).send("Error loading the page.");
-        }
-        const finalHtml = data.replace('<!-- BANNER_SLIDES_HERE -->', bannerHtml);
-        res.send(finalHtml);
-    });
-});
-
-
-app.use(express.static(path.join(__dirname)));
-
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
