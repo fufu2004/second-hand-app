@@ -192,18 +192,15 @@
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
-    <!-- FIXED: Added missing container for mobile auth buttons -->
     <div id="auth-container-mobile" class="sm:hidden p-4 space-y-2">
         <div id="auth-content-mobile"></div>
     </div>
 
     <div class="container mx-auto p-4 max-w-4xl pb-24">
-        <!-- FIXED: Added missing banner container -->
         <div id="banner-container"></div>
         
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <!-- FIXED: Added missing elements the script looks for -->
                 <div id="header-right" class="flex-1 flex justify-start items-center gap-4">
                     <div id="header-right-desktop"></div>
                     <div id="header-right-mobile" class="sm:hidden"></div>
@@ -220,7 +217,6 @@
                     </div>
                 </div>
                 
-                <!-- FIXED: Added missing elements the script looks for -->
                 <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4">
                     <div id="auth-content-desktop" class="hidden sm:flex items-center gap-3"></div>
                     <div id="header-left-mobile" class="sm:hidden flex items-center"></div>
@@ -947,12 +943,22 @@
         }
         
         // --- START: Banner Logic ---
-        async function initializeBanners() {
+        // FIXED: Changed to use a static list of banners instead of fetching
+        function initializeBanners() {
             if (!bannerContainer) return;
             try {
-                const response = await fetch(`${SERVER_URL}/api/banners`);
-                if (!response.ok) throw new Error('Failed to fetch banners');
-                const banners = await response.json();
+                const banners = [
+                    {
+                        imageUrl: 'https://images.pexels.com/photos/3768894/pexels-photo-3768894.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+                        link: '#',
+                        altText: 'Banner promoting summer collection'
+                    },
+                    {
+                        imageUrl: 'https://images.pexels.com/photos/1040424/pexels-photo-1040424.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
+                        link: '#',
+                        altText: 'Banner for new arrivals'
+                    }
+                ];
 
                 if (banners && banners.length > 0) {
                     bannerContainer.innerHTML = ''; // Clear previous
