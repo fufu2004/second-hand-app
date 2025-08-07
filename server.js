@@ -84,7 +84,6 @@ if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !
 
 // --- הגדרת מודלים למסד הנתונים ---
 
-// --- START: New Shop Model ---
 const ShopSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     name: { type: String, required: true, trim: true },
@@ -93,7 +92,6 @@ const ShopSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 const Shop = mongoose.model('Shop', ShopSchema);
-// --- END: New Shop Model ---
 
 const UserSchema = new mongoose.Schema({ 
     googleId: { type: String, required: true }, 
@@ -111,7 +109,7 @@ const UserSchema = new mongoose.Schema({
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isVerified: { type: Boolean, default: false },
-    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' } // Link to the shop
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -352,6 +350,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
 
+// --- START: Admin Routes ---
 app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const recentSessions = await UserSession.find()
@@ -408,6 +407,17 @@ app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (re
         res.status(500).json({ message: 'Failed to export subscribers.' });
     }
 });
+
+// --- NEW: Get all users for admin panel ---
+app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const users = await User.find().sort({ displayName: 1 });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch users.' });
+    }
+});
+// --- END: Admin Routes ---
 
 
 app.get('/api/vapid-public-key', (req, res) => {
@@ -487,7 +497,7 @@ app.get('/users/:id/items', async (req, res) => {
 
 app.get('/users/:id', async (req, res) => { 
     try { 
-        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified'); 
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop'); 
         if (!user) return res.status(404).json({ message: 'User not found' }); 
         res.json(user); 
     } catch (err) { 
@@ -960,6 +970,61 @@ app.post('/api/unsubscribe', authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'Failed to remove subscription.' });
     }
 });
+
+// --- START: Shop Routes ---
+app.post('/api/shops', authMiddleware, upload.single('logo'), async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user.isVerified) {
+            return res.status(403).json({ message: 'Only verified users can create shops.' });
+        }
+        
+        let logoUrl = '';
+        if (req.file) {
+            const uploadResult = await uploadToCloudinary(req.file.buffer);
+            logoUrl = uploadResult.secure_url;
+        }
+
+        const shopData = {
+            owner: req.user.id,
+            name: req.body.name,
+            description: req.body.description,
+            logoUrl: logoUrl
+        };
+
+        let shop = await Shop.findOneAndUpdate({ owner: req.user.id }, shopData, { new: true, upsert: true });
+
+        user.shop = shop._id;
+        await user.save();
+
+        res.status(201).json(shop);
+    } catch (error) {
+        console.error("Error creating/updating shop:", error);
+        res.status(500).json({ message: 'Failed to create or update shop.' });
+    }
+});
+
+app.get('/api/shops', async (req, res) => {
+    try {
+        const shops = await Shop.find().populate('owner', 'displayName image');
+        res.json(shops);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch shops.' });
+    }
+});
+
+app.get('/api/shops/:id', async (req, res) => {
+    try {
+        const shop = await Shop.findById(req.params.id).populate('owner', 'displayName image isVerified');
+        if (!shop) {
+            return res.status(404).json({ message: 'Shop not found.' });
+        }
+        res.json(shop);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch shop details.' });
+    }
+});
+// --- END: Shop Routes ---
 
 
 // --- הגדרת Socket.io ---
