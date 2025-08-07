@@ -156,6 +156,32 @@
             animation: pulse-bell 2.5s ease-in-out infinite;
             transform-origin: center;
         }
+        
+        /* Banner Styles */
+        #banner-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 1rem auto;
+            aspect-ratio: 16 / 5;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+        }
+        .banner-slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        .banner-slide.active {
+            opacity: 1;
+        }
+        .banner-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
     </style>
 </head>
@@ -166,11 +192,23 @@
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
+    <!-- FIXED: Added missing container for mobile auth buttons -->
+    <div id="auth-container-mobile" class="sm:hidden p-4 space-y-2">
+        <div id="auth-content-mobile"></div>
+    </div>
+
     <div class="container mx-auto p-4 max-w-4xl pb-24">
+        <!-- FIXED: Added missing banner container -->
+        <div id="banner-container"></div>
+        
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
+                <!-- FIXED: Added missing elements the script looks for -->
                 <div id="header-right" class="flex-1 flex justify-start items-center gap-4">
-                    </div>
+                    <div id="header-right-desktop"></div>
+                    <div id="header-right-mobile" class="sm:hidden"></div>
+                    <div id="header-right-content"></div>
+                </div>
 
                 <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
                     <div data-action="show-main-view" class="flex items-center gap-2 cursor-pointer">
@@ -181,9 +219,12 @@
                         </div>
                     </div>
                 </div>
-
+                
+                <!-- FIXED: Added missing elements the script looks for -->
                 <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4">
-                    </div>
+                    <div id="auth-content-desktop" class="hidden sm:flex items-center gap-3"></div>
+                    <div id="header-left-mobile" class="sm:hidden flex items-center"></div>
+                </div>
             </div>
         </header>
         
@@ -224,7 +265,7 @@
                 </button>
             </div>
 
-            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
+            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"></main>
             <div id="loading-indicator" class="text-center py-8 hidden">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto"></div>
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">טוען פריטים נוספים...</p>
@@ -424,7 +465,6 @@
         const authContentDesktop = document.getElementById('auth-content-desktop');
         const authContainerMobile = document.getElementById('auth-container-mobile');
         const authContentMobile = document.getElementById('auth-content-mobile');
-        const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
         const categorySelect = document.getElementById('category-select');
@@ -440,6 +480,7 @@
         const brandFilterInput = document.getElementById('brand-filter');
         const locationFilterInput = document.getElementById('location-filter');
         const verificationStatusContainer = document.getElementById('verification-status-container');
+        const bannerContainer = document.getElementById('banner-container');
         
         // --- Modals & Forms Selectors ---
         const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -498,14 +539,18 @@
                 </button>
             `;
             
-            const desktopBtnWrapper = document.createElement('div');
-            desktopBtnWrapper.innerHTML = installButtonHtml;
-            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
+            if (installButtonContainerDesktop) {
+                const desktopBtnWrapper = document.createElement('div');
+                desktopBtnWrapper.innerHTML = installButtonHtml;
+                installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
+            }
 
-            const mobileBtnWrapper = document.createElement('div');
-            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
-            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
-            installButtonContainerMobile.prepend(mobileBtnWrapper);
+            if (installButtonContainerMobile) {
+                const mobileBtnWrapper = document.createElement('div');
+                mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
+                mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
+                installButtonContainerMobile.prepend(mobileBtnWrapper);
+            }
 
             document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
                 btn.addEventListener('click', handleInstallClick);
@@ -790,7 +835,7 @@
             }
             
             resetAndFetchItems();
-            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
+            initializeBanners();
         }
 
         function updateUIForAuthState() {
@@ -800,11 +845,11 @@
                 </button>
             `;
             
-            headerRightMobile.innerHTML = shareButtonHtml;
+            if(headerRightMobile) headerRightMobile.innerHTML = shareButtonHtml;
 
             if (currentUser) {
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
-                headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
+                if(headerRightContent) headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
                 const actionButtonsHtml = `
                     <div class="relative">
@@ -825,7 +870,7 @@
                         <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                     </div>
                 `;
-                authContentDesktop.innerHTML = actionButtonsHtml;
+                if(authContentDesktop) authContentDesktop.innerHTML = actionButtonsHtml;
                 
                 const loggedInHtmlMobile = `
                     <div class="flex flex-col items-center gap-2 w-full px-4">
@@ -841,7 +886,7 @@
                         </div>
                     </div>
                 `;
-                authContentMobile.innerHTML = loggedInHtmlMobile;
+                if(authContentMobile) authContentMobile.innerHTML = loggedInHtmlMobile;
                 
                 const mobileBellHtml = `
                     <div class="relative">
@@ -853,13 +898,13 @@
                         </div>
                     </div>
                 `;
-                headerLeftMobile.innerHTML = mobileBellHtml;
+                if(headerLeftMobile) headerLeftMobile.innerHTML = mobileBellHtml;
 
                 updateNotificationBell();
 
             } else {
-                headerRightContent.innerHTML = shareButtonHtml;
-                headerLeftMobile.innerHTML = '';
+                if(headerRightContent) headerRightContent.innerHTML = shareButtonHtml;
+                if(headerLeftMobile) headerLeftMobile.innerHTML = '';
                 const loginButtonHtml = `
                     <div class="hidden sm:flex">
                         <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
@@ -868,7 +913,7 @@
                         </button>
                     </div>
                 `;
-                authContentDesktop.innerHTML = loginButtonHtml;
+                if(authContentDesktop) authContentDesktop.innerHTML = loginButtonHtml;
 
                 const loggedOutHtmlMobile = `
                      <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
@@ -876,7 +921,7 @@
                         <span>התחברות עם Google</span>
                     </button>
                 `;
-                authContentMobile.innerHTML = loggedOutHtmlMobile;
+                if(authContentMobile) authContentMobile.innerHTML = loggedOutHtmlMobile;
             }
 
             // Re-attach event listeners for all states
@@ -903,6 +948,7 @@
         
         // --- START: Banner Logic ---
         async function initializeBanners() {
+            if (!bannerContainer) return;
             try {
                 const response = await fetch(`${SERVER_URL}/api/banners`);
                 if (!response.ok) throw new Error('Failed to fetch banners');
@@ -930,6 +976,7 @@
         }
 
         function startBannerRotation() {
+            if (!bannerContainer) return;
             const slides = bannerContainer.querySelectorAll('.banner-slide');
             if (slides.length <= 1) {
                 if(slides.length === 1) slides[0].classList.add('active');
