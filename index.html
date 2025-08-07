@@ -213,8 +213,7 @@
             <div id="auth-content-mobile" class="w-full flex justify-center"></div>
         </div>
         
-        <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-            </div>
+        <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;"></div>
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -422,6 +421,12 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        try {
+            initializeBanner();
+        } catch (e) {
+            console.error("Banner initialization failed:", e);
+        }
+        
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -2163,7 +2168,7 @@
 
         // --- Initial Load ---
         populateCategoryFilter();
-        initializeBanner();
+        // initializeBanner(); // This is now called at the top of the DOMContentLoaded event
         checkAuthState();
 
         // --- Infinite Scroll Listener ---
