@@ -1,1863 +1,968 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
+// server.js
 
-    <meta name="theme-color" content="#14b8a6"/>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
+// 1. ייבוא ספריות נדרשות
+require('dotenv').config();
+const express = require('express');
+const http = require('http');
+const { Server } = require("socket.io");
+const mongoose = require('mongoose');
+const cors = require('cors');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
+const sgMail = require('@sendgrid/mail');
+const path = require('path');
+const webPush = require('web-push');
+const fs = require('fs'); // <-- הוספנו את ספריית מערכת הקבצים
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
-    <script>
-        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark')
+// --- הגדרות ראשוניות ---
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST", "PATCH", "DELETE"]
+    }
+});
+const PORT = process.env.PORT || 3000;
+
+// --- קריאת משתני סביבה ---
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.error("FATAL ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are missing from .env file!");
+} else {
+    webPush.setVapidDetails(
+        'mailto:your-email@example.com',
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY
+    );
+    console.log("Web Push configured successfully.");
+}
+
+
+// --- הגדרת Cloudinary ---
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
+});
+
+// --- הגדרת שירות המייל (SendGrid) ---
+if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    console.log("SendGrid configured successfully.");
+} else {
+    console.warn("SendGrid is not configured. Email notifications will be disabled.");
+}
+
+// --- בדיקת משתני סביבה חיוניים ---
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
+    console.error("FATAL ERROR: One or more required environment variables are missing!");
+    process.exit(1);
+}
+
+// --- הגדרת מודלים למסד הנתונים ---
+const UserSchema = new mongoose.Schema({ 
+    googleId: { type: String, required: true }, 
+    displayName: String, 
+    email: String, 
+    image: String,
+    ratings: [{
+        rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, min: 1, max: 5, required: true },
+        comment: String,
+        createdAt: { type: Date, default: Date.now }
+    }],
+    averageRating: { type: Number, default: 0 },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    isVerified: { type: Boolean, default: false }
+});
+const User = mongoose.model('User', UserSchema);
+
+const ItemSchema = new mongoose.Schema({ 
+    title: String, 
+    description: String, 
+    price: Number, 
+    category: String, 
+    contact: String, 
+    imageUrls: [String], 
+    affiliateLink: { type: String, default: '' },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+    sold: { type: Boolean, default: false }, 
+    isPromoted: { type: Boolean, default: false },
+    promotedUntil: { type: Date },
+    condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
+    size: { type: String, trim: true },
+    brand: { type: String, trim: true },
+    location: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now } 
+});
+const Item = mongoose.model('Item', ItemSchema);
+
+const ConversationSchema = new mongoose.Schema({
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    lastMessage: { type: String },
+}, { timestamps: true });
+const Conversation = mongoose.model('Conversation', ConversationSchema);
+
+const MessageSchema = new mongoose.Schema({
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const Message = mongoose.model('Message', MessageSchema);
+
+const ReportSchema = new mongoose.Schema({
+    reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reportedItem: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    reportedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { 
+        type: String, 
+        required: true, 
+        enum: ['inappropriate-content', 'spam', 'scam', 'wrong-category', 'harassment'] 
+    },
+    details: { type: String },
+    status: { type: String, default: 'new', enum: ['new', 'in-progress', 'resolved'] }
+}, { timestamps: true });
+const Report = mongoose.model('Report', ReportSchema);
+
+const NotificationSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
+    message: { type: String, required: true },
+    link: { type: String, required: true },
+    isRead: { type: Boolean, default: false },
+    fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true });
+const Notification = mongoose.model('Notification', NotificationSchema);
+
+const PushSubscriptionSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    subscription: {
+        endpoint: { type: String, required: true, unique: true },
+        keys: {
+            p256dh: String,
+            auth: String
         }
-    </script>
-    <style>
-        body { font-family: 'Assistant', sans-serif; }
-        .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
-        .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
-        .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .item-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-        .dark .item-card:hover {
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .skeleton-loader { background-color: #e2e8f0; border-radius: 0.75rem; animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        .dark .skeleton-loader { background-color: #374151; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        .thumbnail { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s ease; }
+    }
+});
+const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
+
+
+// --- הגדרות העלאת קבצים ---
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// --- הגדרת Middleware ---
+app.use(cors());
+app.use(express.json());
+
+// app.use(express.static(path.join(__dirname))); // <-- העברנו את זה לסוף הקובץ
+
+app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// --- הגדרת Passport.js ---
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
+
+passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: `${SERVER_URL}/auth/google/callback`,
+    proxy: true
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ googleId: profile.id });
+        if (user) return done(null, user);
         
-        .gallery-content { width: 100%; height: 100%; }
-        #gallery-panzoom-viewport { cursor: grab; }
-        #gallery-panzoom-viewport.is-dragging { cursor: grabbing; }
-        #gallery-image {
-            max-height: 80vh;
-            max-width: 90vw;
-            transform-origin: 0 0;
-        }
-
-        .view { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .view.active { display: block; }
-        .item-card.sold .main-image-container { opacity: 0.5; }
-        .item-card.sold .purchase-btn { background-color: #9ca3af; cursor: not-allowed; pointer-events: none; }
-        .sold-stamp { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); background-color: rgba(239, 68, 68, 0.8); color: white; padding: 8px 16px; border-radius: 8px; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 10; }
-        .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
-        .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
-        
-        .item-card.promoted {
-            border: 2px solid #f59e0b;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
-        }
-        .promoted-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: #f59e0b;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .message-bubble { max-width: 75%; }
-        .message-bubble.sent { background-color: #dcf8c6; }
-        .dark .message-bubble.sent { background-color: #22511f; }
-        .message-bubble.received { background-color: #ffffff; }
-        .dark .message-bubble.received { background-color: #374151; }
-        .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; }
-        .star-rating input { display: none; }
-        .star-rating label { font-size: 2.5rem; color: #ddd; cursor: pointer; transition: color 0.2s; }
-        .dark .star-rating label { color: #4b5563; }
-        .star-rating input:checked ~ label,
-        .star-rating label:hover,
-        .star-rating label:hover ~ label { color: #f59e0b; }
-        .static-stars { color: #f59e0b; }
-        #announcement-bar span { transition: opacity 0.5s ease-in-out; }
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            min-width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: #ef4444;
-            color: white;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            border: 2px solid white;
-        }
-        .dark .notification-badge {
-             border-color: #1f2937;
-        }
-        
-        #notifications-panel { /* Style for desktop panel */
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 320px;
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 50;
-        }
-        #notifications-panel-mobile { /* New style for mobile panel */
-            display: none;
-            position: fixed;
-            top: 75px; /* Position below the header */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90vw;
-            max-width: 350px;
-            max-height: 400px;
-            overflow-y: auto;
-            z-index: 50;
-        }
-
-        .verified-badge {
-            color: #3b82f6; /* blue-500 */
-            width: 1.1rem;
-            height: 1.1rem;
-            display: inline-block;
-            margin-right: 4px;
-            vertical-align: middle;
-        }
-        
-        @keyframes pulse-bell {
-            0% { transform: scale(1); }
-            10% { transform: scale(0.9) rotate(-8deg); }
-            20% { transform: scale(0.9) rotate(8deg); }
-            30% { transform: scale(1.1) rotate(-4deg); }
-            40% { transform: scale(1.1) rotate(4deg); }
-            50% { transform: scale(1.1) rotate(-2deg); }
-            60% { transform: scale(1.1) rotate(2deg); }
-            70% { transform: scale(1); }
-            100% { transform: scale(1); }
-        }
-        .bell-animation {
-            animation: pulse-bell 2.5s ease-in-out infinite;
-            transform-origin: center;
-        }
-        
-        /* START: Banner Styles */
-        .banner-slide {
-            display: none;
-            animation: fadeInBanner 1.5s;
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        .banner-slide img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .banner-slide.active {
-            display: block;
-        }
-        @keyframes fadeInBanner {
-            from { opacity: 0.4 }
-            to { opacity: 1 }
-        }
-        /* END: Banner Styles */
-
-    </style>
-</head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-
-    <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
-        <span></span>
-        <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
-    </div>
-
-    <div class="container mx-auto p-4 max-w-2xl pb-24">
-        <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
-            <div class="container mx-auto px-4 flex justify-between items-center">
-                <div id="header-right-desktop" class="flex-1 hidden sm:flex justify-start items-center gap-2">
-                    <span id="header-right-content" class="flex items-center gap-2"></span>
-                </div>
-                <div id="header-right-mobile" class="flex-1 flex sm:hidden justify-start"></div>
-
-                <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
-                    <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
-                        <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
-                        <div>
-                            <h1 class="text-xl sm:text-3xl font-bold text-teal-700 dark:text-teal-500 whitespace-nowrap">סטייל מתגלגל</h1>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm sm:text-base flex items-center whitespace-nowrap">הפריטים הכי שווים בקהילה <span class="blinking-dot"></span> LIVE</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="header-left-desktop" class="flex-1 hidden sm:flex justify-end items-center gap-4">
-                    <div id="auth-content-desktop" class="flex items-center gap-4"></div>
-                    <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
-                        <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                        <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-                    </button>
-                </div>
-                <div id="header-left-mobile" class="flex-1 flex sm:hidden justify-end"></div>
-            </div>
-        </header>
-
-        <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
-            <div id="auth-content-mobile" class="w-full flex justify-center"></div>
-        </div>
-        
-        <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-             <!-- Banner slides will be injected here by JavaScript -->
-        </div>
-
-        <div id="main-view" class="view active">
-             <div class="my-6 space-y-4">
-                <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <select id="category-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
-                    <select id="condition-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                        <option value="all">כל המצבים</option>
-                        <option value="new-with-tags">חדש עם טיקט</option>
-                        <option value="new-without-tags">חדש ללא טיקט</option>
-                        <option value="like-new">כמו חדש</option>
-                        <option value="good">במצב טוב</option>
-                        <option value="used">משומש</option>
-                    </select>
-                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="brand-filter" placeholder="סינון לפי מותג..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="text" id="location-filter" placeholder="סינון לפי עיר..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <select id="sort-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                        <option value="newest">החדש ביותר</option>
-                        <option value="price_asc">מחיר: מהנמוך לגבוה</option>
-                        <option value="price_desc">מחיר: מהגבוה לנמוך</option>
-                    </select>
-                </div>
-                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20" title="הצג מועדפים">
-                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
-                    <span>הצג מועדפים בלבד</span>
-                </button>
-            </div>
-            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
-            <div id="loading-indicator" class="text-center py-8 hidden">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto"></div>
-                <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">טוען פריטים נוספים...</p>
-            </div>
-            <div id="empty-state" class="text-center py-16 px-4 hidden">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">נסה לשנות את תנאי החיפוש.</p>
-            </div>
-        </div>
-
-        <div id="public-profile-view" class="view"></div>
-
-        <div id="profile-view" class="view">
-            <div class="my-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">הפריטים שלי</h2>
-                <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים שהעלית</p>
-                <div id="verification-status-container" class="mt-4"></div>
-            </div>
-            <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
-        </div>
-
-        <div id="chat-view" class="view">
-            </div>
-
-    </div>
-
-    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-    </button>
-
-    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto">
-            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2>
-            <form id="upload-form"> <input type="hidden" id="editing-item-id" value="">
-                <div class="space-y-4">
-                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3" required></textarea>
-                    <div class="grid grid-cols-2 gap-4">
-                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
-                            <option value="" disabled selected>בחרי קטגוריה</option>
-                            <option value="pants">מכנסיים</option>
-                            <option value="shirts">חולצות</option>
-                            <option value="jackets">ג'קטים</option>
-                            <option value="dresses">שמלות</option>
-                            <option value="skirts">חצאיות</option>
-                            <option value="top">טופ</option>
-                            <option value="tank-tops">גופיות</option>
-                            <option value="blazer">בלייזר</option>
-                            <option value="accessories">אקססוריז</option>
-                            <option value="general">כללי</option>
-                        </select>
-                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
-                            <option value="" disabled selected>מצב הפריט</option>
-                            <option value="new-with-tags">חדש עם טיקט</option>
-                            <option value="new-without-tags">חדש ללא טיקט</option>
-                            <option value="like-new">כמו חדש</option>
-                            <option value="good">במצב טוב</option>
-                            <option value="used">משומש</option>
-                        </select>
-                    </div>
-                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
-                    <input type="text" id="item-brand" name="brand" placeholder="מותג (לדוגמה: Nike, Zara)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
-                    <input type="text" id="item-location" name="location" placeholder="מיקום (עיר)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <div id="affiliate-link-container" class="hidden">
-                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300">קישור אפילייט (מנהלים בלבד)</label>
-                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
-                    </div>
-                    <div id="promoted-container" class="hidden items-center">
-                        <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
-                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">קדם פריט זה (יוצג בראש העמוד)</label>
-                    </div>
-                    <div>
-                        <label for="item-images" class="block text-sm font-medium text-gray-700 dark:text-gray-300">העלאת תמונות (עד 6)</label>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p>
-                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*" multiple>
-                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="gallery-content relative flex items-center justify-center">
-            <div id="gallery-panzoom-viewport" class="w-full h-full">
-                <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl">
-            </div>
-        </div>
-        
-        <div class="absolute top-4 right-4 flex gap-2">
-            <button id="gallery-zoom-in" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אין">+</button>
-            <button id="gallery-zoom-out" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אאוט">-</button>
-            <button id="gallery-close" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="סגור">&times;</button>
-        </div>
-        <button id="gallery-prev" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הקודם">&#x276E;</button>
-        <button id="gallery-next" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הבא">&#x276F;</button>
-        <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
-    </div>
-
-    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
-    <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">שתפי את האפליקציה</h3>
-            <div class="space-y-3">
-                <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                    <span>שתפי בווטסאפ</span>
-                </a>
-                <button id="copy-link-btn" class="flex items-center justify-center gap-3 w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                    <span>העתקת קישור</span>
-                </button>
-            </div>
-            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
-        </div>
-    </div>
-    
-    <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
-            <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">דרג את המוכר</h2>
-            <form id="rating-form">
-                <input type="hidden" id="rated-user-id">
-                <div class="star-rating mb-4">
-                    <input type="radio" id="star5" name="rating" value="5" required/><label for="star5" title="5 כוכבים">&#9733;</label>
-                    <input type="radio" id="star4" name="rating" value="4" required/><label for="star4" title="4 כוכבים">&#9733;</label>
-                    <input type="radio" id="star3" name="rating" value="3" required/><label for="star3" title="3 כוכבים">&#9733;</label>
-                    <input type="radio" id="star2" name="rating" value="2" required/><label for="star2" title="2 כוכבים">&#9733;</label>
-                    <input type="radio" id="star1" name="rating" value="1" required/><label for="star1" title="כוכב 1">&#9733;</label>
-                </div>
-                <textarea id="rating-comment" placeholder="ספר/י על חווית הקנייה... (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3"></textarea>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" id="submit-rating-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דירוג</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="report-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
-            <h2 class="text-xl font-bold mb-4 text-center text-red-700 dark:text-red-400">דיווח על פריט</h2>
-            <form id="report-form">
-                <input type="hidden" id="reported-item-id">
-                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">מדוע ברצונך לדווח על פריט זה?</p>
-                <div class="space-y-3">
-                    <select id="report-reason" name="reason" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
-                        <option value="" disabled selected>בחירת סיבה...</option>
-                        <option value="inappropriate-content">תוכן לא הולם (עירום, אלימות וכו')</option>
-                        <option value="spam">ספאם או פרסומת</option>
-                        <option value="scam">חשד להונאה או פריט מזויף</option>
-                        <option value="wrong-category">קטגוריה שגויה</option>
-                    </select>
-                    <textarea id="report-details" name="details" placeholder="פרטים נוספים (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דיווח</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        
-        // --- Configuration ---
-        const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
-        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
-        const CLIENT_URL = window.location.origin;
-
-        // --- UI Element Selectors ---
-        const mainView = document.getElementById('main-view');
-        const profileView = document.getElementById('profile-view');
-        const publicProfileView = document.getElementById('public-profile-view');
-        const itemsFeed = document.getElementById('items-feed');
-        const profileItemsFeed = document.getElementById('profile-items-feed');
-        const headerRightDesktop = document.getElementById('header-right-desktop');
-        const headerRightMobile = document.getElementById('header-right-mobile');
-        const headerRightContent = document.getElementById('header-right-content');
-        const headerLeftDesktop = document.getElementById('header-left-desktop');
-        const headerLeftMobile = document.getElementById('header-left-mobile');
-        const authContentDesktop = document.getElementById('auth-content-desktop');
-        const authContainerMobile = document.getElementById('auth-container-mobile');
-        const authContentMobile = document.getElementById('auth-content-mobile');
-        const homeLogo = document.getElementById('home-logo');
-        const openModalBtn = document.getElementById('open-modal-btn');
-        const filterInput = document.getElementById('filter-input');
-        const categorySelect = document.getElementById('category-select');
-        const sortSelect = document.getElementById('sort-select');
-        const minPriceInput = document.getElementById('min-price');
-        const maxPriceInput = document.getElementById('max-price');
-        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
-        const emptyState = document.getElementById('empty-state');
-        const chatView = document.getElementById('chat-view');
-        const conditionSelect = document.getElementById('condition-select');
-        const sizeFilterInput = document.getElementById('size-filter');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const brandFilterInput = document.getElementById('brand-filter');
-        const locationFilterInput = document.getElementById('location-filter');
-        const verificationStatusContainer = document.getElementById('verification-status-container');
-        const bannerContainer = document.getElementById('banner-container');
-        
-        // --- Modals & Forms Selectors ---
-        const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
-        const uploadModal = document.getElementById('upload-modal');
-        const galleryModal = document.getElementById('gallery-modal');
-        const customModal = document.getElementById('custom-modal');
-        const shareModal = document.getElementById('share-modal');
-        const ratingModal = document.getElementById('rating-modal');
-        const reportModal = document.getElementById('report-modal'); 
-        const uploadForm = document.getElementById('upload-form');
-        const ratingForm = document.getElementById('rating-form');
-        const reportForm = document.getElementById('report-form'); 
-        const uploadModalTitle = document.getElementById('upload-modal-title');
-        const editingItemIdInput = document.getElementById('editing-item-id');
-        
-        // --- Gallery Elements Selectors ---
-        const galleryImage = document.getElementById('gallery-image');
-        const galleryClose = document.getElementById('gallery-close');
-        const galleryPrev = document.getElementById('gallery-prev');
-        const galleryNext = document.getElementById('gallery-next');
-        const galleryCounter = document.getElementById('gallery-counter');
-        const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
-        const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
-        const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
-        
-        const toastNotification = document.getElementById('toast-notification');
-
-        // --- PWA Service Worker Registration ---
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            const swUrl = `/sw.js`;
-            navigator.serviceWorker.register(swUrl).then(registration => {
-              console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            }, err => {
-              console.log('ServiceWorker registration failed: ', err);
-            });
-          });
-        }
-
-        // --- PWA Custom Install Prompt ---
-        let deferredPrompt;
-        const installButtonContainerDesktop = document.getElementById('header-right-desktop');
-        const installButtonContainerMobile = document.getElementById('auth-container-mobile');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          showInstallPromotion();
+        const newUser = new User({
+            googleId: profile.id,
+            displayName: profile.displayName,
+            email: profile.emails[0].value,
+            image: profile.photos[0].value
         });
-
-        function showInstallPromotion() {
-            const installButtonHtml = `
-                <button id="install-pwa-btn" class="flex items-center gap-2 bg-teal-500 text-white font-semibold py-2 px-3 text-sm rounded-md shadow-sm hover:bg-teal-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    <span>התקנת אפליקציה</span>
-                </button>
-            `;
-            
-            const desktopBtnWrapper = document.createElement('div');
-            desktopBtnWrapper.innerHTML = installButtonHtml;
-            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
-
-            const mobileBtnWrapper = document.createElement('div');
-            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
-            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
-            installButtonContainerMobile.prepend(mobileBtnWrapper);
-
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
-                btn.addEventListener('click', handleInstallClick);
-            });
-        }
-
-        async function handleInstallClick() {
-            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => btn.parentElement.remove());
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-        }
-
-        window.addEventListener('appinstalled', () => {
-          deferredPrompt = null;
-          console.log('PWA was installed');
-        });
-
-        // --- Global State ---
-        let socket;
-        let currentUser = null;
-        let allItemsCache = {}; 
-        let galleryImages = [];
-        let currentImageIndex = 0;
-        let favorites = []; 
-        let currentConversationId = null;
-        let currentConversationDetails = null;
-        let notificationsCache = [];
-        let panzoomInstance = null;
-        let currentUserProfile = null; 
-        let pushSubscription = null; 
-
-        // --- Infinite Scroll State ---
-        let currentPage = 1;
-        let isLoading = false;
-        let hasMorePages = true;
-
-        // --- Category Mapping ---
-        const categoryMap = { 
-            'pants': 'מכנסיים', 
-            'shirts': 'חולצות', 
-            'jackets': 'ג\'קטים', 
-            'dresses': 'שמלות', 
-            'skirts': 'חצאיות', 
-            'top': 'טופ', 
-            'tank-tops': 'גופיות', 
-            'blazer': 'בלייזר', 
-            'accessories': 'אקססוריז', 
-            'general': 'כללי' 
-        };
-        
-        function initializeSocket(token) {
-            if (socket) {
-                socket.disconnect();
-            }
-            
-            socket = io(SERVER_URL, {
-                auth: { token: token }
-            });
-
-            socket.off('connect');
-            socket.off('newItem');
-            socket.off('itemDeleted');
-            socket.off('itemUpdated');
-            socket.off('newMessage');
-            socket.off('newConversation');
-            socket.off('newNotification');
-
-            socket.on('connect', () => {
-                console.log('Connected to server with socket ID:', socket.id);
-            });
-
-            socket.on('newItem', (item) => { 
-                if (filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
-                    displayItem(item, true, itemsFeed);
-                } else {
-                    showToast("פריט חדש עלה! נקה סינונים כדי לראות.");
-                }
-            });
-            socket.on('itemDeleted', (itemId) => { 
-                const itemElement = document.getElementById(`item-${itemId}`);
-                if (itemElement) itemElement.remove();
-                const itemElementProfile = profileItemsFeed.querySelector(`#item-${itemId}`); 
-                if (itemElementProfile) itemElementProfile.remove(); 
-            });
-            socket.on('itemUpdated', (updatedItem) => { 
-                const card = document.getElementById(`item-${updatedItem._id}`);
-                if(card) {
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = createItemCard(updatedItem);
-                    card.replaceWith(tempDiv.firstChild);
-                }
-                const profileFeedCard = document.querySelector(`#profile-items-feed #item-${updatedItem._id}`); 
-                if (profileFeedCard) { 
-                    const tempDiv = document.createElement('div'); 
-                    tempDiv.innerHTML = createItemCard(updatedItem); 
-                    profileFeedCard.replaceWith(tempDiv.firstChild.cloneNode(true)); 
-                } 
-            });
-            
-            socket.on('newMessage', (message) => {
-                if (chatView.classList.contains('active') && message.conversation === currentConversationId) {
-                    appendMessage(message);
-                }
-            });
-
-            socket.on('newConversation', (data) => {
-                showToast(`שיחה חדשה התחילה עם ${data.buyerName} לגבי "${data.itemName}"`);
-            });
-
-            socket.on('newNotification', (notification) => {
-                notificationsCache.unshift(notification);
-                updateNotificationBell();
-                showToast(notification.message);
-            });
-        }
-        
-        // --- Custom Modal System ---
-        let modalResolver;
-        function showCustomModal({ title, message, buttons }) {
-            document.getElementById('custom-modal-title').textContent = title;
-            document.getElementById('custom-modal-message').innerHTML = message; 
-            const buttonsContainer = document.getElementById('custom-modal-buttons');
-            buttonsContainer.innerHTML = '';
-            buttons.forEach(btn => {
-                const buttonEl = document.createElement('button');
-                buttonEl.textContent = btn.text;
-                buttonEl.className = btn.class;
-                buttonEl.onclick = () => {
-                    hideAllModals();
-                    if (modalResolver) modalResolver(btn.resolves);
-                };
-                buttonsContainer.appendChild(buttonEl);
-            });
-            showModal(customModal);
-            return new Promise(resolve => { modalResolver = resolve; });
-        }
-        
-        async function showAlert(message, title = 'הודעה') {
-            await showCustomModal({
-                title: title,
-                message: message,
-                buttons: [{ text: 'הבנתי', class: 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }]
-            });
-        }
-        
-        function showToast(message) {
-            toastNotification.textContent = message;
-            toastNotification.classList.remove('hidden', 'opacity-0');
-            setTimeout(() => {
-                toastNotification.classList.add('opacity-0');
-                setTimeout(() => {
-                    toastNotification.classList.add('hidden');
-                }, 2500);
-            }, 2500);
-        }
-
-        // --- View & Modal Management ---
-        function showView(viewId) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(viewId).classList.add('active'); window.scrollTo(0, 0); }
-        function hideAllModals() { allModals.forEach(modal => { modal.classList.add('opacity-0'); const content = modal.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.add('opacity-0', '-translate-y-10'); } setTimeout(() => { modal.classList.add('hidden'); }, 300); }); }
-        function showModal(modalElement) { allModals.forEach(modal => { if (modal !== modalElement) { modal.classList.add('hidden', 'opacity-0'); } }); modalElement.classList.remove('hidden'); setTimeout(() => { modalElement.classList.remove('opacity-0'); const content = modalElement.querySelector('.modal-content, .gallery-content'); if (content) { content.classList.remove('opacity-0', '-translate-y-10'); } }, 10); }
-        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
-        allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
-
-        // --- START: UPDATED Gallery (Lightbox) System with Panzoom ---
-        function openGallery(images, startIndex = 0) {
-            if (!images || images.length === 0) return;
-            galleryImages = images;
-            showModal(galleryModal);
-            document.body.style.overflow = 'hidden';
-            
-            panzoomInstance = Panzoom(galleryImage, {
-                maxScale: 4,
-                minScale: 1,
-                canvas: true,
-                startScale: 1,
-            });
-            
-            galleryPanzoomViewport.addEventListener('wheel', panzoomInstance.zoomWithWheel);
-            
-            updateGalleryImage(startIndex);
-        }
-
-        function closeGallery() {
-            hideAllModals();
-            document.body.style.overflow = '';
-            if (panzoomInstance) {
-                galleryPanzoomViewport.removeEventListener('wheel', panzoomInstance.zoomWithWheel);
-                panzoomInstance.destroy();
-                panzoomInstance = null;
-            }
-        }
-
-        function updateGalleryImage(index) {
-            currentImageIndex = index;
-            if (panzoomInstance) {
-                panzoomInstance.reset();
-            }
-            galleryImage.src = galleryImages[index];
-            galleryCounter.textContent = `${index + 1} / ${galleryImages.length}`;
-            galleryPrev.disabled = index === 0;
-            galleryNext.disabled = index === galleryImages.length - 1;
-        }
-
-        galleryPrev.addEventListener('click', () => { if (currentImageIndex > 0) updateGalleryImage(currentImageIndex - 1); });
-        galleryNext.addEventListener('click', () => { if (currentImageIndex < galleryImages.length - 1) updateGalleryImage(currentImageIndex + 1); });
-        galleryClose.addEventListener('click', closeGallery);
-        galleryZoomInBtn.addEventListener('click', () => panzoomInstance?.zoomIn());
-        galleryZoomOutBtn.addEventListener('click', () => panzoomInstance?.zoomOut());
-        
-        document.addEventListener('keydown', (e) => { 
-            if (galleryModal.classList.contains('hidden')) return; 
-            if (e.key === 'Escape') closeGallery(); 
-            if (e.key === 'ArrowRight') galleryNext.click(); 
-            if (e.key === 'ArrowLeft') galleryPrev.click(); 
-        });
-        // --- END: UPDATED Gallery System ---
-
-        function parseJwt (token) {
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                return JSON.parse(jsonPayload);
-            } catch (e) {
-                console.error("Invalid token:", e);
-                return null;
-            }
-        }
-        
-        // --- Authentication System ---
-        
-        async function fetchUserFavorites() {
-            if (!currentUser) {
-                favorites = [];
-                return;
-            }
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/my-favorites`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) {
-                    throw new Error('Could not fetch favorites');
-                }
-                favorites = await response.json();
-            } catch (error) {
-                console.error('Failed to fetch user favorites:', error);
-                favorites = []; 
-            }
-        }
-        
-        async function checkAuthState() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const tokenFromUrl = urlParams.get('token');
-
-            if (tokenFromUrl) {
-                localStorage.setItem('authToken', tokenFromUrl);
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            const storedToken = localStorage.getItem('authToken');
-            
-            if (storedToken) {
-                const decodedUser = parseJwt(storedToken);
-                currentUser = (decodedUser && decodedUser.id) ? decodedUser : null;
-                if (!currentUser) localStorage.removeItem('authToken');
-            } else {
-                currentUser = null;
-            }
-            
-            initializeSocket(storedToken);
-
-            updateUIForAuthState();
-            
-            if(currentUser) {
-                await Promise.all([fetchUserFavorites(), fetchNotifications()]);
-                initializePushNotifications(); 
-            }
-            
-            resetAndFetchItems();
-            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
-        }
-
-        function updateUIForAuthState() {
-            const shareButtonHtml = `
-                <button id="share-app-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition p-2 rounded-lg" title="שתף את האפליקציה">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
-                </button>
-            `;
-            
-            headerRightMobile.innerHTML = shareButtonHtml;
-
-            if (currentUser) {
-                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
-                headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
-
-                const actionButtonsHtml = `
-                    <div class="relative">
-                        <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                            <span id="notification-badge" class="notification-badge hidden"></span>
-                        </button>
-                        <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
-                        </div>
-                    </div>
-                    <div class="hidden sm:flex items-center gap-3">
-                        <div id="push-notification-container" class="hidden">
-                            <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
-                            </button>
-                        </div>
-                        <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
-                        <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
-                        <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
-                    </div>
-                `;
-                authContentDesktop.innerHTML = actionButtonsHtml;
-                
-                const loggedInHtmlMobile = `
-                    <div class="flex flex-col items-center gap-2 w-full px-4">
-                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
-                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
-                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
-                            </button>
-                        </div>
-                        <div class="flex gap-2 w-full">
-                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
-                        </div>
-                    </div>
-                `;
-                authContentMobile.innerHTML = loggedInHtmlMobile;
-                
-                const mobileBellHtml = `
-                    <div class="relative">
-                        <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                            <span id="notification-badge-mobile" class="notification-badge hidden"></span>
-                        </button>
-                        <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
-                        </div>
-                    </div>
-                `;
-                headerLeftMobile.innerHTML = mobileBellHtml;
-
-                updateNotificationBell();
-
-            } else {
-                headerRightContent.innerHTML = shareButtonHtml;
-                headerLeftMobile.innerHTML = '';
-                const loginButtonHtml = `
-                    <div class="hidden sm:flex">
-                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                            <span>התחברות עם Google</span>
-                        </button>
-                    </div>
-                `;
-                authContentDesktop.innerHTML = loginButtonHtml;
-
-                const loggedOutHtmlMobile = `
-                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                        <span>התחברות עם Google</span>
-                    </button>
-                `;
-                authContentMobile.innerHTML = loggedOutHtmlMobile;
-            }
-
-            // Re-attach event listeners for all states
-            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
-            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
-            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
-            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-            document.querySelectorAll('[id^="share-app-btn"]').forEach(btn => btn.addEventListener('click', shareApp));
-            
-            document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
-                btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
-            });
-        }
-        
-        function handleGoogleLogin() { window.location.href = `${SERVER_URL}/auth/google`; }
-        function handleLogout() { 
-            localStorage.removeItem('authToken'); 
-            currentUser = null; 
-            initializeSocket(null);
-            showView('main-view'); 
-            updateUIForAuthState(); 
-            resetAndFetchItems(); 
-        }
-        
-        // --- START: Banner Logic ---
-        async function initializeBanners() {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/banners`);
-                if (!response.ok) throw new Error('Failed to fetch banners');
-                const banners = await response.json();
-
-                if (banners && banners.length > 0) {
-                    bannerContainer.innerHTML = ''; // Clear previous
-                    banners.forEach(banner => {
-                        const slide = document.createElement('a');
-                        slide.href = banner.link;
-                        slide.target = '_blank';
-                        slide.rel = 'noopener noreferrer';
-                        slide.className = 'banner-slide';
-                        slide.innerHTML = `<img src="${banner.imageUrl}" alt="${banner.altText}">`;
-                        bannerContainer.appendChild(slide);
-                    });
-                    startBannerRotation();
-                } else {
-                    bannerContainer.style.display = 'none';
-                }
-            } catch (error) {
-                console.error("Could not initialize banners:", error);
-                bannerContainer.style.display = 'none';
-            }
-        }
-
-        function startBannerRotation() {
-            const slides = bannerContainer.querySelectorAll('.banner-slide');
-            if (slides.length === 0) return;
-
-            let currentSlide = 0;
-            slides[currentSlide].classList.add('active');
-
-            setInterval(() => {
-                slides[currentSlide].classList.remove('active');
-                currentSlide = (currentSlide + 1) % slides.length;
-                slides[currentSlide].classList.add('active');
-            }, 5000); // Change slide every 5 seconds
-        }
-        // --- END: Banner Logic ---
-
-        // --- Profile View Logic ---
-        async function showProfileView() { 
-            showView('profile-view'); 
-            profileItemsFeed.innerHTML = Array(3).fill(createSkeletonCard()).join(''); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) { 
-                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את הפריטים שלך.</p>`; 
-                return; 
-            } 
-            try { 
-                const [itemsResponse, userResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/items/my-items`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${SERVER_URL}/users/${currentUser.id}`, { headers: { 'Authorization': `Bearer ${token}` } })
-                ]);
-                
-                if (!itemsResponse.ok || !userResponse.ok) throw new Error('Could not fetch user data'); 
-                
-                const items = await itemsResponse.json(); 
-                currentUserProfile = await userResponse.json(); 
-                
-                if (currentUserProfile.isVerified) {
-                    verificationStatusContainer.innerHTML = `
-                        <div class="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-full">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                            <span>אתה מוכר מאומת</span>
-                        </div>
-                    `;
-                } else {
-                    verificationStatusContainer.innerHTML = `
-                        <button data-action="start-verification" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition">
-                            הפוך למוכר מאומת
-                        </button>
-                    `;
-                }
-
-                profileItemsFeed.innerHTML = ''; 
-                allItemsCache = {}; 
-                if (items.length === 0) { 
-                    profileItemsFeed.innerHTML = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-gray-200">עדיין לא העלית פריטים</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">לחץ על כפתור הפלוס כדי להתחיל למכור!</p></div>`; 
-                } else { 
-                    items.forEach(item => { 
-                        const cardHtml = createItemCard(item); 
-                        profileItemsFeed.insertAdjacentHTML('beforeend', cardHtml); 
-                    }); 
-                } 
-            } catch (error) { 
-                console.error('Failed to fetch profile items:', error); 
-                profileItemsFeed.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפריטים שלך.</p>`; 
-            } 
-        }
-
-        // --- Public Profile View Logic ---
-        async function showPublicProfile(userId) {
-            showView('public-profile-view');
-            publicProfileView.innerHTML = `
-                <div class="my-6 text-center space-y-2">
-                    <div class="skeleton-loader h-24 w-24 rounded-full mx-auto"></div>
-                    <div class="skeleton-loader h-8 w-48 mx-auto"></div>
-                </div>
-                <div class="space-y-6">${Array(2).fill(createSkeletonCard()).join('')}</div>`;
-
-            try {
-                const [userResponse, itemsResponse, ratingsResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/users/${userId}`),
-                    fetch(`${SERVER_URL}/users/${userId}/items`),
-                    fetch(`${SERVER_URL}/users/${userId}/ratings`)
-                ]);
-
-                if (!userResponse.ok || !itemsResponse.ok || !ratingsResponse.ok) {
-                    throw new Error('Failed to load profile data.');
-                }
-
-                const user = await userResponse.json();
-                const items = await itemsResponse.json();
-                const ratings = await ratingsResponse.json();
-
-                let itemsHtml = '';
-                if (items.length > 0) {
-                    items.forEach(item => {
-                        itemsHtml += createItemCard(item);
-                    });
-                } else {
-                    itemsHtml = `<div class="text-center py-16 px-4"><h3 class="mt-2 text-lg font-medium text-gray-900 dark:text-gray-200">למשתמש זה אין פריטים למכירה כרגע</h3></div>`;
-                }
-                
-                let ratingsHtml = '';
-                if (ratings.length > 0) {
-                    ratings.forEach(rating => {
-                        ratingsHtml += `
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-                                <div class="flex items-center mb-2">
-                                    <img src="${rating.rater.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${rating.rater.displayName}" class="w-10 h-10 rounded-full mr-3">
-                                    <div>
-                                        <p class="font-bold">${rating.rater.displayName}</p>
-                                        <div class="text-sm text-gray-500 dark:text-gray-400">${new Date(rating.createdAt).toLocaleDateString('he-IL')}</div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center mb-2">
-                                    ${renderStars(rating.rating)}
-                                </div>
-                                <p class="text-gray-700 dark:text-gray-300">${rating.comment || ''}</p>
-                            </div>
-                        `;
-                    });
-                } else {
-                    ratingsHtml = `<div class="text-center py-8 px-4"><p class="text-gray-500 dark:text-gray-400">עדיין אין דירוגים עבור מוכר זה.</p></div>`;
-                }
-
-                const rateButtonHtml = (currentUser && currentUser.id !== userId) ? 
-                    `<button data-action="rate-user" data-user-id="${userId}" data-user-name="${user.displayName}" class="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition">דרג את ${user.displayName}</button>` : '';
-
-                const isFollowing = currentUser ? user.followers.includes(currentUser.id) : false;
-                const followButtonHtml = (currentUser && currentUser.id !== userId) ?
-                    `<button data-action="follow-user" data-user-id="${userId}" class="mt-4 ${isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white font-bold py-2 px-4 rounded-md transition">${isFollowing ? 'הסר עוקב' : 'עקוב'}</button>` : '';
-                
-                const verifiedBadgeHtml = user.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
-
-                publicProfileView.innerHTML = `
-                    <div class="my-6">
-                        <button data-action="show-main-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
-                        <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                            <img src="${user.image || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=?'}" alt="${user.displayName}" class="w-24 h-24 rounded-full border-4 border-teal-200 dark:border-teal-700">
-                            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center">${user.displayName} ${verifiedBadgeHtml}</h2>
-                            <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                                <span><strong>${user.followers.length}</strong> עוקבים</span>
-                                <span><strong>${user.following.length}</strong> נעקבים</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-lg">
-                                <div class="static-stars">${renderStars(user.averageRating)}</div>
-                                <span class="text-gray-600 dark:text-gray-400">(${ratings.length} דירוגים)</span>
-                            </div>
-                            ${followButtonHtml}
-                            ${rateButtonHtml}
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">המלתחה של ${user.displayName}</h3>
-                            <div class="space-y-6">${itemsHtml}</div>
-                        </div>
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200 mb-4">ביקורות אחרונות</h3>
-                            <div class="space-y-4">${ratingsHtml}</div>
-                        </div>
-                    </div>
-                `;
-
-            } catch (error) {
-                console.error('Failed to show public profile:', error);
-                publicProfileView.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת הפרופיל.</p>`;
-            }
-        }
-
-
-        // --- Item Card Creation & Helpers ---
-        function getWhatsAppLink(contact, title) {
-            if (!contact) return null;
-            let digits = String(contact).replace(/\D/g, '');
-            if (digits.startsWith('9725')) { /* Correct format */ } 
-            else if (digits.startsWith('05')) { digits = '972' + digits.substring(1); } 
-            else { return null; }
-            if (digits.length !== 12) return null;
-            const whatsappMessage = encodeURIComponent(`היי, אני מתעניין/ת בפריט '${title}' שפרסמת בסטייל מתגלגל.`);
-            return `https://wa.me/${digits}?text=${whatsappMessage}`;
-        }
-
-        function createItemCard(item) {
-            if (!item || !item.owner) {
-                console.error("Attempting to render an item with a missing owner. Skipping.", item);
-                return '';
-            }
-            allItemsCache[item._id] = item;
-            
-            const isOwner = currentUser && item.owner._id === currentUser.id;
-            const isAdmin = currentUser && currentUser.email === ADMIN_EMAIL;
-            const isPostByAdmin = item.affiliateLink && item.affiliateLink.length > 0;
-            
-            const soldStampHtml = item.sold ? `<div class="sold-stamp">נמכר</div>` : '';
-            
-            const promotedBadgeHtml = item.isPromoted ? `<div class="promoted-badge"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg><span>מקודם</span></div>` : '';
-            const promoteButtonHtml = (isOwner && !item.isPromoted && !item.sold) ? `<button data-id="${item._id}" data-action="promote-item" class="text-gray-400 hover:text-amber-500 transition" title="קדם פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>` : '';
-
-            const soldButtonText = item.sold ? 'החזר למכירה' : 'סמן כנמכר';
-            const soldButtonIcon = item.sold ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-10.707a1 1 0 00-1.414-1.414L9 8.586 7.707 7.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414L9 11.414l1.293 1.293a1 1 0 001.414-1.414L10.414 10l1.293-1.293z" clip-rule="evenodd" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
-            const soldButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="toggle-sold" class="text-gray-400 hover:text-green-500 transition" title="${soldButtonText}">${soldButtonIcon}</button>` : '';
-            const editButtonHtml = (isOwner || isAdmin) && !item.sold ? `<button data-id="${item._id}" data-action="edit-item" class="text-gray-400 hover:text-blue-500 transition" title="עריכת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>` : '';
-            const deleteButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="delete-item" class="text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : '';
-            const reportButtonHtml = (currentUser && !isOwner) ? `<button data-id="${item._id}" data-action="report-item" class="text-gray-400 hover:text-amber-500 transition" title="דיווח על פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 01-1-1V6z" clip-rule="evenodd" /></svg></button>` : '';
-            
-            let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
-            if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                ownerName = 'מנהל';
-            }
-
-            const ownerInitial = ownerName ? ownerName.charAt(0).toUpperCase() : '?';
-            const imageUrlsJson = JSON.stringify(item.imageUrls || []);
-            const categoryName = categoryMap[item.category] || 'ללא קטגוריה';
-            const categoryHtml = `<span class="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs font-medium px-2.5 py-0.5 rounded-full">${categoryName}</span>`; 
-            
-            const brandHtml = item.brand ? `<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">${item.brand}</span>` : '';
-            const locationHtml = item.location ? `<span class="flex items-center text-xs text-gray-500 dark:text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" /></svg>${item.location}</span>` : '';
-            
-            const verifiedBadgeHtml = item.owner.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
-
-            const ownerNameHtml = `<p class="text-sm text-teal-700 dark:text-teal-400 font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${item.owner._id}">${ownerName}</p>`;
-
-            let purchaseButtonHtml = '';
-            const purchaseButtonClasses = "purchase-btn mt-2 block w-1/2 mx-auto text-center text-white font-bold py-1 px-3 text-xs rounded-md transition flex items-center justify-center gap-1";
-            
-            if (isPostByAdmin) {
-                const buttonText = 'לרכישה';
-                const link = item.affiliateLink || getWhatsAppLink(item.contact, item.title);
-                const colorClasses = 'bg-amber-500 hover:bg-amber-600';
-                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>`;
-                purchaseButtonHtml = link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></a>` : `<div class="${purchaseButtonClasses} bg-gray-400 cursor-not-allowed" title="פרטי יצירת קשר לא זמינים">${icon}<span>${buttonText}</span></div>`;
-            } else if (!isOwner) {
-                const buttonText = 'שלחי הודעה';
-                const colorClasses = 'bg-green-500 hover:bg-green-600';
-                const icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>`;
-                purchaseButtonHtml = `<button data-action="start-chat" data-seller-id="${item.owner._id}" data-item-id="${item._id}" class="${purchaseButtonClasses} ${colorClasses}">${icon}<span>${buttonText}</span></button>`;
-            }
-            
-            return `<div id="item-${item._id}" class="item-card bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl overflow-hidden flex flex-col ${item.sold ? 'sold' : ''} ${item.isPromoted ? 'promoted' : ''}" data-category="${item.category || 'other'}">
-                        <div class="main-image-container relative" data-action="open-gallery" data-images='${imageUrlsJson}' data-index="0">
-                            <img src="${item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls[0] : 'https://placehold.co/400x400/e2e8f0/94a3b8?text=אין+תמונה'}" alt="${item.title}" class="w-full h-64 object-cover cursor-pointer">
-                            ${soldStampHtml}
-                            ${promotedBadgeHtml}
-                        </div>
-                        <div class="p-4 flex flex-col flex-grow">
-                            <div class="flex justify-between items-start">
-                                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">${item.title}</h2>
-                                <div class="bg-teal-500 text-white font-bold text-lg py-1 px-3 rounded-md flex-shrink-0 ${item.sold ? 'bg-gray-400' : ''}">₪${item.price}</div>
-                            </div>
-                            <div class="flex items-center my-2 gap-2 flex-wrap"> ${categoryHtml} ${brandHtml} </div>
-                            <p class="text-gray-600 dark:text-gray-300 text-sm flex-grow">${item.description || ''}</p>
-                            <div class="mt-2 text-sm">${locationHtml}</div>
-                            <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
-                                ${!item.sold ? purchaseButtonHtml : ''}
-                                <div class="flex justify-between items-center">
-                                    <div class="flex items-center" title="פורסם על ידי ${ownerName}">
-                                        <div class="w-6 h-6 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 flex items-center justify-center rounded-full font-bold text-sm mr-2">${ownerInitial}</div>
-                                        ${ownerNameHtml} ${verifiedBadgeHtml}
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        ${promoteButtonHtml}
-                                        ${reportButtonHtml}
-                                        ${soldButtonHtml} 
-                                        ${editButtonHtml} 
-                                        ${deleteButtonHtml}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-        }
-
-        function createSkeletonCard() { return `<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col p-4 space-y-4"><div class="skeleton-loader w-full h-48"></div><div class="flex-grow w-full space-y-3"><div class="flex justify-between"><div class="skeleton-loader h-8 w-2/3"></div><div class="skeleton-loader h-8 w-1/4"></div></div><div class="skeleton-loader h-4 w-1/2"></div><div class="skeleton-loader h-10 w-full"></div></div></div>`; }
-        function displayItem(item, isNew = false, container) { const itemCardHtml = createItemCard(item); container.insertAdjacentHTML(isNew ? 'afterbegin' : 'beforeend', itemCardHtml); }
-        
-        // --- Rating Logic ---
-        function renderStars(rating) {
-            const roundedRating = Math.round(rating * 2) / 2; // Round to nearest 0.5
-            const fullStars = Math.floor(roundedRating);
-            const halfStar = roundedRating % 1 !== 0;
-            const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
-            let starsHtml = '';
-            for (let i = 0; i < fullStars; i++) starsHtml += '&#9733;'; // Full star
-            if (halfStar) starsHtml += '&#9734;'; // Using an empty star as a placeholder for half, can be improved with better icons
-            for (let i = 0; i < emptyStars; i++) starsHtml += '<span class="text-gray-300">&#9734;</span>'; // Empty star
-            return starsHtml;
-        }
-
-        function openRatingModal(userId, userName) {
-            if (!currentUser) {
-                return showAlert('עליך להתחבר כדי לדרג משתמשים.');
-            }
-            document.getElementById('rating-modal-title').textContent = `דרג את ${userName}`;
-            document.getElementById('rated-user-id').value = userId;
-            ratingForm.reset();
-            showModal(ratingModal);
-        }
-
-        ratingForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                return showAlert('עליך להתחבר כדי לדרג.');
-            }
-
-            const ratedUserId = document.getElementById('rated-user-id').value;
-            const rating = ratingForm.elements.rating.value;
-            const comment = document.getElementById('rating-comment').value;
-
-            try {
-                const response = await fetch(`${SERVER_URL}/users/${ratedUserId}/rate`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ rating: Number(rating), comment })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to submit rating.');
-                }
-
-                hideAllModals();
-                showToast('הדירוג שלך נשלח בהצלחה!');
-                if (publicProfileView.classList.contains('active')) {
-                    showPublicProfile(ratedUserId);
-                }
-
-            } catch (error) {
-                console.error('Failed to submit rating:', error);
-                showAlert(`שגיאה בשליחת הדירוג: ${error.message}`);
-            }
-        });
-        
-        // --- START: INFINITE SCROLL DATA FETCHING ---
-        
-        function resetAndFetchItems() {
-            fetchItems(true);
-        }
-
-        async function fetchItems(reset = false) {
-            if (isLoading) return; 
-            isLoading = true;
-            
-            if (reset) {
-                currentPage = 1;
-                hasMorePages = true;
-                itemsFeed.innerHTML = ''; 
-                emptyState.classList.add('hidden');
-            }
-
-            if (currentPage === 1) {
-                 itemsFeed.innerHTML = Array(4).fill(createSkeletonCard()).join('');
-            } else {
-                loadingIndicator.classList.remove('hidden');
-            }
-            
-            try {
-                const params = new URLSearchParams({
-                    page: currentPage,
-                    limit: 10,
-                    sort: sortSelect.value,
-                    category: categorySelect.value,
-                    condition: conditionSelect.value,
-                    size: sizeFilterInput.value.trim(),
-                    searchTerm: filterInput.value.trim(),
-                    brand: brandFilterInput.value.trim(),
-                    location: locationFilterInput.value.trim(),
-                });
-                if (minPriceInput.value) params.append('minPrice', minPriceInput.value);
-                if (maxPriceInput.value) params.append('maxPrice', maxPriceInput.value);
-
-                const response = await fetch(`${SERVER_URL}/items?${params.toString()}`);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to fetch items');
-                }
-
-                if (currentPage === 1) {
-                    itemsFeed.innerHTML = ''; 
-                }
-                
-                data.items.forEach(item => {
-                    displayItem(item, false, itemsFeed);
-                });
-
-                currentPage++;
-                hasMorePages = data.currentPage < data.totalPages;
-
-                if (data.totalItems === 0 && currentPage === 2) { 
-                    emptyState.classList.remove('hidden');
-                } else {
-                    emptyState.classList.add('hidden');
-                }
-
-            } catch (error) {
-                console.error('Failed to fetch items:', error);
-                if (currentPage === 1) {
-                    itemsFeed.innerHTML = `<div class="text-center text-red-500 col-span-full py-8"> <p>שגיאה בטעינת הפריטים.</p> <button data-action="retry-fetch" class="mt-4 bg-teal-500 text-white font-bold py-2 px-4 rounded-md transition hover:bg-teal-600">נסה שוב</button> </div>`;
-                }
-            } finally {
-                isLoading = false;
-                loadingIndicator.classList.add('hidden');
-            }
-        }
-        // --- END: INFINITE SCROLL DATA FETCHING ---
-
-        
-        // --- Image Preview Handler ---
-        function handleImagePreview(event) {
-            const previewContainer = document.getElementById('image-preview-container');
-            previewContainer.innerHTML = '';
-            const files = event.target.files;
-
-            if (files.length > 6) {
-                showAlert('ניתן להעלות עד 6 תמונות בלבד.');
-                event.target.value = '';
-                return;
-            }
-
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'w-16 h-16 object-cover rounded-md';
-                    previewContainer.appendChild(img);
-                }
-                reader.readAsDataURL(file);
-            });
-        }
-        
-        // --- Share Logic ---
-        function showShareModal(shareData) {
-            document.getElementById('whatsapp-share-link').href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
-            document.getElementById('copy-link-btn').onclick = () => {
-                navigator.clipboard.writeText(shareData.url).then(() => {
-                    showToast('הקישור הועתק!');
-                    hideAllModals();
-                }).catch(err => console.error('Failed to copy text: ', err));
-            };
-            showModal(shareModal);
-        }
-
-        async function shareApp() {
-            const shareData = { title: 'סטייל מתגלגל', text: 'הצטרפו לקהילת האופנה יד שנייה הכי שווה!', url: CLIENT_URL };
-            try {
-                if (navigator.share) {
-                    await navigator.share(shareData);
-                } else {
-                    showShareModal(shareData);
-                }
-            } catch (err) {
-                console.error('Error sharing:', err);
-            }
-        }
-
-        // --- Chat Logic (Rebuilt) ---
-        async function startOrOpenChat(sellerId, itemId) {
-            if (!currentUser) return showAlert('עליך להתחבר כדי לשלוח הודעה.');
-            if (currentUser.id === sellerId) return showAlert('לא ניתן לשלוח הודעה לעצמך.');
-
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/conversations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ sellerId, itemId })
-                });
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Failed to start conversation');
-                }
-                const conversation = await response.json();
-                await showChatView(conversation._id);
-            } catch (error) {
-                console.error('Error starting chat:', error);
-                showAlert(`שגיאה בפתיחת הצ'אט: ${error.message}`);
-            }
-        }
-
-        async function showChatView(conversationId = null) {
-            showView('chat-view');
-            if (conversationId) {
-                currentConversationId = conversationId;
-                await renderFullChatInterface(conversationId);
-            } else {
-                currentConversationId = null; 
-                currentConversationDetails = null;
-                await renderConversationsListView();
-            }
-        }
-        
-        async function renderConversationsListView() {
-            chatView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען שיחות...</p></div>`;
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                chatView.innerHTML = `<p class="text-center p-8 text-red-500">עליך להתחבר כדי לראות את ההודעות שלך.</p>`;
-                return;
-            }
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/my-conversations`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) throw new Error('Failed to fetch conversations');
-                const conversations = await response.json();
-
-                let conversationsHtml = `<div class="p-4"><h2 class="text-2xl font-bold mb-4">ההודעות שלי</h2><button data-action="show-main-view" class="mb-4 text-teal-500">&larr; חזרה לפיד</button>`;
-                if (conversations.length === 0) {
-                    conversationsHtml += `<p class="text-center text-gray-500 dark:text-gray-400 mt-8">אין לך שיחות עדיין.</p>`;
-                } else {
-                    conversationsHtml += `<div class="space-y-3">`;
-                    conversations.forEach(convo => {
-                        const otherParticipant = convo.participants.find(p => p._id !== currentUser.id);
-                        if (otherParticipant) {
-                            conversationsHtml += `<div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" data-action="open-chat" data-conversation-id="${convo._id}"><img src="${otherParticipant.image || 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-12 h-12 rounded-full mr-4"><div class="flex-grow"><p class="font-bold text-gray-800 dark:text-gray-100">${otherParticipant.displayName}</p><p class="text-sm text-gray-600 dark:text-gray-400">לגבי: ${convo.item.title}</p></div><img src="${convo.item.imageUrls && convo.item.imageUrls.length > 0 ? convo.item.imageUrls[0] : 'https://placehold.co/48x48/e2e8f0/94a3b8?text=?'}" alt="${convo.item.title}" class="w-12 h-12 rounded-md object-cover"></div>`;
-                        }
-                    });
-                    conversationsHtml += `</div>`;
-                }
-                conversationsHtml += `</div>`;
-                chatView.innerHTML = conversationsHtml;
-
-            } catch (error) {
-                console.error('Error rendering conversations list:', error);
-                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת השיחות.</p>`;
-            }
-        }
-
-        async function renderFullChatInterface(conversationId) {
-            const token = localStorage.getItem('authToken');
-            try {
-                const convoResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!convoResponse.ok) {
-                    const errData = await convoResponse.json();
-                    throw new Error(errData.message || 'Failed to fetch conversation details');
-                }
-                currentConversationDetails = await convoResponse.json();
-
-                const messagesResponse = await fetch(`${SERVER_URL}/api/conversations/${conversationId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!messagesResponse.ok) throw new Error('Failed to fetch messages');
-                const messages = await messagesResponse.json();
-
-                const otherParticipant = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
-                if (!otherParticipant) throw new Error("Could not identify the other participant in the chat.");
-
-                chatView.innerHTML = `<div class="flex flex-col h-[calc(100vh-200px)] bg-white dark:bg-gray-800 rounded-lg shadow-lg"><div class="flex items-center p-3 border-b dark:border-gray-700"><button data-action="show-chat-list" class="text-teal-500 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button><img src="${otherParticipant.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${otherParticipant.displayName}" class="w-10 h-10 rounded-full mr-3"><span class="font-bold">${otherParticipant.displayName}</span></div><div id="messages-container" class="flex-grow p-4 space-y-4 overflow-y-auto"></div><div class="p-4 border-t dark:border-gray-700"><div id="message-form-container" class="flex items-center gap-2"><input type="text" id="message-input" placeholder="כתוב הודעה..." class="flex-grow p-2 border rounded-full focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 dark:border-gray-600" autocomplete="off"><button type="button" id="send-message-btn" class="bg-teal-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" transform="rotate(180)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button></div></div></div>`;
-
-                messages.forEach(appendMessage);
-
-                document.getElementById('send-message-btn').addEventListener('click', handleSendMessage);
-                document.getElementById('message-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSendMessage();
-                    }
-                });
-
-            } catch (error) {
-                console.error("Error rendering chat:", error);
-                chatView.innerHTML = `<p class="text-red-500 text-center p-8">שגיאה בטעינת הצ'אט: ${error.message}</p>`;
-            }
-        }
-        
-        function appendMessage(message) {
-            const messagesContainer = document.getElementById('messages-container');
-            if (!messagesContainer) return;
-
-            const isSent = message.sender._id === currentUser.id;
-            const bubbleClasses = isSent ? 'message-bubble sent self-end rounded-lg p-3' : 'message-bubble received self-start rounded-lg p-3';
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = `flex ${isSent ? 'justify-end' : 'justify-start'}`;
-            messageEl.innerHTML = `<div class="${bubbleClasses}">${message.text}</div>`;
-            
-            messagesContainer.appendChild(messageEl);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function handleSendMessage() {
-            const input = document.getElementById('message-input');
-            if(!input) return;
-            const text = input.value.trim();
-
-            if (text && currentConversationDetails && currentUser) {
-                const receiver = currentConversationDetails.participants.find(p => p._id !== currentUser.id);
-                if (!receiver) return showAlert("שגיאה: לא ניתן היה למצוא את הנמען בשיחה.");
-                
-                socket.emit('sendMessage', {
-                    conversationId: currentConversationDetails._id,
-                    senderId: currentUser.id,
-                    receiverId: receiver._id,
-                    text: text
-                });
-                input.value = '';
-            }
-        }
-
-        // --- Event Listeners ---
-        homeLogo.addEventListener('click', () => { showView('main-view'); resetAndFetchItems(); });
-        
-        openModalBtn.addEventListener('click', () => { 
-            if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
-            uploadForm.reset(); 
-            editingItemIdInput.value = ''; 
-            uploadModalTitle.textContent = 'העלאת פריט חדש'; 
-            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; 
-            document.getElementById('item-images').required = true; 
-            document.getElementById('image-preview-container').innerHTML = ''; 
-            
-            const affiliateContainer = document.getElementById('affiliate-link-container');
-            const promotedContainer = document.getElementById('promoted-container');
-            if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                affiliateContainer.classList.remove('hidden');
-                promotedContainer.classList.remove('hidden');
-            } else {
-                affiliateContainer.classList.add('hidden');
-                promotedContainer.classList.add('hidden');
-            }
-            document.getElementById('item-affiliate-link').value = '';
-            document.getElementById('item-promoted').checked = false;
-
-            showModal(uploadModal); 
-        });
-
-        uploadForm.addEventListener('submit', async (e) => { 
-            e.preventDefault(); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
-            const isEditing = !!editingItemIdInput.value;
-            const formData = new FormData(uploadForm);
-            
-            const imageFiles = document.getElementById('item-images').files;
-            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
-            
-            const submitBtn = document.getElementById('submit-btn'); 
-            submitBtn.disabled = true; 
-            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
-            
-            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
-            const method = isEditing ? 'PATCH' : 'POST'; 
-            
-            try { 
-                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
-                if (!response.ok) { 
-                    const errData = await response.json(); 
-                    throw new Error(errData.message || 'Server responded with an error'); 
-                } 
-                hideAllModals(); 
-            } catch (error) { 
-                console.error('Upload/Edit failed:', error); 
-                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
-            } finally { 
-                submitBtn.disabled = false; 
-            } 
-        });
-
-        // --- Central Event Listener (Event Delegation) ---
-        document.body.addEventListener('click', async (e) => {
-            const target = e.target;
-            const actionTarget = target.closest('[data-action]');
-            
-            if (!actionTarget) return;
-
-            const action = actionTarget.dataset.action;
-            
-            switch (action) {
-                case 'edit-item': {
-                    const id = actionTarget.dataset.id;
-                    const itemToEdit = allItemsCache[id];
-                    if (!itemToEdit) return showAlert('שגיאה: לא ניתן למצוא את פרטי הפריט.');
-                    
-                    uploadForm.reset();
-                    editingItemIdInput.value = itemToEdit._id;
-                    document.getElementById('item-title').value = itemToEdit.title;
-                    document.getElementById('item-description').value = itemToEdit.description;
-                    document.getElementById('item-category').value = itemToEdit.category;
-                    document.getElementById('item-contact').value = itemToEdit.contact;
-                    document.getElementById('item-price').value = itemToEdit.price;
-                    document.getElementById('item-brand').value = itemToEdit.brand || '';
-                    document.getElementById('item-location').value = itemToEdit.location || '';
-                    document.getElementById('item-images').required = false;
-                    uploadModalTitle.textContent = 'עריכת פריט';
-                    document.getElementById('submit-btn').textContent = 'שמור שינויים';
-                    
-                    const affiliateContainer = document.getElementById('affiliate-link-container');
-                    const promotedContainer = document.getElementById('promoted-container');
-                    if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                        affiliateContainer.classList.remove('hidden');
-                        promotedContainer.classList.remove('hidden');
-                        document.getElementById('item-affiliate-link').value = itemToEdit.affiliateLink || '';
-                        document.getElementById('item-promoted').checked = itemToEdit.isPromoted || false;
-                    } else {
-                        affiliateContainer.classList.add('hidden');
-                        promotedContainer.classList.add('hidden');
-                    }
-
-                    const previewContainer = document.getElementById('image-preview-container');
-                    previewContainer.innerHTML = '';
-                    (itemToEdit.imageUrls || []).forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.className = 'w-16 h-16 object-cover rounded-md opacity-75';
-                        previewContainer.appendChild(img);
-                    });
-                    showModal(uploadModal);
-                    break;
-                }
-                case 'delete-item': {
-                    const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
-                        title: 'אישור מחיקה',
-                        message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
-                        buttons: [
-                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
-                            { text: 'מחק', class: 'bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
-                        ]
-                    });
-
-                    if (confirmed) {
-                        const token = localStorage.getItem('authToken');
-                        if (!token) return showAlert('שגיאת אימות למחיקה.');
-                        try {
-                            const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                            if (!response.ok) {
-                                const errData = await response.json();
-                                throw new Error(errData.message || `Error ${response.status}`);
-                            }
-                        } catch (error) {
-                            console.error('Delete failed:', error);
-                            showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
-                        }
-                    }
-                    break;
-                }
-                case 'toggle-sold': {
-                    const id = actionTarget.dataset.id;
-                    const token = localStorage.getItem('authToken'); 
-                    if (!token) return showAlert('שגיאת אימות.'); 
-                    const item = allItemsCache[id]; 
-                    if (!item) return;
-                    const newStatus = !item.sold; 
-                    try { 
-                        const response = await fetch(`${SERVER_URL}/items/${id}/sold`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sold: newStatus }) }); 
-                        if (!response.ok) throw new Error('Failed to update status'); 
-                    } catch (error) { 
-                        console.error('Failed to toggle sold status:', error); 
-                        showAlert('שגיאה בעדכון סטטוס הפריט.'); 
-                    } 
-                    break;
-                }
-                case 'promote-item': {
-                    const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
-                        title: 'קידום פריט',
-                        message: 'פעולה זו תקדם את הפריט לראש הפיד למשך 24 שעות. האם להמשיך?',
-                        buttons: [
-                            { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition', resolves: false },
-                            { text: 'כן, קדם', class: 'bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md transition', resolves: true }
-                        ]
-                    });
-                    if (confirmed) {
-                        const token = localStorage.getItem('authToken');
-                        if (!token) return showAlert('שגיאת אימות.');
-                        try {
-                            const response = await fetch(`${SERVER_URL}/api/items/${id}/promote`, {
-                                method: 'POST',
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            if (!response.ok) throw new Error('Failed to promote item');
-                            showToast('הפריט קודם בהצלחה!');
-                        } catch (error) {
-                            showAlert(`שגיאה בקידום הפריט: ${error.message}`);
-                        }
-                    }
-                    break;
-                }
-                case 'open-gallery': {
-                    const images = JSON.parse(actionTarget.dataset.images);
-                    const index = parseInt(actionTarget.dataset.index, 10) || 0;
-                    openGallery(images, index);
-                    break;
-                }
-                case 'view-profile': {
-                    const userId = actionTarget.dataset.userId;
-                    showPublicProfile(userId);
-                    break;
-                }
-                case 'rate-user': {
-                    const userId = actionTarget.dataset.userId;
-                    const userName = actionTarget.dataset.userName;
-                    openRatingModal(userId, userName);
-                    break;
-                }
-                case 'follow-user': {
-                    const userId = actionTarget.dataset.userId;
-                    const token = localStorage.getItem('authToken');
-                    if (!token) return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
-                    try {
-                        const response = await fetch(`${SERVER_URL}/api/users/${userId}/follow`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (!response.ok) throw new Error('Failed to follow/unfollow');
-                        const { isFollowing } = await response.json();
-                        actionTarget.textContent = isFollowing ? 'הסר עוקב' : 'עקוב';
-                        actionTarget.classList.toggle('bg-gray-500', isFollowing);
-                        actionTarget.classList.toggle('hover:bg-gray-600', isFollowing);
-                        actionTarget.classList.toggle('bg-blue-500', !isFollowing);
-                        actionTarget.classList.toggle('hover:bg-blue-600', !isFollowing);
-                        showToast(isFollowing ? 'עכשיו את/ה עוקב/ת' : 'המעקב הוסר');
-                    } catch (error) {
-                        console.error('Follow error:', error);
-                        showAlert('שגיאה בפעולת המעקב.');
-                    }
-                    break;
-                }
-                case 'start-chat': {
-                    const sellerId = actionTarget.dataset.sellerId;
-                    const itemId = actionTarget.dataset.itemId;
-                    startOrOpenChat(sellerId, itemId);
-                    break;
-                }
-                case 'open-chat': {
-                    const conversationId = actionTarget.dataset.conversationId;
-                    showChatView(conversationId);
-                    break;
-                }
-                case 'show-main-view': {
-                    showView('main-view');
-                    resetAndFetchItems();
-                    break;
-                }
-                case 'show-chat-list': {
-                    showChatView();
-                    break;
-                }
-                case 'retry-fetch': {
-                    resetAndFetchItems();
-                    break;
-                }
-                 case 'start-verification': {
-                    showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...');
-                    break;
-                }
-                case 'report-item': {
-                    const itemId = actionTarget.dataset.id;
-                    if (!currentUser) return showAlert('עליך להתחבר כדי לדווח על פריט.');
-                    reportForm.reset();
-                    document.getElementById('reported-item-id').value = itemId;
-                    showModal(reportModal);
-                    break;
-                }
-            }
-        });
-
-        // --- Other Event Listeners ---
-        [filterInput, categorySelect, sortSelect, minPriceInput, maxPriceInput, conditionSelect, sizeFilterInput, brandFilterInput, locationFilterInput].forEach(el => {
-            el.addEventListener('change', () => {
-                resetAndFetchItems();
-            });
-        });
-
-        document.getElementById('item-images').addEventListener('change', handleImagePreview);
-        
-        reportForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const token = localStorage.getItem('authToken');
-            if (!token) return showAlert('שגיאת אימות.');
-            
-            const itemId = document.getElementById('reported-item-id').value;
-            const reason = document.getElementById('report-reason').value;
-            const details = document.getElementById('report-details').value;
-
-            if (!reason) return showAlert('יש לבחור סיבה לדיווח.');
-
-            try {
-                const response = await fetch(`${SERVER_URL}/api/items/${itemId}/report`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ reason, details })
-                });
-                if (!response.ok) {
-                     const errData = await response.json();
-                     throw new Error(errData.message || 'Failed to submit report');
-                }
-                hideAllModals();
-                showToast('הדיווח שלך נשלח. תודה!');
-            } catch (error) {
-                console.error('Report submission failed:', error);
-                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
-            }
-        });
-
-        // --- Init ---
-        checkAuthState();
-
+        await newUser.save();
+        return done(null, newUser);
+    } catch (err) {
+        console.error("Error during Google Strategy user processing:", err);
+        return done(err, null);
+    }
+  }
+));
+
+// Middleware לאימות טוקן
+const authMiddleware = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) return res.status(401).json({ message: 'No token provided.' });
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ message: 'Invalid token.' });
+        req.user = user;
+        next();
     });
-    </script>
-</body>
-</html>
+};
+
+// Middleware לבדיקת הרשאות מנהל
+const adminMiddleware = (req, res, next) => {
+    if (req.user && req.user.email === ADMIN_EMAIL) {
+        next();
+    } else {
+        res.status(403).json({ message: 'Admin access required.' });
+    }
+};
+
+// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
+const uploadToCloudinary = (fileBuffer) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream({ folder: "second-hand-app" }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+        });
+        streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+    });
+};
+
+// --- נתיבים (Routes) ---
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
+    const payload = { id: req.user._id, name: req.user.displayName, email: req.user.email };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    res.redirect(`${CLIENT_URL}?token=${token}`);
+});
+
+// START: Banner API Endpoint (נשאר למקרה הצורך, אבל לא בשימוש בגישה החדשה)
+app.get('/api/banners', (req, res) => {
+    const banners = [
+        {
+            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg',
+            link: 'https://www.example.com/sale',
+            altText: 'Summer Sale Banner'
+        },
+        {
+            imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg',
+            link: 'https://www.example.com/new-arrivals',
+            altText: 'New Arrivals Banner'
+        }
+    ];
+    res.json(banners);
+});
+// END: Banner API Endpoint
+
+
+app.get('/api/vapid-public-key', (req, res) => {
+    res.send(VAPID_PUBLIC_KEY);
+});
+
+app.post('/api/log-sw', (req, res) => {
+    const { message } = req.body;
+    console.log(`[SW LOG FROM CLIENT]: ${message}`);
+    res.status(200).send({ status: 'logged' });
+});
+
+app.get('/items', async (req, res) => {
+    try {
+        await Item.updateMany(
+            { isPromoted: true, promotedUntil: { $lt: new Date() } },
+            { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
+        );
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const filters = {};
+        if (req.query.category && req.query.category !== 'all') filters.category = req.query.category;
+        if (req.query.condition && req.query.condition !== 'all') filters.condition = req.query.condition;
+        if (req.query.size) filters.size = { $regex: req.query.size.trim(), $options: 'i' };
+        if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
+        if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
+        if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
+        if (req.query.brand) filters.brand = { $regex: req.query.brand.trim(), $options: 'i' };
+        if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
+
+        const sortOptions = {};
+        sortOptions.isPromoted = -1; 
+        switch (req.query.sort) {
+            case 'price_asc':
+                sortOptions.price = 1;
+                break;
+            case 'price_desc':
+                sortOptions.price = -1;
+                break;
+            default:
+                sortOptions.createdAt = -1;
+        }
+        
+        const items = await Item.find(filters)
+            .populate('owner', 'displayName email isVerified')
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(limit);
+        
+        const totalItems = await Item.countDocuments(filters);
+
+        res.json({
+            items,
+            totalPages: Math.ceil(totalItems / limit),
+            currentPage: page,
+            totalItems: totalItems
+        });
+    } catch (err) {
+        console.error("Error fetching items:", err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+
+app.get('/users/:id/items', async (req, res) => { 
+    try { 
+        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); 
+        res.json(items); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
+});
+
+app.get('/users/:id', async (req, res) => { 
+    try { 
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified'); 
+        if (!user) return res.status(404).json({ message: 'User not found' }); 
+        res.json(user); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
+});
+
+app.get('/users/:id/ratings', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+            .populate({
+                path: 'ratings',
+                populate: {
+                    path: 'rater',
+                    select: 'displayName image'
+                }
+            });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.json(user.ratings.sort((a, b) => b.createdAt - a.createdAt));
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/users/:id/rate', authMiddleware, async (req, res) => {
+    const { rating, comment } = req.body;
+    const raterId = req.user.id;
+    const ratedUserId = req.params.id;
+
+    if (raterId === ratedUserId) {
+        return res.status(400).json({ message: "You cannot rate yourself." });
+    }
+
+    try {
+        const userToRate = await User.findById(ratedUserId);
+        if (!userToRate) return res.status(404).json({ message: "User to be rated not found." });
+        
+        const rater = await User.findById(raterId);
+
+        const existingRatingIndex = userToRate.ratings.findIndex(r => r.rater.toString() === raterId);
+        if (existingRatingIndex > -1) {
+            userToRate.ratings.splice(existingRatingIndex, 1);
+        }
+
+        userToRate.ratings.push({ rater: raterId, rating, comment });
+
+        if (userToRate.ratings.length > 0) {
+            const totalRating = userToRate.ratings.reduce((acc, r) => acc + r.rating, 0);
+            userToRate.averageRating = totalRating / userToRate.ratings.length;
+        } else {
+            userToRate.averageRating = 0;
+        }
+        
+        await userToRate.save();
+
+        const notification = new Notification({
+            user: ratedUserId,
+            type: 'new-rating',
+            message: `${rater.displayName} דירג אותך ${rating} כוכבים.`,
+            link: `/profile/${ratedUserId}`,
+            fromUser: raterId
+        });
+        await notification.save();
+        io.to(ratedUserId).emit('newNotification', notification);
+
+        res.status(201).json({ message: "Rating submitted successfully", averageRating: userToRate.averageRating });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/users/start-verification', authMiddleware, (req, res) => {
+    res.status(200).json({ message: 'Verification feature is coming soon! Stay tuned.' });
+});
+
+app.patch('/api/users/:id/set-verified', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { isVerified } = req.body;
+        const user = await User.findByIdAndUpdate(req.params.id, { isVerified: isVerified }, { new: true });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ message: `User verification status set to ${isVerified}`, user });
+    } catch (error) {
+        console.error("Error setting verification status:", error);
+        res.status(500).json({ message: 'Server error.' });
+    }
+});
+
+app.get('/api/my-favorites', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('favorites');
+        res.json(user.favorites);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
+    try {
+        const itemId = req.params.itemId;
+        const user = await User.findById(req.user.id);
+        
+        const index = user.favorites.indexOf(itemId);
+        if (index > -1) {
+            user.favorites.splice(index, 1);
+        } else {
+            user.favorites.push(itemId);
+        }
+        
+        await user.save();
+        res.json(user.favorites);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
+    const currentUserId = req.user.id;
+    const targetUserId = req.params.id;
+
+    if (currentUserId === targetUserId) {
+        return res.status(400).json({ message: "You cannot follow yourself." });
+    }
+
+    try {
+        const currentUser = await User.findById(currentUserId);
+        const targetUser = await User.findById(targetUserId);
+
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        const isFollowing = currentUser.following.includes(targetUserId);
+
+        if (isFollowing) {
+            await User.updateOne({ _id: currentUserId }, { $pull: { following: targetUserId } });
+            await User.updateOne({ _id: targetUserId }, { $pull: { followers: currentUserId } });
+        } else {
+            await User.updateOne({ _id: currentUserId }, { $addToSet: { following: targetUserId } });
+            await User.updateOne({ _id: targetUserId }, { $addToSet: { followers: currentUserId } });
+
+            const notification = new Notification({
+                user: targetUserId,
+                type: 'new-follower',
+                message: `${currentUser.displayName} התחיל לעקוב אחריך.`,
+                link: `/profile/${currentUserId}`,
+                fromUser: currentUserId
+            });
+            await notification.save();
+            io.to(targetUserId).emit('newNotification', notification);
+        }
+
+        res.status(200).json({ isFollowing: !isFollowing });
+
+    } catch (error) {
+        console.error("Error during follow/unfollow:", error);
+        res.status(500).json({ message: "Server error during follow operation." });
+    }
+});
+
+
+app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
+    try {
+        const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
+        const uploadResults = await Promise.all(uploadPromises);
+        const imageUrls = uploadResults.map(result => result.secure_url);
+
+        const newItemData = { 
+            title: req.body.title, 
+            description: req.body.description, 
+            price: req.body.price, 
+            category: req.body.category, 
+            contact: req.body.contact, 
+            imageUrls: imageUrls,
+            owner: req.user.id,
+            condition: req.body.condition,
+            size: req.body.size,
+            brand: req.body.brand,
+            location: req.body.location
+        };
+
+        if (req.user.email === ADMIN_EMAIL) {
+            if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
+            newItemData.isPromoted = req.body.isPromoted === 'on';
+        }
+        
+        const newItem = new Item(newItemData);
+        const savedItem = await newItem.save();
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified');
+        io.emit('newItem', populatedItem);
+        res.status(201).json(populatedItem);
+    } catch (err) {
+        console.error("Error uploading item:", err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
+app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        const isOwner = item.owner && item.owner.toString() === req.user.id;
+        const isAdmin = req.user.email === ADMIN_EMAIL;
+        if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' });
+
+        const updateData = { ...req.body };
+        if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
+            const uploadResults = await Promise.all(uploadPromises);
+            updateData.imageUrls = uploadResults.map(result => result.secure_url);
+        }
+
+        if (isAdmin) {
+             if (req.body.affiliateLink) updateData.affiliateLink = req.body.affiliateLink;
+             updateData.isPromoted = req.body.isPromoted === 'on';
+        } else {
+            delete updateData.affiliateLink;
+            delete updateData.isPromoted;
+        }
+
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email isVerified');
+        io.emit('itemUpdated', updatedItem);
+        res.json(updatedItem);
+    } catch (err) {
+        console.error("Error updating item:", err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
+app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
+app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
+
+app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
+    try {
+        const { reason, details } = req.body;
+        const reporterId = req.user.id;
+        const reportedItemId = req.params.id;
+
+        const item = await Item.findById(reportedItemId);
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+
+        if (item.owner.toString() === reporterId) {
+            return res.status(400).json({ message: 'You cannot report your own item.' });
+        }
+
+        const newReport = new Report({
+            reporter: reporterId,
+            reportedItem: reportedItemId,
+            reason: reason,
+            details: details
+        });
+
+        await newReport.save();
+        
+        if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
+            const reporter = await User.findById(reporterId);
+            const msg = {
+                to: ADMIN_EMAIL,
+                from: SENDER_EMAIL_ADDRESS,
+                subject: `New Item Report on "סטייל מתגלגל"`,
+                html: `
+                    <h2>New Item Report</h2>
+                    <p><strong>Reporter:</strong> ${reporter.displayName} (${reporter.email})</p>
+                    <p><strong>Reported Item:</strong> ${item.title} (ID: ${item._id})</p>
+                    <p><strong>Reason:</strong> ${reason}</p>
+                    <p><strong>Details:</strong> ${details || 'No details provided.'}</p>
+                    <p><a href="${CLIENT_URL}">Go to the site</a></p>
+                `
+            };
+            sgMail.send(msg).catch(error => console.error("Failed to send report email:", error));
+        }
+
+        res.status(201).json({ message: 'Report submitted successfully.' });
+
+    } catch (error) {
+        console.error("Error submitting report:", error);
+        res.status(500).json({ message: 'Failed to submit report.' });
+    }
+});
+
+app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found.' });
+        }
+        if (item.owner.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'You can only promote your own items.' });
+        }
+
+        const paymentSuccessful = true;
+
+        if (paymentSuccessful) {
+            item.isPromoted = true;
+            item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+            await item.save();
+
+            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified');
+            io.emit('itemUpdated', updatedItem);
+            
+            res.status(200).json({ message: 'Item promoted successfully!', item: updatedItem });
+        } else {
+            res.status(400).json({ message: 'Payment failed.' });
+        }
+
+    } catch (error) {
+        console.error("Error promoting item:", error);
+        res.status(500).json({ message: 'Failed to promote item.' });
+    }
+});
+
+
+// --- Chat Routes ---
+app.post('/api/conversations', authMiddleware, async (req, res) => {
+    const { sellerId, itemId } = req.body;
+    const buyerId = req.user.id;
+
+    if (sellerId === buyerId) {
+        return res.status(400).json({ message: "You cannot start a conversation with yourself." });
+    }
+
+    try {
+        let conversation = await Conversation.findOne({
+            participants: { $all: [buyerId, sellerId] },
+            item: itemId
+        });
+
+        if (!conversation) {
+            conversation = new Conversation({
+                participants: [buyerId, sellerId],
+                item: itemId
+            });
+            await conversation.save();
+            
+            const newConversation = await Conversation.findById(conversation._id)
+                .populate('participants', 'displayName email image')
+                .populate('item', 'title');
+
+            const seller = newConversation.participants.find(p => p._id.toString() === sellerId);
+            const buyer = newConversation.participants.find(p => p._id.toString() === buyerId);
+
+            if (seller && buyer) {
+                 io.to(sellerId).emit('newConversation', {
+                    conversationId: newConversation._id,
+                    buyerName: buyer.displayName,
+                    itemName: newConversation.item.title
+                });
+            }
+            return res.status(201).json(newConversation);
+        }
+        
+        const existingConversation = await Conversation.findById(conversation._id)
+            .populate('participants', 'displayName email image')
+            .populate('item');
+
+        res.status(200).json(existingConversation);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.get('/api/my-conversations', authMiddleware, async (req, res) => {
+    try {
+        const conversations = await Conversation.find({ participants: req.user.id })
+            .populate('participants', 'displayName email image')
+            .populate('item', 'title imageUrls')
+            .sort({ updatedAt: -1 });
+        
+        res.json(conversations);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
+    try {
+        const conversation = await Conversation.findById(req.params.id)
+            .populate('participants', 'displayName email image')
+            .populate('item', 'title');
+        
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found' });
+        }
+
+        const isParticipant = conversation.participants.some(p => p._id.toString() === req.user.id);
+        if (!isParticipant) {
+            return res.status(403).json({ message: 'Not authorized to view this conversation' });
+        }
+
+        res.json(conversation);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
+app.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
+    try {
+        const messages = await Message.find({ conversation: req.params.id }).populate('sender', 'displayName image').sort('createdAt');
+        res.json(messages);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// *** Notification Routes ***
+app.get('/api/notifications', authMiddleware, async (req, res) => {
+    try {
+        const notifications = await Notification.find({ user: req.user.id })
+            .populate('fromUser', 'displayName image')
+            .sort({ createdAt: -1 })
+            .limit(20);
+        res.json(notifications);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post('/api/notifications/mark-as-read', authMiddleware, async (req, res) => {
+    try {
+        await Notification.updateMany({ user: req.user.id, isRead: false }, { isRead: true });
+        res.status(200).json({ message: 'Notifications marked as read.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// *** Push Notification Subscription Routes ***
+app.post('/api/subscribe', authMiddleware, async (req, res) => {
+    const subscription = req.body;
+    console.log('[API DEBUG] Received subscription request for user:', req.user.id);
+    console.log('[API DEBUG] Subscription object:', subscription);
+    try {
+        const existingSubscription = await PushSubscription.findOne({ 'subscription.endpoint': subscription.endpoint });
+        if (existingSubscription) {
+            console.log('[API DEBUG] Subscription already exists.');
+            return res.status(200).json({ message: 'Subscription already exists.' });
+        }
+
+        const newSubscription = new PushSubscription({
+            user: req.user.id,
+            subscription: subscription
+        });
+        await newSubscription.save();
+        console.log('[API DEBUG] Subscription saved successfully.');
+        res.status(201).json({ message: 'Subscription saved successfully.' });
+    } catch (error) {
+        console.error("[API DEBUG] Error saving subscription:", error);
+        res.status(500).json({ message: 'Failed to save subscription.' });
+    }
+});
+
+app.post('/api/unsubscribe', authMiddleware, async (req, res) => {
+    const { endpoint } = req.body;
+    try {
+        await PushSubscription.deleteOne({ 'subscription.endpoint': endpoint, user: req.user.id });
+        res.status(200).json({ message: 'Subscription removed successfully.' });
+    } catch (error) {
+        console.error("Error removing subscription:", error);
+        res.status(500).json({ message: 'Failed to remove subscription.' });
+    }
+});
+
+
+// --- הגדרת Socket.io ---
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        return next();
+    }
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            console.log("Socket connection with invalid token.");
+            return next();
+        }
+        socket.user = user;
+        next();
+    });
+});
+
+io.on('connection', (socket) => { 
+    if (socket.user) {
+        socket.join(socket.user.id);
+        console.log(`Socket ${socket.id} for user ${socket.user.name} connected and joined room ${socket.user.id}.`);
+    } else {
+        console.log('An anonymous user connected:', socket.id);
+    }
+
+    socket.on('sendMessage', async (data) => {
+        console.log('[SOCKET DEBUG] sendMessage event received:', data); // *** NEW DEBUG LOG ***
+        try {
+            const { conversationId, senderId, receiverId, text } = data;
+            
+            if (!socket.user || socket.user.id !== senderId) {
+                console.error("Socket user does not match senderId. Aborting message send.");
+                socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
+                return;
+            }
+
+            const message = new Message({
+                conversation: conversationId,
+                sender: senderId,
+                receiver: receiverId,
+                text: text
+            });
+            await message.save();
+
+            await Conversation.findByIdAndUpdate(conversationId, { updatedAt: new Date() });
+            
+            const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
+            
+            io.to(senderId).emit('newMessage', populatedMessage);
+            io.to(receiverId).emit('newMessage', populatedMessage);
+
+            const sender = await User.findById(senderId);
+            const notification = new Notification({
+                user: receiverId,
+                type: 'new-message',
+                message: `הודעה חדשה מ-${sender.displayName}`,
+                link: `/chat/${conversationId}`,
+                fromUser: senderId
+            });
+            await notification.save();
+            io.to(receiverId).emit('newNotification', notification);
+            
+            const pushPayload = JSON.stringify({
+                title: `הודעה חדשה מ-${sender.displayName}`,
+                body: text,
+                icon: sender.image || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
+                data: {
+                    url: `${CLIENT_URL}?openChat=${conversationId}`
+                }
+            });
+            
+            const userSubscriptions = await PushSubscription.find({ user: receiverId });
+
+            console.log(`[PUSH DEBUG] Found ${userSubscriptions.length} subscriptions for user ${receiverId}.`);
+
+            if (userSubscriptions.length > 0) {
+                console.log(`[PUSH DEBUG] Attempting to send push to ${userSubscriptions.length} subscription(s)...`);
+                userSubscriptions.forEach(sub => {
+                    webPush.sendNotification(sub.subscription, pushPayload)
+                        .then(() => console.log('[PUSH DEBUG] Push notification sent successfully.'))
+                        .catch(async (err) => {
+                            if (err.statusCode === 410) {
+                                console.log('[PUSH DEBUG] Subscription has expired. Removing.');
+                                await PushSubscription.findByIdAndDelete(sub._id);
+                            } else {
+                                console.error('[PUSH DEBUG] Error sending push notification:', err.body);
+                            }
+                        });
+                });
+            }
+
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    });
+
+    socket.on('disconnect', () => { 
+        if (socket.user) {
+            console.log(`User ${socket.user.name} disconnected`);
+        } else {
+            console.log('An anonymous user disconnected');
+        }
+    }); 
+});
+
+// --- נתיב להגשת קובץ ה-HTML ---
+// ** שינוי: הגשה דינמית של קובץ ה-HTML הראשי **
+app.get('/', (req, res) => {
+    const banners = [
+        { imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/l8wzixqg2bllzlwvkvhp.jpg', link: '#', altText: 'Banner 1' },
+        { imageUrl: 'https://res.cloudinary.com/dazcpejre/image/upload/v1723019553/second-hand-app/x2qj4m8e9yq4f3t5c2v1.jpg', link: '#', altText: 'Banner 2' }
+    ];
+
+    const bannerHtml = banners.map(banner => `
+        <a href="${banner.link}" target="_blank" rel="noopener noreferrer" class="banner-slide">
+            <img src="${banner.imageUrl}" alt="${banner.altText}">
+        </a>
+    `).join('');
+
+    fs.readFile(path.join(__dirname, 'index.html'), 'utf8', (err, data) => {
+        if (err) {
+            console.error("Cannot read index.html", err);
+            return res.status(500).send("Error loading the page.");
+        }
+        const finalHtml = data.replace('<!-- BANNER_SLIDES_HERE -->', bannerHtml);
+        res.send(finalHtml);
+    });
+});
+
+
+app.use(express.static(path.join(__dirname)));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- חיבור למסד הנתונים והרצת השרת ---
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => {
+        console.log('MongoDB Connected Successfully!');
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('FATAL: MongoDB Connection Error:', err);
+        process.exit(1);
+    });
