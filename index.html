@@ -1018,6 +1018,15 @@
             headerRightContent.innerHTML = themeToggleBtnHtml + shareButtonHtml;
             actionsBar.innerHTML = ''; // Clear previous buttons
 
+            if (deferredPrompt) {
+                actionsBar.innerHTML += `
+                    <button id="install-app-btn" class="flex items-center gap-2 bg-amber-400 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="התקן את האפליקציה">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        <span>התקנה</span>
+                    </button>
+                `;
+            }
+
             if (currentUser) {
                 const usernameHtml = `<span class="text-sm text-gray-700 dark:text-gray-300">שלום, ${currentUser.name}</span>`;
                 actionsBar.innerHTML += usernameHtml;
@@ -1051,6 +1060,7 @@
             }
 
             // Re-attach event listeners for all states
+            document.getElementById('install-app-btn')?.addEventListener('click', handleInstallClick);
             document.getElementById('google-login-btn')?.addEventListener('click', handleGoogleLogin);
             document.getElementById('profile-btn')?.addEventListener('click', showProfileView);
             document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
@@ -1323,6 +1333,13 @@
                     </tr>
                 `;
             }).join('');
+            
+            const downloadButtonHtml = `
+                <button data-action="download-csv" class="${subscribersData.length > 0 ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-bold py-2 px-4 rounded-md transition text-sm flex items-center gap-2" ${subscribersData.length === 0 ? 'disabled title="אין לקוחות להורדה"' : 'title="הורד קובץ CSV"'}>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    <span>הורד CSV</span>
+                </button>
+            `;
 
             const dashboardHtml = `
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1339,10 +1356,7 @@
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xl font-bold">מאגר לקוחות</h3>
-                        <button data-action="download-csv" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition text-sm flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            <span>הורד CSV</span>
-                        </button>
+                        ${downloadButtonHtml}
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -1839,7 +1853,12 @@
                         const response = await fetch(`${SERVER_URL}/api/admin/subscribers/csv`, {
                             headers: { 'Authorization': `Bearer ${token}` }
                         });
-                        if (!response.ok) throw new Error('Network response was not ok.');
+                        if (!response.ok) {
+                            if(response.status === 404) {
+                                throw new Error('לא נמצאו לקוחות להורדה.');
+                            }
+                            throw new Error('התגובה מהרשת לא הייתה תקינה.');
+                        }
 
                         const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
@@ -1854,7 +1873,7 @@
 
                     } catch (error) {
                         console.error('Error downloading CSV:', error);
-                        showAlert('שגיאה בהורדת הקובץ.');
+                        showAlert(`שגיאה בהורדת הקובץ: ${error.message}`);
                     } finally {
                         button.disabled = false;
                         button.innerHTML = originalContent;
