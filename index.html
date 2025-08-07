@@ -1966,7 +1966,12 @@
                             body: JSON.stringify({ isVerified })
                         });
                         if (!response.ok) throw new Error('Failed to update verification status');
+                        
+                        if (userId === currentUser.id) {
+                            await fetchUserProfile(); 
+                        }
                         showToast(`סטטוס האימות של המשתמש עודכן.`);
+
                     } catch (error) {
                         console.error('Verification toggle error:', error);
                         showAlert('שגיאה בעדכון סטטוס האימות.');
