@@ -1,5 +1,5 @@
 // The version of the cache.
-const CACHE_VERSION = 7; // Increment version to force update
+const CACHE_VERSION = 8; // Increment version to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
 const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com'; // Make sure this is the correct URL
 
@@ -16,11 +16,9 @@ function logToServer(message) {
 }
 
 // The files to cache on installation.
-// REMOVED problematic CDN links that block caching due to CORS policy.
 const urlsToCache = [
   '/',
   '/index.html',
-  // 'https://cdn.tailwindcss.com', // <-- REMOVED THIS LINE
   'https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap',
   'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png'
 ];
@@ -32,12 +30,10 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         logToServer('Caching core files.');
-        // addAll will fail if any of the fetches fail.
         return cache.addAll(urlsToCache);
       })
       .then(() => {
         logToServer('Installation complete. Skipping waiting.');
-        // Force the waiting service worker to become the active service worker.
         return self.skipWaiting();
       })
       .catch(error => {
@@ -54,7 +50,6 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          // If this cache name is not present in the whitelist, delete it.
           if (cacheWhitelist.indexOf(cacheName) === -1) {
             logToServer(`Deleting old cache: ${cacheName}`);
             return caches.delete(cacheName);
@@ -63,7 +58,6 @@ self.addEventListener('activate', event => {
       );
     }).then(() => {
         logToServer('New service worker activated. Claiming clients.');
-        // Tell the active service worker to take control of the page immediately.
         return self.clients.claim();
     })
   );
@@ -71,13 +65,35 @@ self.addEventListener('activate', event => {
 
 
 // Event listener for the 'fetch' event.
-// Strategy: Cache then network.
+// --- NEW STRATEGY: Network first for navigation, Cache first for others ---
 self.addEventListener('fetch', event => {
   // We only want to cache GET requests.
   if (event.request.method !== 'GET') {
     return;
   }
 
+  // Strategy for HTML pages (navigation requests)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // If the fetch is successful, clone the response and cache it.
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          return response;
+        })
+        .catch(() => {
+          // If the fetch fails (e.g., offline), return the cached page.
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Strategy for other assets (CSS, JS, images) - Cache first
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
@@ -86,9 +102,9 @@ self.addEventListener('fetch', event => {
           return cachedResponse;
         }
         // If the response is not in the cache, fetch it from the network.
+        // Optionally, you could also cache these new requests here.
         return fetch(event.request);
-      }
-    )
+      })
   );
 });
 
@@ -140,7 +156,6 @@ self.addEventListener('notificationclick', event => {
     }).then(clientList => {
       // Check if there's already a window open with the target URL.
       for (const client of clientList) {
-        // You might want to refine this URL check.
         if (client.url === urlToOpen && 'focus' in client) {
           logToServer('Found an open client, focusing it.');
           return client.focus();
