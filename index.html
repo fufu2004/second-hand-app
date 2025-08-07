@@ -944,7 +944,7 @@
             document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
             document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
             document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
-            document.getElementById('share-app-btn').addEventListener('click', shareApp);
+            document.querySelectorAll('[id^="share-app-btn"]').forEach(btn => btn.addEventListener('click', shareApp));
             
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
