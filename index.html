@@ -214,7 +214,7 @@
         </div>
         
         <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
-            <div class="banner-slide active">
+            <div class="banner-slide active" style="display: block;">
                 <img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                     <h2 class="text-white text-2xl font-bold text-center px-4">קולקציית קיץ חדשה בקהילה</h2>
@@ -429,14 +429,13 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-
+        
         // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
-        const ADMIN_EMAIL = 'ohadf1976@gmail.com';
+        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
         const CLIENT_URL = window.location.origin;
 
         // --- UI Element Selectors ---
-        const bannerContainer = document.getElementById('banner-container');
         const mainView = document.getElementById('main-view');
         // ... (all other selectors remain the same)
         const verificationStatusContainer = document.getElementById('verification-status-container');
@@ -453,7 +452,7 @@
         const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
         
         const toastNotification = document.getElementById('toast-notification');
-        
+
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -515,16 +514,16 @@
         // --- Global State ---
         let socket;
         let currentUser = null;
-        let allItemsCache = {};
+        let allItemsCache = {}; 
         let galleryImages = [];
         let currentImageIndex = 0;
-        let favorites = [];
+        let favorites = []; 
         let currentConversationId = null;
         let currentConversationDetails = null;
         let notificationsCache = [];
         let panzoomInstance = null;
-        let currentUserProfile = null;
-        let pushSubscription = null;
+        let currentUserProfile = null; 
+        let pushSubscription = null; 
 
         // --- Infinite Scroll State ---
         let currentPage = 1;
@@ -544,51 +543,9 @@
             'accessories': 'אקססוריז', 
             'general': 'כללי' 
         };
-        
-        // --- Banner Logic ---
-        const bannerSlides = [
-            {
-                img: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                text: 'קולקציית קיץ חדשה בקהילה'
-            },
-            {
-                img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                text: 'מכרי את הארון ותרוויחי'
-            },
-            {
-                img: 'https://images.unsplash.com/photo-1591047139829-d916e6ca4431?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-                text: 'הצטרפי למהפכת האופנה המעגלית'
-            }
-        ];
-        let currentSlideIndex = 0;
 
-        function initializeBanner() {
-            if (!bannerContainer) return;
-            // The first slide is already in the HTML. We add the rest.
-            bannerSlides.slice(1).forEach((slide, index) => {
-                const slideDiv = document.createElement('div');
-                slideDiv.className = `banner-slide absolute inset-0 w-full h-full`;
-                slideDiv.innerHTML = `
-                    <img src="${slide.img}" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                        <h2 class="text-white text-2xl font-bold text-center px-4">${slide.text}</h2>
-                    </div>
-                `;
-                bannerContainer.appendChild(slideDiv);
-            });
-
-            setInterval(nextBannerSlide, 5000);
-        }
-
-        function nextBannerSlide() {
-            const slides = bannerContainer.querySelectorAll('.banner-slide');
-            if (slides.length === 0) return;
-            slides[currentSlideIndex].classList.remove('active');
-            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
-            slides[currentSlideIndex].classList.add('active');
-        }
-
-        // ... (the rest of the script is identical to the previous version)
+        // ... (The rest of your existing script from `initializeSocket` down to `populateCategoryFilter`)
+        // Make sure to REMOVE the old banner logic from here.
 
         function initializeSocket(token) {
             if (socket) {
@@ -2133,7 +2090,6 @@
 
         // --- Initial Load ---
         populateCategoryFilter();
-        initializeBanner();
         checkAuthState();
 
         // --- Infinite Scroll Listener ---
@@ -2146,6 +2102,52 @@
         });
 
     });
+    </script>
+    <script>
+        // --- ISOLATED BANNER SCRIPT ---
+        try {
+            const bannerContainer = document.getElementById('banner-container');
+            if (bannerContainer) {
+                const bannerSlides = [
+                    {
+                        img: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                        text: 'מכרי את הארון ותרוויחי'
+                    },
+                    {
+                        img: 'https://images.unsplash.com/photo-1591047139829-d916e6ca4431?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+                        text: 'הצטרפי למהפכת האופנה המעגלית'
+                    }
+                ];
+                let currentSlideIndex = 0;
+
+                // Add the other slides
+                bannerSlides.forEach(slide => {
+                    const slideDiv = document.createElement('div');
+                    slideDiv.className = 'banner-slide absolute inset-0 w-full h-full';
+                    slideDiv.innerHTML = `
+                        <img src="${slide.img}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                            <h2 class="text-white text-2xl font-bold text-center px-4">${slide.text}</h2>
+                        </div>
+                    `;
+                    bannerContainer.appendChild(slideDiv);
+                });
+
+                // Start the animation
+                setInterval(() => {
+                    const slides = bannerContainer.querySelectorAll('.banner-slide');
+                    if (slides.length > 1) {
+                        slides[currentSlideIndex].classList.remove('active');
+                        slides[currentSlideIndex].style.display = 'none';
+                        currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+                        slides[currentSlideIndex].classList.add('active');
+                         slides[currentSlideIndex].style.display = 'block';
+                    }
+                }, 5000);
+            }
+        } catch (e) {
+            console.error("Error in isolated banner script:", e);
+        }
     </script>
 </body>
 </html>
