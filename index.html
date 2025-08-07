@@ -423,7 +423,7 @@
         const mainView = document.getElementById('main-view');
         const profileView = document.getElementById('profile-view');
         const publicProfileView = document.getElementById('public-profile-view');
-        const adminView = document.getElementById('admin-view'); // New Admin View
+        const adminView = document.getElementById('admin-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
         const headerRightDesktop = document.getElementById('header-right-desktop');
@@ -815,7 +815,7 @@
                 const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
                 headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
-                const adminButton = (currentUser.email === ADMIN_EMAIL) 
+                const adminButton = (currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) 
                     ? `<button id="admin-btn-desktop" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">פאנל ניהול</button>` 
                     : '';
 
@@ -841,7 +841,7 @@
                 `;
                 authContentDesktop.innerHTML = actionButtonsHtml;
                 
-                const adminButtonMobile = (currentUser.email === ADMIN_EMAIL) 
+                const adminButtonMobile = (currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) 
                     ? `<button id="admin-btn-mobile" class="w-full text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition">פאנל ניהול</button>` 
                     : '';
 
@@ -1870,7 +1870,7 @@
                 showToast('הדיווח שלך נשלח. תודה!');
             } catch (error) {
                 console.error('Report submission failed:', error);
-                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
             }
         });
 
