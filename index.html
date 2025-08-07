@@ -419,6 +419,7 @@
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
         const headerRightContent = document.getElementById('header-right-content');
+        const headerLeft = document.getElementById('header-left');
         const actionsBar = document.getElementById('actions-bar');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
@@ -754,19 +755,15 @@
             if (!currentUser) return;
             const unreadCount = notificationsCache.filter(n => !n.isRead).length;
             const badge = document.getElementById('notification-badge');
-            const mobileBadge = document.getElementById('notification-badge-mobile');
             const bellIcon = document.getElementById('notifications-btn');
 
-            if (badge && mobileBadge) {
+            if (badge) {
                 if (unreadCount > 0) {
                     badge.textContent = unreadCount;
-                    mobileBadge.textContent = unreadCount;
                     badge.classList.remove('hidden');
-                    mobileBadge.classList.remove('hidden');
                     if(bellIcon) bellIcon.classList.add('bell-animation');
                 } else {
                     badge.classList.add('hidden');
-                    mobileBadge.classList.add('hidden');
                     if(bellIcon) bellIcon.classList.remove('bell-animation');
                 }
             }
@@ -779,15 +776,12 @@
             }
 
             const pushButtonContainer = document.getElementById('push-notification-container');
-            const pushButtonContainerMobile = document.getElementById('push-notification-container-mobile');
-            if (!pushButtonContainer || !pushButtonContainerMobile) return;
+            if (!pushButtonContainer) return;
 
             pushButtonContainer.classList.remove('hidden');
-            pushButtonContainerMobile.classList.remove('hidden');
 
             const pushButton = document.getElementById('push-notification-btn');
-            const pushButtonMobile = document.getElementById('push-notification-btn-mobile');
-
+            
             let isSubscribed = false;
 
             const registration = await navigator.serviceWorker.ready;
@@ -803,7 +797,6 @@
             }
             
             if(pushButton) pushButton.addEventListener('click', handleSubscriptionChange);
-            if(pushButtonMobile) pushButtonMobile.addEventListener('click', handleSubscriptionChange);
 
             function updateBtn() {
                 if (Notification.permission === 'denied') {
@@ -821,14 +814,12 @@
             function updateButtonUI(text, color, disabled = false) {
                 const buttonHtml = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg><span>${text}</span>`;
                 
-                [pushButton, pushButtonMobile].forEach(btn => {
-                    if (btn) {
-                        btn.innerHTML = buttonHtml;
-                        btn.style.backgroundColor = color;
-                        btn.disabled = disabled;
-                        btn.title = disabled ? 'שנה הרשאות בדפדפן' : text;
-                    }
-                });
+                if (pushButton) {
+                    pushButton.innerHTML = buttonHtml;
+                    pushButton.style.backgroundColor = color;
+                    pushButton.disabled = disabled;
+                    pushButton.title = disabled ? 'שנה הרשאות בדפדפן' : text;
+                }
             }
 
             async function handleSubscriptionChange() {
@@ -912,9 +903,7 @@
         }
 
         function toggleNotificationsPanel(button) {
-            const isMobile = button.id.includes('mobile');
-            const panel = isMobile ? document.getElementById('notifications-panel-mobile') : document.getElementById('notifications-panel');
-            
+            const panel = document.getElementById('notifications-panel');
             if (!panel) return;
 
             if (panel.style.display === 'block') {
@@ -927,16 +916,13 @@
 
         function renderNotifications() {
             const panel = document.getElementById('notifications-panel');
-            const mobilePanel = document.getElementById('notifications-panel-mobile');
             const containerHtml = `<div class="p-2 text-sm text-gray-700 dark:text-gray-300">טוען...</div>`;
             
             if(panel) panel.innerHTML = containerHtml;
-            if(mobilePanel) mobilePanel.innerHTML = containerHtml;
 
             if (notificationsCache.length === 0) {
                 const emptyHtml = `<div class="p-4 text-center text-sm text-gray-500 dark:text-gray-400">אין התראות חדשות.</div>`;
                 if(panel) panel.innerHTML = emptyHtml;
-                if(mobilePanel) mobilePanel.innerHTML = emptyHtml;
                 return;
             }
 
@@ -950,11 +936,8 @@
             const fullHtml = `<div class="text-right p-2 border-b dark:border-gray-600"><button id="mark-read-btn" class="text-xs text-teal-500 hover:underline">סמן הכל כנקרא</button></div>${notificationsHtml}`;
             
             if(panel) panel.innerHTML = fullHtml;
-            if(mobilePanel) mobilePanel.innerHTML = fullHtml;
 
-            document.querySelectorAll('[id^="mark-read-btn"]').forEach(btn => {
-                btn.addEventListener('click', markNotificationsAsRead);
-            });
+            document.getElementById('mark-read-btn')?.addEventListener('click', markNotificationsAsRead);
         }
 
         async function markNotificationsAsRead() {
@@ -1006,7 +989,7 @@
         }
 
         function updateUIForAuthState() {
-            const themeToggleBtn = `
+            const themeToggleBtnHtml = `
                 <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5">
                     <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                     <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 8.486a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
@@ -1018,7 +1001,7 @@
                 </button>
             `;
             
-            headerRightContent.innerHTML = themeToggleBtn + shareButtonHtml;
+            headerRightContent.innerHTML = themeToggleBtnHtml + shareButtonHtml;
             actionsBar.innerHTML = ''; // Clear previous buttons
 
             if (currentUser) {
