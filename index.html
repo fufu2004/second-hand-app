@@ -173,6 +173,7 @@
                     <span id="header-right-content" class="flex items-center gap-2"></span>
                 </div>
                 <div id="header-right-mobile" class="flex-1 flex sm:hidden justify-start"></div>
+
                 <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
                     <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
@@ -800,7 +801,6 @@
                 </button>
             `;
             
-            // For Mobile: Always show share button on the left of the logo
             headerRightMobile.innerHTML = shareButtonHtml;
 
             if (currentUser) {
@@ -1724,6 +1724,29 @@
                 case 'rate-user': {
                     const { userId, userName } = actionTarget.dataset;
                     openRatingModal(userId, userName);
+                    break;
+                }
+                case 'follow-user': {
+                    if (!currentUser) return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
+                    const { userId } = actionTarget.dataset;
+                    const token = localStorage.getItem('authToken');
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/users/${userId}/follow`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || 'Failed to follow user');
+                        }
+                        const data = await response.json();
+                        // Refresh the public profile view to show the updated state
+                        showPublicProfile(userId); 
+                        showToast(data.isFollowing ? 'התחלת לעקוב!' : 'המעקב הוסר.');
+                    } catch (error) {
+                        console.error('Follow/unfollow error:', error);
+                        showAlert(`שגיאה: ${error.message}`);
+                    }
                     break;
                 }
                 case 'open-gallery': {
