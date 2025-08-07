@@ -156,6 +156,20 @@
             animation: pulse-bell 2.5s ease-in-out infinite;
             transform-origin: center;
         }
+        
+        /* START: Banner Styles */
+        .banner-slide {
+            display: none;
+            animation: fadeInBanner 1.5s;
+        }
+        .banner-slide.active {
+            display: block;
+        }
+        @keyframes fadeInBanner {
+            from { opacity: 0.4 }
+            to { opacity: 1 }
+        }
+        /* END: Banner Styles */
 
     </style>
 </head>
@@ -198,7 +212,9 @@
         <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
             <div id="auth-content-mobile" class="w-full flex justify-center"></div>
         </div>
-
+        
+        <div id="banner-container" class="relative w-full mx-auto my-4 rounded-lg overflow-hidden shadow-lg" style="height: 200px;">
+            </div>
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
