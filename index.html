@@ -696,6 +696,54 @@
                 return null;
             }
         }
+
+        // --- Notification Functions ---
+        async function fetchNotifications() {
+            if (!currentUser) return;
+            const token = localStorage.getItem('authToken');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/notifications`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to fetch notifications');
+                notificationsCache = await response.json();
+                updateNotificationBell();
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+        }
+
+        function updateNotificationBell() {
+            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
+            const badge = document.getElementById('notification-badge');
+            const mobileBadge = document.getElementById('notification-badge-mobile');
+            const bellIcon = document.getElementById('notifications-btn');
+            const mobileBellIcon = document.getElementById('notifications-btn-mobile');
+
+            const bellIcons = [bellIcon, mobileBellIcon].filter(Boolean);
+
+            if (unreadCount > 0) {
+                if (badge) {
+                    badge.textContent = unreadCount;
+                    badge.classList.remove('hidden');
+                }
+                if (mobileBadge) {
+                    mobileBadge.textContent = unreadCount;
+                    mobileBadge.classList.remove('hidden');
+                }
+                bellIcons.forEach(icon => {
+                    if (icon && !icon.classList.contains('bell-animation')) {
+                        icon.classList.add('bell-animation');
+                    }
+                });
+            } else {
+                if (badge) badge.classList.add('hidden');
+                if (mobileBadge) mobileBadge.classList.add('hidden');
+                bellIcons.forEach(icon => {
+                    if (icon) icon.classList.remove('bell-animation');
+                });
+            }
+        }
         
         // --- Authentication System ---
         
@@ -751,40 +799,6 @@
                 resetAndFetchItems();
             }
         }
-        
-        // --- START: New Notification Bell function ---
-        function updateNotificationBell() {
-            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-            const badge = document.getElementById('notification-badge');
-            const mobileBadge = document.getElementById('notification-badge-mobile');
-            const bellIcon = document.getElementById('notifications-btn');
-            const mobileBellIcon = document.getElementById('notifications-btn-mobile');
-
-            const bellIcons = [bellIcon, mobileBellIcon].filter(Boolean);
-
-            if (unreadCount > 0) {
-                if (badge) {
-                    badge.textContent = unreadCount;
-                    badge.classList.remove('hidden');
-                }
-                if (mobileBadge) {
-                    mobileBadge.textContent = unreadCount;
-                    mobileBadge.classList.remove('hidden');
-                }
-                bellIcons.forEach(icon => {
-                    if (icon && !icon.classList.contains('bell-animation')) {
-                        icon.classList.add('bell-animation');
-                    }
-                });
-            } else {
-                if (badge) badge.classList.add('hidden');
-                if (mobileBadge) mobileBadge.classList.add('hidden');
-                bellIcons.forEach(icon => {
-                    if (icon) icon.classList.remove('bell-animation');
-                });
-            }
-        }
-        // --- END: New Notification Bell function ---
 
         function updateUIForAuthState() {
             // Clear all dynamic content first
