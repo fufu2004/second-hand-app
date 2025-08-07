@@ -167,15 +167,13 @@
     </div>
 
     <div class="container mx-auto p-4 max-w-4xl pb-24">
-        <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
+        <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1 mb-4">
             <div class="container mx-auto px-4 flex justify-between items-center">
-                <div id="header-right-desktop" class="flex-1 hidden sm:flex justify-start items-center gap-2">
-                    <span id="header-right-content" class="flex items-center gap-2"></span>
-                </div>
-                <div id="header-right-mobile" class="flex-1 flex sm:hidden justify-start"></div>
+                <div id="header-right" class="flex-1 flex justify-start items-center gap-4">
+                    </div>
 
                 <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
-                    <div id="home-logo" class="flex items-center gap-2 cursor-pointer">
+                    <div data-action="show-main-view" class="flex items-center gap-2 cursor-pointer">
                         <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
                         <div>
                             <h1 class="text-xl sm:text-3xl font-bold text-teal-700 dark:text-teal-500 whitespace-nowrap">סטייל מתגלגל</h1>
@@ -184,21 +182,11 @@
                     </div>
                 </div>
 
-                <div id="header-left-desktop" class="flex-1 hidden sm:flex justify-end items-center gap-4">
-                    <div id="auth-content-desktop" class="flex items-center gap-4"></div>
-                    <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
-                        <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                        <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
-                    </button>
-                </div>
-                <div id="header-left-mobile" class="flex-1 flex sm:hidden justify-end"></div>
+                <div id="header-left" class="flex-1 flex justify-end items-center gap-4">
+                    </div>
             </div>
         </header>
 
-        <div id="auth-container-mobile" class="my-2 flex flex-col items-center gap-2 sm:hidden">
-            <div id="auth-content-mobile" class="w-full flex justify-center"></div>
-        </div>
-        
         <div id="main-view" class="view active">
              <div class="my-6 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -426,14 +414,8 @@
         const adminView = document.getElementById('admin-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
-        const headerRightDesktop = document.getElementById('header-right-desktop');
-        const headerRightMobile = document.getElementById('header-right-mobile');
-        const headerRightContent = document.getElementById('header-right-content');
-        const headerLeftDesktop = document.getElementById('header-left-desktop');
-        const headerLeftMobile = document.getElementById('header-left-mobile');
-        const authContentDesktop = document.getElementById('auth-content-desktop');
-        const authContainerMobile = document.getElementById('auth-container-mobile');
-        const authContentMobile = document.getElementById('auth-content-mobile');
+        const headerRight = document.getElementById('header-right');
+        const headerLeft = document.getElementById('header-left');
         const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
@@ -806,31 +788,20 @@
 
         function updateUIForAuthState() {
             // Clear all dynamic content first
-            headerRightContent.innerHTML = '';
-            authContentDesktop.innerHTML = '';
-            authContentMobile.innerHTML = '';
-            headerLeftMobile.innerHTML = '';
+            headerRight.innerHTML = '';
+            headerLeft.innerHTML = '';
 
-            // Create Share Button
-            const shareButton = document.createElement('button');
-            shareButton.className = "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition p-2 rounded-lg";
-            shareButton.title = "שתף את האפליקציה";
-            shareButton.dataset.action = "share-app";
-            shareButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>`;
-            
-            headerRightContent.append(shareButton);
-            headerRightMobile.append(shareButton.cloneNode(true));
-            
+            const isAdmin = currentUser && currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
             if (currentUser) {
-                const isAdmin = currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-
-                // Desktop: Welcome message
+                // --- Right Side (Welcome Message) ---
                 const welcomeMsg = document.createElement('span');
                 welcomeMsg.className = "text-sm text-gray-700 dark:text-gray-300 hidden sm:block";
                 welcomeMsg.textContent = `שלום, ${currentUser.name}`;
-                headerRightContent.append(welcomeMsg);
+                headerRight.appendChild(welcomeMsg);
 
-                // Desktop: Bell icon and panel
+                // --- Left Side (Buttons) ---
+                // Bell icon
                 const bellContainer = document.createElement('div');
                 bellContainer.className = 'relative';
                 bellContainer.innerHTML = `
@@ -839,68 +810,33 @@
                         <span id="notification-badge" class="notification-badge hidden"></span>
                     </button>
                     <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700"></div>`;
-                authContentDesktop.append(bellContainer);
+                headerLeft.appendChild(bellContainer);
 
-                // Desktop: Action Buttons Container
-                const desktopActions = document.createElement('div');
-                desktopActions.className = 'hidden sm:flex items-center gap-3';
-                
+                // Action Buttons
                 if (isAdmin) {
-                    const adminBtn = document.createElement('button');
-                    adminBtn.textContent = 'פאנל ניהול';
-                    adminBtn.className = "text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap";
-                    adminBtn.dataset.action = 'show-admin-view';
-                    desktopActions.append(adminBtn);
+                    headerLeft.innerHTML += `<button data-action="show-admin-view" class="text-center text-sm bg-indigo-500 text-white py-2 px-3 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">ניהול</button>`;
                 }
-                
-                desktopActions.innerHTML += `
-                    <button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
-                    <button data-action="show-profile" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
-                    <button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
+                headerLeft.innerHTML += `
+                    <button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
+                    <button data-action="show-profile" class="text-center text-sm bg-teal-500 text-white py-2 px-3 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
+                    <button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
                 `;
-                authContentDesktop.append(desktopActions);
-
-
-                // Mobile UI
-                authContentMobile.innerHTML = `<span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>`;
-                if(isAdmin) {
-                    authContentMobile.innerHTML += `<button data-action="show-admin-view" class="w-full text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition mb-2">פאנל ניהול</button>`;
-                }
-                authContentMobile.innerHTML += `
-                    <div class="flex gap-2 w-full">
-                        <button data-action="show-chat" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
-                        <button data-action="show-profile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
-                        <button data-action="logout" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
-                    </div>
-                `;
-
-                headerLeftMobile.innerHTML = `
-                    <div class="relative">
-                        <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                            <span id="notification-badge-mobile" class="notification-badge hidden"></span>
-                        </button>
-                        <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700"></div>
-                    </div>`;
 
                 updateNotificationBell();
-
             } else { // Logged out state
-                authContentDesktop.innerHTML = `
-                    <div class="hidden sm:flex">
-                        <button data-action="login" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                            <span>התחברות עם Google</span>
-                        </button>
-                    </div>`;
-
-                authContentMobile.innerHTML = `
-                     <button data-action="login" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                headerLeft.innerHTML = `
+                    <button data-action="login" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                        <span>התחברות עם Google</span>
-                    </button>
-                `;
+                        <span>התחברות</span>
+                    </button>`;
             }
+            
+            // Add theme toggle button to the end of the left container
+            headerLeft.innerHTML += `
+                <button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5">
+                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                </button>`;
             
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
