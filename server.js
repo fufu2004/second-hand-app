@@ -183,6 +183,15 @@ const UserSessionSchema = new mongoose.Schema({
 const UserSession = mongoose.model('UserSession', UserSessionSchema);
 // --- END: New User Session Model ---
 
+// --- START: New Subscriber Model ---
+const SubscriberSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true },
+    displayName: { type: String, required: true },
+    subscribedAt: { type: Date, default: Date.now }
+});
+const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
+// --- END: New Subscriber Model ---
+
 
 // --- הגדרות העלאת קבצים ---
 const storage = multer.memoryStorage();
@@ -278,6 +287,16 @@ passport.use(new GoogleStrategy({
             image: profile.photos[0].value
         });
         await newUser.save();
+        
+        // --- START: Add new user to Subscribers list ---
+        await Subscriber.findOneAndUpdate(
+            { email: newUser.email },
+            { displayName: newUser.displayName },
+            { upsert: true, new: true }
+        );
+        console.log(`User ${newUser.email} was added/updated in the subscribers list.`);
+        // --- END: Add new user to Subscribers list ---
+
         return done(null, newUser);
     } catch (err) {
         console.error("Error during Google Strategy user processing:", err);
@@ -344,6 +363,18 @@ app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req
     }
 });
 // --- END: New Admin Dashboard Endpoint ---
+
+// --- START: New Subscribers Endpoint for Admin ---
+app.get('/api/admin/subscribers', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
+        res.json(subscribers);
+    } catch (error) {
+        console.error('Error fetching subscribers:', error);
+        res.status(500).json({ message: 'Failed to fetch subscribers.' });
+    }
+});
+// --- END: New Subscribers Endpoint for Admin ---
 
 
 app.get('/api/vapid-public-key', (req, res) => {
