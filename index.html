@@ -26,7 +26,7 @@
         .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
         .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
         .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .item-card:hover { 
+        .item-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }
@@ -56,19 +56,19 @@
         .favorite-btn.favorited svg { fill: #ef4444; color: #ef4444; }
         .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); transition: opacity 0.5s, transform 0.5s; z-index: 100; }
         
-        .item-card.promoted { 
-            border: 2px solid #f59e0b; 
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); 
+        .item-card.promoted {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
         }
-        .promoted-badge { 
-            position: absolute; 
-            top: 10px; 
-            left: 10px; 
-            background-color: #f59e0b; 
-            color: white; 
-            padding: 3px 10px; 
-            border-radius: 9999px; 
-            font-size: 0.75rem; 
+        .promoted-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: #f59e0b;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -279,26 +279,26 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
     </button>
 
-    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50"> 
-        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto"> 
-            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2> 
-            <form id="upload-form"> <input type="hidden" id="editing-item-id" value=""> 
-                <div class="space-y-4"> 
-                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
-                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3" required></textarea> 
+    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto">
+            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2>
+            <form id="upload-form"> <input type="hidden" id="editing-item-id" value="">
+                <div class="space-y-4">
+                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3" required></textarea>
                     <div class="grid grid-cols-2 gap-4">
-                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required> 
-                            <option value="" disabled selected>בחרי קטגוריה</option> 
-                            <option value="pants">מכנסיים</option> 
-                            <option value="shirts">חולצות</option> 
-                            <option value="jackets">ג'קטים</option> 
-                            <option value="dresses">שמלות</option> 
-                            <option value="skirts">חצאיות</option> 
-                            <option value="top">טופ</option> 
-                            <option value="tank-tops">גופיות</option> 
-                            <option value="blazer">בלייזר</option> 
-                            <option value="accessories">אקססוריז</option> 
-                            <option value="general">כללי</option> 
+                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                            <option value="" disabled selected>בחרי קטגוריה</option>
+                            <option value="pants">מכנסיים</option>
+                            <option value="shirts">חולצות</option>
+                            <option value="jackets">ג'קטים</option>
+                            <option value="dresses">שמלות</option>
+                            <option value="skirts">חצאיות</option>
+                            <option value="top">טופ</option>
+                            <option value="tank-tops">גופיות</option>
+                            <option value="blazer">בלייזר</option>
+                            <option value="accessories">אקססוריז</option>
+                            <option value="general">כללי</option>
                         </select>
                         <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
                             <option value="" disabled selected>מצב הפריט</option>
@@ -312,29 +312,29 @@
                     <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
                     <input type="text" id="item-brand" name="brand" placeholder="מותג (לדוגמה: Nike, Zara)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
                     <input type="text" id="item-location" name="location" placeholder="מיקום (עיר)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
-                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
-                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required> 
-                    <div id="affiliate-link-container" class="hidden"> 
-                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300">קישור אפילייט (מנהלים בלבד)</label> 
-                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400"> 
-                    </div> 
+                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <div id="affiliate-link-container" class="hidden">
+                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300">קישור אפילייט (מנהלים בלבד)</label>
+                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    </div>
                     <div id="promoted-container" class="hidden items-center">
                         <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
                         <label for="item-promoted" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">קדם פריט זה (יוצג בראש העמוד)</label>
                     </div>
-                    <div> 
-                        <label for="item-images" class="block text-sm font-medium text-gray-700 dark:text-gray-300">העלאת תמונות (עד 6)</label> 
-                        <p class="text-xs text-gray-500 dark:text-gray-400">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p> 
-                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*" multiple> 
-                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div> 
-                    </div> 
-                </div> 
-                <div class="mt-6 flex justify-end gap-4"> 
-                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button> 
-                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button> 
-                </div> 
-            </form> 
-        </div> 
+                    <div>
+                        <label for="item-images" class="block text-sm font-medium text-gray-700 dark:text-gray-300">העלאת תמונות (עד 6)</label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p>
+                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*" multiple>
+                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
@@ -421,12 +421,70 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        try {
-            initializeBanner();
-        } catch (e) {
-            console.error("Banner initialization failed:", e);
-        }
+
+        // --- Configuration ---
+        const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
+        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
+        const CLIENT_URL = window.location.origin;
+
+        // --- UI Element Selectors ---
+        const bannerContainer = document.getElementById('banner-container');
+        const mainView = document.getElementById('main-view');
+        const profileView = document.getElementById('profile-view');
+        const publicProfileView = document.getElementById('public-profile-view');
+        const itemsFeed = document.getElementById('items-feed');
+        const profileItemsFeed = document.getElementById('profile-items-feed');
+        const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerRightMobile = document.getElementById('header-right-mobile');
+        const headerRightContent = document.getElementById('header-right-content');
+        const headerLeftDesktop = document.getElementById('header-left-desktop');
+        const headerLeftMobile = document.getElementById('header-left-mobile');
+        const authContentDesktop = document.getElementById('auth-content-desktop');
+        const authContainerMobile = document.getElementById('auth-container-mobile');
+        const authContentMobile = document.getElementById('auth-content-mobile');
+        const homeLogo = document.getElementById('home-logo');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const filterInput = document.getElementById('filter-input');
+        const categorySelect = document.getElementById('category-select');
+        const sortSelect = document.getElementById('sort-select');
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
+        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
+        const emptyState = document.getElementById('empty-state');
+        const chatView = document.getElementById('chat-view');
+        const conditionSelect = document.getElementById('condition-select');
+        const sizeFilterInput = document.getElementById('size-filter');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const brandFilterInput = document.getElementById('brand-filter');
+        const locationFilterInput = document.getElementById('location-filter');
+        const verificationStatusContainer = document.getElementById('verification-status-container');
         
+        // --- Modals & Forms Selectors ---
+        const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
+        const uploadModal = document.getElementById('upload-modal');
+        const galleryModal = document.getElementById('gallery-modal');
+        const customModal = document.getElementById('custom-modal');
+        const shareModal = document.getElementById('share-modal');
+        const ratingModal = document.getElementById('rating-modal');
+        const reportModal = document.getElementById('report-modal'); 
+        const uploadForm = document.getElementById('upload-form');
+        const ratingForm = document.getElementById('rating-form');
+        const reportForm = document.getElementById('report-form'); 
+        const uploadModalTitle = document.getElementById('upload-modal-title');
+        const editingItemIdInput = document.getElementById('editing-item-id');
+        
+        // --- Gallery Elements Selectors ---
+        const galleryImage = document.getElementById('gallery-image');
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+        const galleryCounter = document.getElementById('gallery-counter');
+        const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
+        const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
+        const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
+        
+        const toastNotification = document.getElementById('toast-notification');
+
         // --- PWA Service Worker Registration ---
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -485,69 +543,6 @@
           console.log('PWA was installed');
         });
 
-
-        // --- Configuration ---
-        const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
-        const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
-        const CLIENT_URL = window.location.origin;
-
-        // --- UI Element Selectors ---
-        const mainView = document.getElementById('main-view');
-        const profileView = document.getElementById('profile-view');
-        const publicProfileView = document.getElementById('public-profile-view');
-        const itemsFeed = document.getElementById('items-feed');
-        const profileItemsFeed = document.getElementById('profile-items-feed');
-        const headerRightDesktop = document.getElementById('header-right-desktop');
-        const headerRightMobile = document.getElementById('header-right-mobile');
-        const headerRightContent = document.getElementById('header-right-content');
-        const headerLeftDesktop = document.getElementById('header-left-desktop');
-        const headerLeftMobile = document.getElementById('header-left-mobile');
-        const authContentDesktop = document.getElementById('auth-content-desktop');
-        const authContainerMobile = document.getElementById('auth-container-mobile');
-        const authContentMobile = document.getElementById('auth-content-mobile');
-        const homeLogo = document.getElementById('home-logo');
-        const openModalBtn = document.getElementById('open-modal-btn');
-        const filterInput = document.getElementById('filter-input');
-        const categorySelect = document.getElementById('category-select');
-        const sortSelect = document.getElementById('sort-select');
-        const minPriceInput = document.getElementById('min-price');
-        const maxPriceInput = document.getElementById('max-price');
-        const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
-        const emptyState = document.getElementById('empty-state');
-        const chatView = document.getElementById('chat-view');
-        const conditionSelect = document.getElementById('condition-select');
-        const sizeFilterInput = document.getElementById('size-filter');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const brandFilterInput = document.getElementById('brand-filter');
-        const locationFilterInput = document.getElementById('location-filter');
-        const verificationStatusContainer = document.getElementById('verification-status-container');
-        
-        // --- Modals & Forms Selectors ---
-        const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
-        const uploadModal = document.getElementById('upload-modal');
-        const galleryModal = document.getElementById('gallery-modal');
-        const customModal = document.getElementById('custom-modal');
-        const shareModal = document.getElementById('share-modal');
-        const ratingModal = document.getElementById('rating-modal');
-        const reportModal = document.getElementById('report-modal'); 
-        const uploadForm = document.getElementById('upload-form');
-        const ratingForm = document.getElementById('rating-form');
-        const reportForm = document.getElementById('report-form'); 
-        const uploadModalTitle = document.getElementById('upload-modal-title');
-        const editingItemIdInput = document.getElementById('editing-item-id');
-        
-        // --- Gallery Elements Selectors ---
-        const galleryImage = document.getElementById('gallery-image');
-        const galleryClose = document.getElementById('gallery-close');
-        const galleryPrev = document.getElementById('gallery-prev');
-        const galleryNext = document.getElementById('gallery-next');
-        const galleryCounter = document.getElementById('gallery-counter');
-        const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
-        const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
-        const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
-        
-        const toastNotification = document.getElementById('toast-notification');
-
         // --- Global State ---
         let socket;
         let currentUser = null;
@@ -582,7 +577,6 @@
         };
         
         // --- Banner Logic ---
-        const bannerContainer = document.getElementById('banner-container');
         const bannerSlides = [
             {
                 img: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
@@ -2168,7 +2162,7 @@
 
         // --- Initial Load ---
         populateCategoryFilter();
-        // initializeBanner(); // This is now called at the top of the DOMContentLoaded event
+        initializeBanner();
         checkAuthState();
 
         // --- Infinite Scroll Listener ---
