@@ -404,7 +404,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-      try {
+        
         // --- Configuration ---
         const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
         const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
@@ -414,12 +414,16 @@
         const mainView = document.getElementById('main-view');
         const profileView = document.getElementById('profile-view');
         const publicProfileView = document.getElementById('public-profile-view');
-        const adminView = document.getElementById('admin-view');
         const itemsFeed = document.getElementById('items-feed');
         const profileItemsFeed = document.getElementById('profile-items-feed');
-        const headerRight = document.getElementById('header-right');
-        const headerLeft = document.getElementById('header-left');
-        const desktopActionsBar = document.getElementById('desktop-actions-bar');
+        const headerRightDesktop = document.getElementById('header-right-desktop');
+        const headerRightMobile = document.getElementById('header-right-mobile');
+        const headerRightContent = document.getElementById('header-right-content');
+        const headerLeftDesktop = document.getElementById('header-left-desktop');
+        const headerLeftMobile = document.getElementById('header-left-mobile');
+        const authContentDesktop = document.getElementById('auth-content-desktop');
+        const authContainerMobile = document.getElementById('auth-container-mobile');
+        const authContentMobile = document.getElementById('auth-content-mobile');
         const homeLogo = document.getElementById('home-logo');
         const openModalBtn = document.getElementById('open-modal-btn');
         const filterInput = document.getElementById('filter-input');
@@ -477,10 +481,48 @@
 
         // --- PWA Custom Install Prompt ---
         let deferredPrompt;
-        
+        const installButtonContainerDesktop = document.getElementById('header-right-desktop');
+        const installButtonContainerMobile = document.getElementById('auth-container-mobile');
+
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           deferredPrompt = e;
+          showInstallPromotion();
+        });
+
+        function showInstallPromotion() {
+            const installButtonHtml = `
+                <button id="install-pwa-btn" class="flex items-center gap-2 bg-teal-500 text-white font-semibold py-2 px-3 text-sm rounded-md shadow-sm hover:bg-teal-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span>התקנת אפליקציה</span>
+                </button>
+            `;
+            
+            const desktopBtnWrapper = document.createElement('div');
+            desktopBtnWrapper.innerHTML = installButtonHtml;
+            installButtonContainerDesktop.prepend(desktopBtnWrapper.firstChild);
+
+            const mobileBtnWrapper = document.createElement('div');
+            mobileBtnWrapper.innerHTML = installButtonHtml.replace('id="install-pwa-btn"', 'id="install-pwa-btn-mobile"');
+            mobileBtnWrapper.classList.add('w-full', 'px-4', 'mb-2');
+            installButtonContainerMobile.prepend(mobileBtnWrapper);
+
+            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => {
+                btn.addEventListener('click', handleInstallClick);
+            });
+        }
+
+        async function handleInstallClick() {
+            document.querySelectorAll('[id^="install-pwa-btn"]').forEach(btn => btn.parentElement.remove());
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+        }
+
+        window.addEventListener('appinstalled', () => {
+          deferredPrompt = null;
+          console.log('PWA was installed');
         });
 
         // --- Global State ---
@@ -538,7 +580,7 @@
             });
 
             socket.on('newItem', (item) => { 
-                if (mainView.classList.contains('active') && filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
+                if (filterInput.value === '' && categorySelect.value === 'all' && conditionSelect.value === 'all' && sizeFilterInput.value === '' && minPriceInput.value === '' && maxPriceInput.value === '') {
                     displayItem(item, true, itemsFeed);
                 } else {
                     showToast("פריט חדש עלה! נקה סינונים כדי לראות.");
@@ -696,54 +738,6 @@
                 return null;
             }
         }
-
-        // --- Notification Functions ---
-        async function fetchNotifications() {
-            if (!currentUser) return;
-            const token = localStorage.getItem('authToken');
-            try {
-                const response = await fetch(`${SERVER_URL}/api/notifications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) throw new Error('Failed to fetch notifications');
-                notificationsCache = await response.json();
-                updateNotificationBell();
-            } catch (error) {
-                console.error('Error fetching notifications:', error);
-            }
-        }
-
-        function updateNotificationBell() {
-            const unreadCount = notificationsCache.filter(n => !n.isRead).length;
-            const badge = document.getElementById('notification-badge');
-            const mobileBadge = document.getElementById('notification-badge-mobile');
-            const bellIcon = document.getElementById('notifications-btn');
-            const mobileBellIcon = document.getElementById('notifications-btn-mobile');
-
-            const bellIcons = [bellIcon, mobileBellIcon].filter(Boolean);
-
-            if (unreadCount > 0) {
-                if (badge) {
-                    badge.textContent = unreadCount;
-                    badge.classList.remove('hidden');
-                }
-                if (mobileBadge) {
-                    mobileBadge.textContent = unreadCount;
-                    mobileBadge.classList.remove('hidden');
-                }
-                bellIcons.forEach(icon => {
-                    if (icon && !icon.classList.contains('bell-animation')) {
-                        icon.classList.add('bell-animation');
-                    }
-                });
-            } else {
-                if (badge) badge.classList.add('hidden');
-                if (mobileBadge) mobileBadge.classList.add('hidden');
-                bellIcons.forEach(icon => {
-                    if (icon) icon.classList.remove('bell-animation');
-                });
-            }
-        }
         
         // --- Authentication System ---
         
@@ -795,75 +789,102 @@
                 initializePushNotifications(); 
             }
             
-            if (mainView.classList.contains('active')) {
-                resetAndFetchItems();
-            }
+            resetAndFetchItems();
+            initializeBanners(); // <-- CALLING THE BANNER FUNCTION
         }
 
         function updateUIForAuthState() {
-            // Clear all dynamic content first
-            headerRight.innerHTML = '';
-            headerLeft.innerHTML = '';
-            desktopActionsBar.innerHTML = '';
-
-            const isAdmin = currentUser && currentUser.email && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-
-            // --- Theme Toggle Button (always visible) ---
-            const themeToggleBtn = document.createElement('button');
-            themeToggleBtn.id = 'theme-toggle';
-            themeToggleBtn.type = 'button';
-            themeToggleBtn.className = "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none rounded-lg text-sm p-2.5";
-            themeToggleBtn.innerHTML = `
-                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            const shareButtonHtml = `
+                <button id="share-app-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition p-2 rounded-lg" title="שתף את האפליקציה">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12s-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.368a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" /></svg>
+                </button>
             `;
             
+            headerRightMobile.innerHTML = shareButtonHtml;
+
             if (currentUser) {
-                // --- LOGGED IN STATE ---
-                // Welcome Message (Desktop)
-                const welcomeMsg = document.createElement('span');
-                welcomeMsg.className = "text-sm text-gray-700 dark:text-gray-300 hidden sm:block";
-                welcomeMsg.textContent = `שלום, ${currentUser.name}`;
-                headerRight.appendChild(welcomeMsg);
+                const usernameHtmlDesktop = `<span class="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">שלום, ${currentUser.name}</span>`;
+                headerRightContent.innerHTML = shareButtonHtml + usernameHtmlDesktop;
 
-                // --- Mobile Header Buttons ---
-                const mobileButtonContainer = document.createElement('div');
-                mobileButtonContainer.className = "sm:hidden flex items-center gap-2";
-                
-                const bellContainerMobile = document.createElement('div');
-                bellContainerMobile.className = 'relative';
-                bellContainerMobile.innerHTML = `<button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg><span id="notification-badge-mobile" class="notification-badge hidden"></span></button><div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700"></div>`;
-                mobileButtonContainer.appendChild(bellContainerMobile);
-                
-                if (isAdmin) {
-                    mobileButtonContainer.innerHTML += `<button data-action="show-admin-view" class="text-center text-sm bg-indigo-500 text-white py-2 px-3 rounded-md hover:bg-indigo-600 transition">ניהול</button>`;
-                }
-                 mobileButtonContainer.innerHTML += `<button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-3 rounded-md hover:bg-cyan-600 transition">הודעות</button>`;
-                 mobileButtonContainer.innerHTML += `<button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-3 rounded-md hover:bg-red-600 transition">יציאה</button>`;
-                headerLeft.appendChild(mobileButtonContainer);
-
-
-                // --- Desktop Action Bar ---
-                if (isAdmin) {
-                    desktopActionsBar.innerHTML += `<button data-action="show-admin-view" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">פאנל ניהול</button>`;
-                }
-                 desktopActionsBar.innerHTML += `
-                    <button data-action="show-chat" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
-                    <button data-action="show-profile" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
-                    <button data-action="logout" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
+                const actionButtonsHtml = `
+                    <div class="relative">
+                        <button id="notifications-btn" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <span id="notification-badge" class="notification-badge hidden"></span>
+                        </button>
+                        <div id="notifications-panel" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+                        </div>
+                    </div>
+                    <div class="hidden sm:flex items-center gap-3">
+                        <div id="push-notification-container" class="hidden">
+                            <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                            </button>
+                        </div>
+                        <button id="chat-btn-desktop" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
+                        <button id="profile-btn-desktop" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">הפריטים שלי</button>
+                        <button id="logout-btn-desktop" class="text-center text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition whitespace-nowrap">התנתקות</button>
+                    </div>
                 `;
+                authContentDesktop.innerHTML = actionButtonsHtml;
+                
+                const loggedInHtmlMobile = `
+                    <div class="flex flex-col items-center gap-2 w-full px-4">
+                        <span class="text-sm text-gray-700 dark:text-gray-300 mb-2">שלום, ${currentUser.name}</span>
+                        <div id="push-notification-container-mobile" class="w-full mb-2 hidden">
+                            <button id="push-notification-btn-mobile" class="w-full flex items-center justify-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות...">
+                            </button>
+                        </div>
+                        <div class="flex gap-2 w-full">
+                            <button id="chat-btn-mobile" class="flex-1 text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition">הודעות</button>
+                            <button id="profile-btn-mobile" class="flex-1 text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition">הפריטים שלי</button>
+                            <button id="logout-btn-mobile" class="flex-1 text-sm bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">התנתקות</button>
+                        </div>
+                    </div>
+                `;
+                authContentMobile.innerHTML = loggedInHtmlMobile;
+                
+                const mobileBellHtml = `
+                    <div class="relative">
+                        <button id="notifications-btn-mobile" class="text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 p-2 rounded-full transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <span id="notification-badge-mobile" class="notification-badge hidden"></span>
+                        </button>
+                        <div id="notifications-panel-mobile" class="bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+                        </div>
+                    </div>
+                `;
+                headerLeftMobile.innerHTML = mobileBellHtml;
 
                 updateNotificationBell();
-            } else { 
-                // --- LOGGED OUT STATE ---
-                // Desktop
-                desktopActionsBar.innerHTML = `<button data-action="login" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition"><svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg><span>התחברות</span></button>`;
-                
-                // Mobile
-                headerLeft.innerHTML = `<button data-action="login" class="text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-3 rounded-md shadow-sm sm:hidden">התחברות</button>`;
+
+            } else {
+                headerRightContent.innerHTML = shareButtonHtml;
+                headerLeftMobile.innerHTML = '';
+                const loginButtonHtml = `
+                    <div class="hidden sm:flex">
+                        <button id="google-login-btn-desktop" class="flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                            <span>התחברות עם Google</span>
+                        </button>
+                    </div>
+                `;
+                authContentDesktop.innerHTML = loginButtonHtml;
+
+                const loggedOutHtmlMobile = `
+                     <button id="google-login-btn-mobile" class="w-full flex justify-center items-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.319-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.244,44,30.036,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                        <span>התחברות עם Google</span>
+                    </button>
+                `;
+                authContentMobile.innerHTML = loggedOutHtmlMobile;
             }
-            
-            headerLeft.appendChild(themeToggleBtn);
+
+            // Re-attach event listeners for all states
+            document.querySelectorAll('[id^="google-login-btn"]').forEach(btn => btn.addEventListener('click', handleGoogleLogin));
+            document.querySelectorAll('[id^="profile-btn"]').forEach(btn => btn.addEventListener('click', showProfileView));
+            document.querySelectorAll('[id^="logout-btn"]').forEach(btn => btn.addEventListener('click', handleLogout));
+            document.querySelectorAll('[id^="chat-btn"]').forEach(btn => btn.addEventListener('click', () => showChatView()));
+            document.querySelectorAll('[id^="share-app-btn"]').forEach(btn => btn.addEventListener('click', shareApp));
             
             document.querySelectorAll('[id^="notifications-btn"]').forEach(btn => {
                 btn.addEventListener('click', (e) => toggleNotificationsPanel(e.currentTarget));
@@ -879,78 +900,52 @@
             updateUIForAuthState(); 
             resetAndFetchItems(); 
         }
-
-        // --- START: Admin View Logic ---
-        async function showAdminView() {
-            showView('admin-view');
-            const contentDiv = document.getElementById('admin-dashboard-content');
-            contentDiv.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען נתוני ניהול...</p></div>`;
-
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                contentDiv.innerHTML = `<p class="text-center p-8 text-red-500">שגיאת אימות. אנא התחבר מחדש.</p>`;
-                return;
-            }
-
+        
+        // --- START: Banner Logic ---
+        async function initializeBanners() {
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/dashboard-data`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(`${SERVER_URL}/api/banners`);
+                if (!response.ok) throw new Error('Failed to fetch banners');
+                const banners = await response.json();
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch admin data or not authorized.');
+                if (banners && banners.length > 0) {
+                    bannerContainer.innerHTML = ''; // Clear previous
+                    banners.forEach(banner => {
+                        const slide = document.createElement('a');
+                        slide.href = banner.link;
+                        slide.target = '_blank';
+                        slide.rel = 'noopener noreferrer';
+                        slide.className = 'banner-slide';
+                        slide.innerHTML = `<img src="${banner.imageUrl}" alt="${banner.altText}">`;
+                        bannerContainer.appendChild(slide);
+                    });
+                    startBannerRotation();
+                } else {
+                    bannerContainer.style.display = 'none';
                 }
-                const data = await response.json();
-
-                const sessionsHtml = data.recentSessions.map(session => {
-                    const loginTime = new Date(session.loginAt).toLocaleString('he-IL');
-                    const logoutTime = session.logoutAt ? new Date(session.logoutAt).toLocaleString('he-IL') : 'עדיין מחובר';
-                    return `
-                        <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td class="p-3 flex items-center gap-3">
-                                <img src="${session.user.image || 'https://placehold.co/40x40/e2e8f0/94a3b8?text=?'}" alt="${session.user.displayName}" class="w-10 h-10 rounded-full">
-                                <div>
-                                    <div class="font-bold">${session.user.displayName}</div>
-                                    <div class="text-sm text-gray-500 dark:text-gray-400">${session.user.email}</div>
-                                </div>
-                            </td>
-                            <td class="p-3">${loginTime}</td>
-                            <td class="p-3">${logoutTime}</td>
-                        </tr>
-                    `;
-                }).join('');
-
-                contentDiv.innerHTML = `
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-                        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200">משתמשים מחוברים כרגע</h3>
-                        <p class="text-4xl font-bold text-indigo-500">${data.connectedUsersCount}</p>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">50 התחברויות אחרונות</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-right">
-                                <thead class="bg-gray-100 dark:bg-gray-700">
-                                    <tr>
-                                        <th class="p-3">משתמש</th>
-                                        <th class="p-3">זמן כניסה</th>
-                                        <th class="p-3">זמן יציאה</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${sessionsHtml}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                `;
-
             } catch (error) {
-                console.error('Error fetching admin data:', error);
-                contentDiv.innerHTML = `<p class="text-center p-8 text-red-500">שגיאה בטעינת נתוני הניהול. ודא שאתה מחובר כ-Admin.</p>`;
+                console.error("Could not initialize banners:", error);
+                bannerContainer.style.display = 'none';
             }
         }
-        // --- END: Admin View Logic ---
 
+        function startBannerRotation() {
+            const slides = bannerContainer.querySelectorAll('.banner-slide');
+            if (slides.length <= 1) {
+                if(slides.length === 1) slides[0].classList.add('active');
+                return;
+            };
+
+            let currentSlide = 0;
+            slides[currentSlide].classList.add('active');
+
+            setInterval(() => {
+                slides[currentSlide].classList.remove('active');
+                currentSlide = (currentSlide + 1) % slides.length;
+                slides[currentSlide].classList.add('active');
+            }, 5000); // Change slide every 5 seconds
+        }
+        // --- END: Banner Logic ---
 
         // --- Profile View Logic ---
         async function showProfileView() { 
@@ -1547,16 +1542,6 @@
             const action = actionTarget.dataset.action;
             
             switch (action) {
-                case 'login': handleGoogleLogin(); break;
-                case 'logout': handleLogout(); break;
-                case 'show-profile': showProfileView(); break;
-                case 'show-chat': showChatView(); break;
-                case 'show-admin-view': showAdminView(); break;
-                case 'show-main-view': showView('main-view'); if (!itemsFeed.innerHTML.includes('item-card')) { resetAndFetchItems(); } break;
-                case 'show-chat-list': showChatView(); break;
-                case 'retry-fetch': resetAndFetchItems(); break;
-                case 'start-verification': showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...'); break;
-
                 case 'edit-item': {
                     const id = actionTarget.dataset.id;
                     const itemToEdit = allItemsCache[id];
@@ -1718,7 +1703,23 @@
                     showChatView(conversationId);
                     break;
                 }
-
+                case 'show-main-view': {
+                    showView('main-view');
+                    resetAndFetchItems();
+                    break;
+                }
+                case 'show-chat-list': {
+                    showChatView();
+                    break;
+                }
+                case 'retry-fetch': {
+                    resetAndFetchItems();
+                    break;
+                }
+                 case 'start-verification': {
+                    showAlert('אימות מוכרים יתווסף בקרוב!', 'בקרוב...');
+                    break;
+                }
                 case 'report-item': {
                     const itemId = actionTarget.dataset.id;
                     if (!currentUser) return showAlert('עליך להתחבר כדי לדווח על פריט.');
@@ -1730,64 +1731,7 @@
             }
         });
 
-        // --- Event Listeners ---
-        openModalBtn.addEventListener('click', () => { 
-            if (!currentUser) return showAlert('יש להתחבר או להירשם כדי להוסיף פריט.');
-            uploadForm.reset(); 
-            editingItemIdInput.value = ''; 
-            uploadModalTitle.textContent = 'העלאת פריט חדש'; 
-            document.getElementById('submit-btn').textContent = 'פרסמי עכשיו!'; 
-            document.getElementById('item-images').required = true; 
-            document.getElementById('image-preview-container').innerHTML = ''; 
-            
-            const affiliateContainer = document.getElementById('affiliate-link-container');
-            const promotedContainer = document.getElementById('promoted-container');
-            if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                affiliateContainer.classList.remove('hidden');
-                promotedContainer.classList.remove('hidden');
-            } else {
-                affiliateContainer.classList.add('hidden');
-                promotedContainer.classList.add('hidden');
-            }
-            document.getElementById('item-affiliate-link').value = '';
-            document.getElementById('item-promoted').checked = false;
-
-            showModal(uploadModal); 
-        });
-
-        uploadForm.addEventListener('submit', async (e) => { 
-            e.preventDefault(); 
-            const token = localStorage.getItem('authToken'); 
-            if (!token) return showAlert('יש להתחבר כדי לבצע פעולה זו.'); 
-            const isEditing = !!editingItemIdInput.value;
-            const formData = new FormData(uploadForm);
-            
-            const imageFiles = document.getElementById('item-images').files;
-            if (!isEditing && imageFiles.length === 0) return showAlert('יש להעלות לפחות תמונה אחת.');
-            
-            const submitBtn = document.getElementById('submit-btn'); 
-            submitBtn.disabled = true; 
-            submitBtn.textContent = isEditing ? 'שומר שינויים...' : 'מפרסם...'; 
-            
-            const url = isEditing ? `${SERVER_URL}/items/${editingItemIdInput.value}` : `${SERVER_URL}/items`; 
-            const method = isEditing ? 'PATCH' : 'POST'; 
-            
-            try { 
-                const response = await fetch(url, { method: method, headers: { 'Authorization': `Bearer ${token}` }, body: formData }); 
-                if (!response.ok) { 
-                    const errData = await response.json(); 
-                    throw new Error(errData.message || 'Server responded with an error'); 
-                } 
-                hideAllModals(); 
-            } catch (error) { 
-                console.error('Upload/Edit failed:', error); 
-                showAlert(`שגיאה: ${error.message}`, 'שגיאת העלאה'); 
-            } finally { 
-                submitBtn.disabled = false; 
-            } 
-        });
-
-        
+        // --- Other Event Listeners ---
         [filterInput, categorySelect, sortSelect, minPriceInput, maxPriceInput, conditionSelect, sizeFilterInput, brandFilterInput, locationFilterInput].forEach(el => {
             el.addEventListener('change', () => {
                 resetAndFetchItems();
@@ -1821,28 +1765,13 @@
                 showToast('הדיווח שלך נשלח. תודה!');
             } catch (error) {
                 console.error('Report submission failed:', error);
-                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
+                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
             }
         });
 
         // --- Init ---
         checkAuthState();
 
-      } catch (error) {
-            console.error("!!! CRITICAL ERROR ON PAGE LOAD !!!");
-            console.error("An unexpected error stopped the page from loading correctly.");
-            console.error("THE ERROR WAS:", error);
-            const mainView = document.getElementById('main-view');
-            if (mainView) {
-                mainView.innerHTML = `
-                    <div class="text-center p-8 text-red-500">
-                        <h2 class="text-2xl font-bold">שגיאה קריטית</h2>
-                        <p>אירעה שגיאה בלתי צפויה בטעינת העמוד.</p>
-                        <p>אנא פתח את חלון ה-Console (F12) ושלח את השגיאה האדומה לתמיכה.</p>
-                    </div>
-                `;
-            }
-      }
     });
     </script>
 </body>
