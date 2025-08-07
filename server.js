@@ -29,6 +29,9 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3000;
 
+// --- מונה גלובלי לעדכון במייל ---
+let newItemCounter = 0;
+
 // --- קריאת משתני סביבה ---
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -182,6 +185,64 @@ app.use(express.static(path.join(__dirname)));
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
+
+// --- פונקציה לשליחת מייל עדכון ---
+async function sendNewsletterUpdate() {
+    console.log('Threshold reached. Preparing to send newsletter...');
+    try {
+        const allUsers = await User.find({ email: { $ne: null } });
+        const recentItems = await Item.find({ sold: false })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .populate('owner', 'displayName');
+
+        if (allUsers.length === 0 || recentItems.length === 0) {
+            console.log('No users or recent items to send in the newsletter.');
+            return;
+        }
+
+        let itemsHtml = recentItems.map(item => `
+            <div style="border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; padding: 10px; text-align: right;">
+                <img src="${item.imageUrls[0]}" alt="${item.title}" style="width: 100%; max-width: 200px; border-radius: 8px; display: block; margin: 0 auto 10px;">
+                <h4 style="margin: 0 0 5px 0;">${item.title}</h4>
+                <p style="margin: 0 0 10px 0;">מחיר: ₪${item.price}</p>
+                <a href="${CLIENT_URL}" style="display: inline-block; padding: 8px 15px; background-color: #14b8a6; color: white; text-decoration: none; border-radius: 5px;">לצפייה בפריט</a>
+            </div>
+        `).join('');
+
+        const emailHtml = `
+            <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; background-color: #f4f4f4; padding: 20px;">
+                <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px;">
+                    <h2 style="text-align: center; color: #14b8a6;">עדכון מסטייל מתגלגל!</h2>
+                    <p>היי, רצינו לעדכן אותך על 20 הפריטים האחרונים שעלו לאתר. אולי תמצאי משהו שתאהבי:</p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                    ${itemsHtml}
+                    <div style="text-align: center; margin-top: 20px;">
+                       <a href="${CLIENT_URL}" style="display: inline-block; padding: 12px 25px; background-color: #f59e0b; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">בואי לראות עוד פריטים באתר</a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const recipients = allUsers.map(user => user.email);
+
+        const msg = {
+            to: recipients,
+            from: {
+                name: 'סטייל מתגלגל',
+                email: SENDER_EMAIL_ADDRESS
+            },
+            subject: '✨ 20 פריטים חדשים וחמים מחכים לך בסטייל מתגלגל!',
+            html: emailHtml
+        };
+
+        await sgMail.sendMultiple(msg);
+        console.log(`Newsletter sent successfully to ${recipients.length} users.`);
+
+    } catch (error) {
+        console.error('Failed to send newsletter update:', error.toString());
+    }
+}
 
 // --- הגדרת Passport.js ---
 passport.serializeUser((user, done) => done(null, user.id));
@@ -524,6 +585,16 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified');
         io.emit('newItem', populatedItem);
         res.status(201).json(populatedItem);
+
+        // --- הפעלת שליחת המייל ---
+        newItemCounter++;
+        console.log(`New item posted. Counter is now at: ${newItemCounter}`);
+        if (newItemCounter >= 20) {
+            sendNewsletterUpdate();
+            newItemCounter = 0; // Reset the counter
+            console.log('Newsletter triggered and counter reset.');
+        }
+
     } catch (err) {
         console.error("Error uploading item:", err);
         res.status(400).json({ message: err.message });
@@ -824,7 +895,6 @@ io.on('connection', (socket) => {
     }
 
     socket.on('sendMessage', async (data) => {
-        console.log('[SOCKET DEBUG] sendMessage event received:', data); // *** NEW DEBUG LOG ***
         try {
             const { conversationId, senderId, receiverId, text } = data;
             
@@ -860,7 +930,6 @@ io.on('connection', (socket) => {
             await notification.save();
             io.to(receiverId).emit('newNotification', notification);
             
-            // --- START: New Email Notification Logic ---
             try {
                 const receiver = await User.findById(receiverId);
                 const conversation = await Conversation.findById(conversationId).populate('item', 'title');
@@ -896,7 +965,6 @@ io.on('connection', (socket) => {
             } catch (emailError) {
                 console.error('Error preparing email notification:', emailError);
             }
-            // --- END: New Email Notification Logic ---
 
             const pushPayload = JSON.stringify({
                 title: `הודעה חדשה מ-${sender.displayName}`,
@@ -909,13 +977,9 @@ io.on('connection', (socket) => {
             
             const userSubscriptions = await PushSubscription.find({ user: receiverId });
 
-            console.log(`[PUSH DEBUG] Found ${userSubscriptions.length} subscriptions for user ${receiverId}.`);
-
             if (userSubscriptions.length > 0) {
-                console.log(`[PUSH DEBUG] Attempting to send push to ${userSubscriptions.length} subscription(s)...`);
                 userSubscriptions.forEach(sub => {
                     webPush.sendNotification(sub.subscription, pushPayload)
-                        .then(() => console.log('[PUSH DEBUG] Push notification sent successfully.'))
                         .catch(async (err) => {
                             if (err.statusCode === 410) {
                                 console.log('[PUSH DEBUG] Subscription has expired. Removing.');
