@@ -345,7 +345,13 @@ const uploadToCloudinary = (fileBuffer) => {
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    const payload = { id: req.user._id, name: req.user.displayName, email: req.user.email };
+    // --- ⭐️ FIXED: Include isVerified in the JWT payload ---
+    const payload = { 
+        id: req.user._id, 
+        name: req.user.displayName, 
+        email: req.user.email,
+        isVerified: req.user.isVerified // Add this line
+    };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     res.redirect(`${CLIENT_URL}?token=${token}`);
 });
@@ -495,8 +501,13 @@ app.get('/users/:id/items', async (req, res) => {
     } 
 });
 
-app.get('/users/:id', async (req, res) => { 
+// --- ⭐️ FIXED: Get user by ID route, ensuring isVerified is selected ---
+app.get('/api/users/:id', authMiddleware, async (req, res) => { 
     try { 
+        // Ensure the ID being requested is the same as the authenticated user's ID
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ message: 'Forbidden: You can only access your own profile data.' });
+        }
         const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop'); 
         if (!user) return res.status(404).json({ message: 'User not found' }); 
         res.json(user); 
@@ -504,6 +515,7 @@ app.get('/users/:id', async (req, res) => {
         res.status(500).json({ message: err.message }); 
     } 
 });
+
 
 app.get('/users/:id/ratings', async (req, res) => {
     try {
