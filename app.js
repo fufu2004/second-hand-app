@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const shopsView = document.getElementById('shops-view');
     const shopsFeed = document.getElementById('shops-feed');
     const singleShopView = document.getElementById('single-shop-view');
+    const savedSearchesView = document.getElementById('saved-searches-view');
     
     // --- Modals & Forms Selectors ---
     const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
@@ -666,6 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button id="push-notification-btn" class="flex items-center gap-2 text-gray-800 font-bold py-2 px-3 rounded-full shadow-md transition transform hover:scale-105" title="טוען סטטוס התראות..."></button>
                 </div>
                 <button data-action="show-shops-view" class="text-center text-sm bg-pink-500 text-white py-2 px-4 rounded-md hover:bg-pink-600 transition whitespace-nowrap">חנויות</button>
+                <button data-action="show-saved-searches" class="text-center text-sm bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition whitespace-nowrap">חיפושים שמורים</button>
                 <button id="chat-btn" class="text-center text-sm bg-cyan-500 text-white py-2 px-4 rounded-md hover:bg-cyan-600 transition whitespace-nowrap">הודעות</button>
                 <button id="profile-btn" class="text-center text-sm bg-teal-500 text-white py-2 px-4 rounded-md hover:bg-teal-600 transition whitespace-nowrap">האזור האישי</button>
                 ${currentUser.email === ADMIN_EMAIL ? `<button id="admin-btn" class="text-center text-sm bg-purple-500 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition whitespace-nowrap">פאנל ניהול</button>` : ''}
@@ -2168,6 +2170,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'manage-shop': {
                 openShopModal();
+                break;
+            }
+            case 'show-saved-searches': {
+                showSavedSearchesView();
                 break;
             }
         }
