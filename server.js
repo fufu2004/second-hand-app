@@ -564,6 +564,46 @@ app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (
 
 // --- END: Admin Routes ---
 
+// --- START: Saved Search Routes ---
+
+app.get('/api/saved-searches', authMiddleware, async (req, res) => {
+    try {
+        const searches = await SavedSearch.find({ user: req.user.id }).sort({ createdAt: -1 });
+        res.json(searches);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch saved searches.' });
+    }
+});
+
+app.post('/api/saved-searches', authMiddleware, async (req, res) => {
+    try {
+        const { name, filters } = req.body;
+        const newSearch = new SavedSearch({
+            user: req.user.id,
+            name,
+            filters
+        });
+        await newSearch.save();
+        res.status(201).json(newSearch);
+    } catch (error) {
+        res.status(400).json({ message: 'Failed to save search.', error: error.message });
+    }
+});
+
+app.delete('/api/saved-searches/:id', authMiddleware, async (req, res) => {
+    try {
+        const search = await SavedSearch.findOne({ _id: req.params.id, user: req.user.id });
+        if (!search) {
+            return res.status(404).json({ message: 'Search not found or you are not authorized to delete it.' });
+        }
+        await SavedSearch.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Saved search deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to delete saved search.' });
+    }
+});
+
+// --- END: Saved Search Routes ---
 
 app.get('/api/vapid-public-key', (req, res) => {
     res.send(VAPID_PUBLIC_KEY);
@@ -823,6 +863,82 @@ app.post('/api/users/:id/follow', authMiddleware, async (req, res) => {
 });
 
 
+async function checkSavedSearches(newItem) {
+    const filters = {
+        $and: []
+    };
+
+    // Helper function to create a condition for a field
+    const createCondition = (field, value) => {
+        if (value) {
+            return {
+                $or: [
+                    { [`filters.${field}`]: { $in: [null, undefined, '', 'all'] } },
+                    { [`filters.${field}`]: { $regex: new RegExp(value, 'i') } }
+                ]
+            };
+        }
+        return { [`filters.${field}`]: { $in: [null, undefined, '', 'all'] } };
+    };
+    
+    // Build the query dynamically based on which item fields have values
+    if (newItem.title) {
+         filters.$and.push({
+            $or: [
+                { 'filters.searchTerm': { $in: [null, undefined, ''] } },
+                { $expr: { $regexMatch: { input: newItem.title, regex: '$filters.searchTerm', options: 'i' } } }
+            ]
+        });
+    }
+    if (newItem.category) filters.$and.push({ $or: [{ 'filters.category': { $in: [null, undefined, 'all', ''] } }, { 'filters.category': newItem.category }] });
+    if (newItem.condition) filters.$and.push({ $or: [{ 'filters.condition': { $in: [null, undefined, 'all', ''] } }, { 'filters.condition': newItem.condition }] });
+    if (newItem.brand) filters.$and.push({ $or: [{ 'filters.brand': { $in: [null, undefined, ''] } }, { $expr: { $regexMatch: { input: newItem.brand, regex: '$filters.brand', options: 'i' } } }] });
+    if (newItem.location) filters.$and.push({ $or: [{ 'filters.location': { $in: [null, undefined, ''] } }, { $expr: { $regexMatch: { input: newItem.location, regex: '$filters.location', options: 'i' } } }] });
+    if (newItem.size) filters.$and.push({ $or: [{ 'filters.size': { $in: [null, undefined, ''] } }, { $expr: { $regexMatch: { input: newItem.size, regex: '$filters.size', options: 'i' } } }] });
+
+
+    if (newItem.price !== undefined) {
+        filters.$and.push({
+            $or: [
+                { 'filters.minPrice': { $in: [null, undefined] } },
+                { 'filters.minPrice': { $lte: newItem.price } }
+            ]
+        });
+        filters.$and.push({
+            $or: [
+                { 'filters.maxPrice': { $in: [null, undefined] } },
+                { 'filters.maxPrice': { $gte: newItem.price } }
+            ]
+        });
+    }
+
+    try {
+        const matchingSearches = await SavedSearch.find(filters.length > 0 ? filters : {}).populate('user');
+        
+        for (const search of matchingSearches) {
+            // Don't notify the user about their own item
+            if (search.user && search.user._id.toString() === newItem.owner._id.toString()) {
+                continue;
+            }
+
+            const notification = new Notification({
+                user: search.user._id,
+                type: 'saved-search',
+                message: `פריט חדש תואם לחיפוש שלך "${search.name}": ${newItem.title}`,
+                link: `/`, // You can enhance this to link directly to the item or a filtered view
+                fromUser: newItem.owner._id
+            });
+            await notification.save();
+
+            // Send socket.io notification
+            io.to(search.user._id.toString()).emit('newNotification', notification);
+        }
+    } catch (error) {
+        console.error('Error checking saved searches:', error);
+    }
+}
+
+
 app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) => {
     try {
         const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
@@ -850,8 +966,13 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         
         const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
-        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified shop');
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified shop averageRating');
+        
         io.emit('newItem', populatedItem);
+        
+        // Check for matches with saved searches AFTER emitting the new item
+        checkSavedSearches(populatedItem);
+
         res.status(201).json(populatedItem);
 
         // --- הפעלת שליחת המייל ---
