@@ -202,7 +202,6 @@ const SubscriberSchema = new mongoose.Schema({
 });
 const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
 
-// --> NEW SCHEMA
 const SavedSearchSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true }, // e.g., "שמלת זארה מידה M"
