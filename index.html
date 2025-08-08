@@ -1542,6 +1542,8 @@
             const deleteButtonHtml = (isOwner || isAdmin) ? `<button data-id="${item._id}" data-action="delete-item" class="text-gray-400 hover:text-red-500 transition" title="מחיקת פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button>` : '';
             const reportButtonHtml = (currentUser && !isOwner) ? `<button data-id="${item._id}" data-action="report-item" class="text-gray-400 hover:text-amber-500 transition flex items-center gap-1" title="דיווח על פריט"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 01-1-1V6z" clip-rule="evenodd" /></svg><span class="text-xs">דווח</span></button>` : '';
             
+            const shopButtonHtml = item.owner.shop ? `<button data-action="view-shop" data-shop-id="${item.owner.shop}" class="text-gray-400 hover:text-pink-500 transition" title="צפייה בחנות"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg></button>` : '';
+
             let ownerName = (item.owner.displayName) ? item.owner.displayName : 'אנונימי';
             if (item.owner.email && item.owner.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 ownerName = 'מנהל';
@@ -1597,6 +1599,7 @@
                                         ${ownerNameHtml} ${verifiedBadgeHtml}
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        ${shopButtonHtml}
                                         ${promoteButtonHtml}
                                         ${reportButtonHtml}
                                         ${soldButtonHtml} 
@@ -2348,7 +2351,7 @@
                 showToast('הדיווח שלך נשלח. תודה!');
             } catch (error) {
                 console.error('Report submission failed:', error);
-                showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+                showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
             }
         });
 
