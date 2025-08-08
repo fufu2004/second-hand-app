@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const minPriceInput = document.getElementById('min-price');
     const maxPriceInput = document.getElementById('max-price');
     const favoritesFilterBtn = document.getElementById('favorites-filter-btn');
+    const saveSearchBtn = document.getElementById('save-search-btn');
     const emptyState = document.getElementById('empty-state');
     const chatView = document.getElementById('chat-view');
     const conditionSelect = document.getElementById('condition-select');
@@ -116,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let panzoomInstance = null;
     let currentUserProfile = null; 
     let pushSubscription = null; 
+    let isFavoritesFilterActive = false;
 
     // --- Infinite Scroll State ---
     let currentPage = 1;
@@ -1466,7 +1468,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (minPriceInput.value) params.append('minPrice', minPriceInput.value);
             if (maxPriceInput.value) params.append('maxPrice', maxPriceInput.value);
 
-            const response = await fetch(`${SERVER_URL}/items?${params.toString()}`);
+            const token = localStorage.getItem('authToken');
+            let url = `${SERVER_URL}/items?${params.toString()}`;
+            const headers = {};
+            if (isFavoritesFilterActive && token) {
+                url = `${SERVER_URL}/api/items/favorites?${params.toString()}`;
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, { headers });
             const data = await response.json();
             
             if (!response.ok) {
