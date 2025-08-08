@@ -89,6 +89,12 @@
                     <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
                     <span>הצג מועדפים בלבד</span>
                 </button>
+                <button id="save-search-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20" title="שמור חיפוש">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2z" clip-rule="evenodd" />
+                    </svg>
+                    <span>שמור חיפוש וקבל התראות</span>
+                </button>
             </div>
             <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"></main>
             <div id="loading-indicator" class="text-center py-8 hidden">
@@ -117,8 +123,8 @@
                 <div id="admin-dashboard-content"></div>
             </div>
         </div>
-        <!-- NEW VIEW CONTAINER -->
         <div id="admin-user-profile-view" class="view"></div>
+        <div id="saved-searches-view" class="view"></div>
         <div id="shops-view" class="view">
             <div class="my-6 text-center">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">חנויות הקהילה</h2>
