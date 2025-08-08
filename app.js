@@ -919,13 +919,14 @@ document.addEventListener('DOMContentLoaded', () => {
         adminDashboardContent.innerHTML = '<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען נתוני ניהול...</p></div>';
 
         try {
-            const [dashboardResponse, subscribersResponse, usersResponse] = await Promise.all([
+            const [dashboardResponse, subscribersResponse, usersResponse, reportsResponse] = await Promise.all([
                 fetch(`${SERVER_URL}/api/admin/dashboard-data`, { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch(`${SERVER_URL}/api/admin/subscribers`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch(`${SERVER_URL}/api/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } })
+                fetch(`${SERVER_URL}/api/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${SERVER_URL}/api/admin/reports`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
-            if (!dashboardResponse.ok || !subscribersResponse.ok || !usersResponse.ok) {
+            if (!dashboardResponse.ok || !subscribersResponse.ok || !usersResponse.ok || !reportsResponse.ok) {
                 const errorText = await dashboardResponse.text();
                 throw new Error(`Failed to fetch all admin data. Server responded with: ${errorText}`);
             }
@@ -933,8 +934,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const dashboardData = await dashboardResponse.json();
             const subscribersData = await subscribersResponse.json();
             const usersData = await usersResponse.json();
+            const reportsData = await reportsResponse.json();
 
-            renderAdminDashboard(dashboardData, subscribersData, usersData);
+            renderAdminDashboard(dashboardData, subscribersData, usersData, reportsData);
 
         } catch (error) {
             console.error('Error fetching admin data:', error);
@@ -942,8 +944,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderAdminDashboard(dashboardData, subscribersData, usersData) {
+    function renderAdminDashboard(dashboardData, subscribersData, usersData, reportsData) {
         const { connectedUsersCount, recentSessions } = dashboardData;
+
+        let reportsHtml = '';
+        if (reportsData && reportsData.length > 0) {
+            reportsHtml = reportsData.map(report => {
+                const item = report.reportedItem;
+                const owner = item ? item.owner : null;
+                const reporter = report.reporter;
+                
+                if (!item || !owner || !reporter) {
+                    return `
+                        <tr class="border-b dark:border-gray-700 opacity-50">
+                            <td class="p-3" colspan="6">פריט או משתמש נמחקו (דיווח מזהה: ${report._id}) <button data-action="resolve-report" data-report-id="${report._id}" class="text-xs text-blue-500 hover:underline">סמן כטופל</button></td>
+                        </tr>
+                    `;
+                }
+
+                return `
+                    <tr class="border-b dark:border-gray-700">
+                        <td class="p-3">
+                            <a href="#" data-action="view-item-from-report" data-item-id="${item._id}" class="text-teal-500 hover:underline">${item.title}</a>
+                        </td>
+                        <td class="p-3">${owner.displayName} (${owner.email})</td>
+                        <td class="p-3">${reporter.displayName} (${reporter.email})</td>
+                        <td class="p-3">${report.reason}</td>
+                        <td class="p-3">${report.details || 'אין פרטים'}</td>
+                        <td class="p-3 space-y-2">
+                            <button data-action="resolve-report" data-report-id="${report._id}" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded-md transition">סמן כטופל</button>
+                            <button data-action="delete-item" data-id="${item._id}" class="w-full text-sm bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded-md transition">מחק פריט</button>
+                            <button data-action="suspend-user" data-user-id="${owner._id}" data-user-name="${owner.displayName}" class="w-full text-sm bg-orange-500 hover:bg-orange-600 text-white py-1 px-2 rounded-md transition">השעה מוכר</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            reportsHtml = '<tr><td colspan="6" class="p-4 text-center text-gray-500">אין דיווחים חדשים.</td></tr>';
+        }
+
+        const reportsSectionHtml = `
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h3 class="text-xl font-bold mb-4">דיווחים חדשים</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="p-3">פריט מדווח</th>
+                                <th class="p-3">מוכר</th>
+                                <th class="p-3">מדווח</th>
+                                <th class="p-3">סיבה</th>
+                                <th class="p-3">פרטים</th>
+                                <th class="p-3">פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reportsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
 
         let sessionsHtml = recentSessions.map(session => {
             const loginTime = new Date(session.loginAt).toLocaleString('he-IL');
@@ -1015,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const dashboardHtml = `
+            ${reportsSectionHtml}
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
                     <h3 class="text-lg font-semibold text-gray-500 dark:text-gray-400">מחוברים כעת</h3>
@@ -1649,6 +1711,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const token = localStorage.getItem('authToken');
         
         switch (action) {
+            case 'resolve-report': {
+                const reportId = actionTarget.dataset.reportId;
+                const { confirmed } = await showCustomModal({
+                    title: 'אישור טיפול בדיווח',
+                    message: 'האם לסמן את הדיווח הזה כטופל? הפעולה תסיר אותו מהרשימה.',
+                    buttons: [
+                        { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md', resolves: false },
+                        { text: 'כן, טופל', class: 'bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md', resolves: true }
+                    ]
+                });
+                if (confirmed) {
+                    try {
+                        const res = await fetch(`${SERVER_URL}/api/admin/reports/${reportId}/status`, { 
+                            method: 'PATCH', 
+                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'resolved' })
+                        });
+                        if (!res.ok) throw new Error('Failed to resolve report');
+                        showToast('הדיווח סומן כטופל.');
+                        fetchAdminDashboardData(); // Refresh the dashboard
+                    } catch (err) {
+                        showAlert('שגיאה בסימון הדיווח.');
+                    }
+                }
+                break;
+            }
+            case 'view-item-from-report': {
+                const itemId = actionTarget.dataset.itemId;
+                showAlert(`כדי לצפות בפריט, חפש/י אותו בפיד הראשי. מזהה פריט: ${itemId}`, 'צפייה בפריט');
+                break;
+            }
             case 'ban-user': {
                 const { confirmed } = await showCustomModal({
                     title: 'אישור חסימה',
@@ -1856,6 +1949,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             const errData = await response.json();
                             throw new Error(errData.message || `Error ${response.status}`);
                         }
+                        showToast('הפריט נמחק.');
+                        if(adminView.classList.contains('active')) {
+                            fetchAdminDashboardData();
+                        }
                     } catch (error) {
                         console.error('Delete failed:', error);
                         showAlert(`שגיאה במחיקת הפריט: ${error.message}`, 'שגיאת מחיקה');
@@ -2032,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('הדיווח שלך נשלח. תודה!');
         } catch (error) {
             console.error('Report submission failed:', error);
-            showAlert(`שגיאה בשליחת הדיווח: ${error.message}`);
+            showAlert(`שגיאה בשליחת הדירווח: ${error.message}`);
         }
     });
 
