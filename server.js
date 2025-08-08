@@ -524,6 +524,29 @@ app.patch('/api/admin/reports/:id/status', authMiddleware, adminMiddleware, asyn
     }
 });
 
+// --> NEW ROUTE
+app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const items = await Item.find({ owner: userId }).sort({ createdAt: -1 });
+        const reportsAgainstUser = await Report.find({ 'reportedItem.owner': userId })
+            .populate('reporter', 'displayName')
+            .populate('reportedItem', 'title')
+            .sort({ createdAt: -1 });
+
+        res.json({ user, items, reportsAgainstUser });
+
+    } catch (error) {
+        console.error('Error fetching user details for admin:', error);
+        res.status(500).json({ message: 'Failed to fetch user details.' });
+    }
+});
+
 // --- END: Admin Routes ---
 
 
@@ -884,6 +907,7 @@ app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
         const newReport = new Report({
             reporter: reporterId,
             reportedItem: reportedItemId,
+            reportedUser: item.owner,
             reason: reason,
             details: details
         });
@@ -1004,7 +1028,6 @@ app.get('/api/my-conversations', authMiddleware, async (req, res) => {
             .populate('item', 'title imageUrls')
             .sort({ updatedAt: -1 });
         
-        // ⭐️ FIXED: Filter out conversations where item or participant might have been deleted
         const validConversations = conversations.filter(c => c.item && c.participants.length > 1);
 
         res.json(validConversations);
@@ -1144,7 +1167,6 @@ app.get('/api/shops', async (req, res) => {
     }
 });
 
-// ⭐️ FIX: Changed the route from /api/shops/:id to /api/shop-details/:id
 app.get('/api/shop-details/:id', async (req, res) => {
     try {
         const shop = await Shop.findById(req.params.id).populate('owner', 'displayName image isVerified');
@@ -1178,10 +1200,9 @@ io.on('connection', async (socket) => {
     if (socket.user) {
         socket.join(socket.user.id);
         
-        // --- START: Track User Connection ---
         const session = new UserSession({ user: socket.user.id });
         await session.save();
-        socket.sessionId = session._id; // Store session ID on the socket
+        socket.sessionId = session._id;
         
         connectedUsers.set(socket.id, {
             userId: socket.user.id,
@@ -1189,7 +1210,6 @@ io.on('connection', async (socket) => {
             sessionId: socket.sessionId
         });
         console.log(`User ${socket.user.name} connected. Total connected: ${connectedUsers.size}`);
-        // --- END: Track User Connection ---
 
     } else {
         console.log('An anonymous user connected:', socket.id);
@@ -1238,7 +1258,7 @@ io.on('connection', async (socket) => {
                         to: receiver.email,
                         from: { name: 'סטייל מתגלגל', email: SENDER_EMAIL_ADDRESS },
                         subject: `קיבלת הודעה חדשה מ${sender.displayName} בנוגע לפריט "${conversation.item.title}"`,
-                        html: `...` // (HTML content remains the same)
+                        html: `...`
                     };
                     sgMail.send(msg).catch(error => console.error("Failed to send new message email:", error.toString()));
                 }
@@ -1274,7 +1294,6 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('disconnect', async () => { 
-        // --- START: Track User Disconnection ---
         if (connectedUsers.has(socket.id)) {
             const { name, sessionId } = connectedUsers.get(socket.id);
             connectedUsers.delete(socket.id);
@@ -1286,7 +1305,6 @@ io.on('connection', async (socket) => {
         } else {
             console.log('An anonymous user disconnected');
         }
-        // --- END: Track User Disconnection ---
     }); 
 });
 
