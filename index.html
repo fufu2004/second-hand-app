@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
+    <script>
+        // Force unregister all service workers to ensure the latest version is used
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
