@@ -1152,6 +1152,83 @@ document.addEventListener('DOMContentLoaded', () => {
         adminDashboardContent.innerHTML = dashboardHtml;
     }
 
+    async function showAdminUserProfileView(userId) {
+        showView('admin-user-profile-view');
+        adminUserProfileView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען פרטי משתמש...</p></div>`;
+
+        const token = localStorage.getItem('authToken');
+        try {
+            const response = await fetch(`${SERVER_URL}/api/admin/users/${userId}/details`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch user details');
+            
+            const { user, items, reportsAgainstUser } = await response.json();
+
+            let itemsHtml = items.length > 0 ? items.map(item => `
+                <div class="p-2 border-b dark:border-gray-700 flex justify-between items-center">
+                    <span>${item.title} (${item.sold ? 'נמכר' : 'זמין'})</span>
+                    <button data-action="delete-item" data-id="${item._id}" class="text-red-500 hover:text-red-700 text-xs">מחק</button>
+                </div>
+            `).join('') : '<p class="p-2 text-gray-500">המשתמש לא העלה פריטים.</p>';
+
+            let reportsHtml = reportsAgainstUser.length > 0 ? reportsAgainstUser.map(report => `
+                 <tr class="border-b dark:border-gray-700">
+                    <td class="p-2">${report.reportedItem ? report.reportedItem.title : 'פריט נמחק'}</td>
+                    <td class="p-2">${report.reason}</td>
+                    <td class="p-2">${report.reporter.displayName}</td>
+                    <td class="p-2">${new Date(report.createdAt).toLocaleDateString('he-IL')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" class="p-4 text-center text-gray-500">אין דיווחים נגד משתמש זה.</td></tr>';
+
+            const userProfileHtml = `
+                <div class="my-6">
+                    <button data-action="show-admin-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפאנל הניהול</button>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                        <div class="flex items-center gap-4 mb-6">
+                            <img src="${user.image}" alt="${user.displayName}" class="w-20 h-20 rounded-full">
+                            <div>
+                                <h2 class="text-2xl font-bold">${user.displayName}</h2>
+                                <p class="text-gray-500 dark:text-gray-400">${user.email}</p>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h3 class="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-2">כל הפריטים (${items.length})</h3>
+                            <div class="max-h-60 overflow-y-auto">
+                                ${itemsHtml}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-2">דיווחים נגד המשתמש (${reportsAgainstUser.length})</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="p-2">פריט</th>
+                                            <th class="p-2">סיבה</th>
+                                            <th class="p-2">מדווח</th>
+                                            <th class="p-2">תאריך</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${reportsHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            adminUserProfileView.innerHTML = userProfileHtml;
+
+        } catch (error) {
+            console.error('Error fetching admin user profile:', error);
+            adminUserProfileView.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת פרופיל המשתמש.</p>`;
+        }
+    }
+
 
     // --- Item Card Creation & Helpers ---
     function getWhatsAppLink(contact, title) {
