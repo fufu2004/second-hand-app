@@ -370,7 +370,7 @@
         <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
     </div>
 
-    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
+    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60"> <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10"> <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3> <div id="custom-modal-body"></div> <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p> <div id="custom-modal-buttons" class="flex justify-end gap-3"></div> </div> </div>
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
             <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">שתפי את האפליקציה</h3>
@@ -669,9 +669,10 @@
         
         // --- Custom Modal System ---
         let modalResolver;
-        function showCustomModal({ title, message, buttons }) {
+        function showCustomModal({ title, message, buttons, bodyHtml = '' }) {
             document.getElementById('custom-modal-title').textContent = title;
             document.getElementById('custom-modal-message').innerHTML = message; 
+            document.getElementById('custom-modal-body').innerHTML = bodyHtml;
             const buttonsContainer = document.getElementById('custom-modal-buttons');
             buttonsContainer.innerHTML = '';
             buttons.forEach(btn => {
@@ -680,7 +681,12 @@
                 buttonEl.className = btn.class;
                 buttonEl.onclick = () => {
                     hideAllModals();
-                    if (modalResolver) modalResolver(btn.resolves);
+                    if (modalResolver) {
+                        const bodyEl = document.getElementById('custom-modal-body');
+                        const input = bodyEl.querySelector('input');
+                        const value = input ? input.value : null;
+                        modalResolver({ confirmed: btn.resolves, value: value });
+                    }
                 };
                 buttonsContainer.appendChild(buttonEl);
             });
@@ -1425,16 +1431,37 @@
             }).join('');
             
             let usersHtml = usersData.map(user => {
+                let statusHtml = '';
+                if (user.isBanned) {
+                    statusHtml = '<span class="px-2 py-1 text-xs font-semibold text-red-800 bg-red-200 rounded-full">חסום</span>';
+                } else if (user.isSuspended) {
+                    statusHtml = `<span class="px-2 py-1 text-xs font-semibold text-orange-800 bg-orange-200 rounded-full">מושעה עד ${new Date(user.suspensionExpires).toLocaleDateString('he-IL')}</span>`;
+                } else {
+                    statusHtml = '<span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">פעיל</span>';
+                }
+
+                let actionsHtml = '';
+                if (user.isBanned || user.isSuspended) {
+                    actionsHtml += `<button data-action="unblock-user" data-user-id="${user._id}" class="text-sm bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded-md transition">בטל חסימה</button>`;
+                } else {
+                    actionsHtml += `
+                        <button data-action="suspend-user" data-user-id="${user._id}" data-user-name="${user.displayName}" class="text-sm bg-orange-500 hover:bg-orange-600 text-white py-1 px-3 rounded-md transition mr-2">השעה</button>
+                        <button data-action="ban-user" data-user-id="${user._id}" data-user-name="${user.displayName}" class="text-sm bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md transition">חסום</button>
+                    `;
+                }
+
                 return `
                     <tr class="border-b dark:border-gray-700">
                         <td class="p-3">${user.displayName}</td>
                         <td class="p-3">${user.email}</td>
+                        <td class="p-3">${statusHtml}</td>
                         <td class="p-3">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" value="" class="sr-only peer" data-action="toggle-verification" data-user-id="${user._id}" ${user.isVerified ? 'checked' : ''}>
                                 <div class="w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </td>
+                         <td class="p-3">${actionsHtml}</td>
                     </tr>
                 `;
             }).join('');
@@ -1466,7 +1493,9 @@
                                 <tr>
                                     <th class="p-3">שם</th>
                                     <th class="p-3">אימייל</th>
+                                    <th class="p-3">סטטוס</th>
                                     <th class="p-3">מאומת</th>
+                                    <th class="p-3">פעולות</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2074,15 +2103,73 @@
             if (!actionTarget) return;
 
             const action = actionTarget.dataset.action;
+            const userId = actionTarget.dataset.userId;
+            const userName = actionTarget.dataset.userName;
+            const token = localStorage.getItem('authToken');
             
             switch (action) {
+                case 'ban-user': {
+                    const { confirmed } = await showCustomModal({
+                        title: 'אישור חסימה',
+                        message: `האם לחסום לצמיתות את ${userName}? לא ניתן לשחזר פעולה זו.`,
+                        buttons: [
+                            { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md', resolves: false },
+                            { text: 'חסום לצמיתות', class: 'bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md', resolves: true }
+                        ]
+                    });
+                    if (confirmed) {
+                        try {
+                            const res = await fetch(`${SERVER_URL}/api/admin/users/${userId}/ban`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+                            if (!res.ok) throw new Error('Failed to ban user');
+                            showToast('המשתמש נחסם בהצלחה.');
+                            fetchAdminDashboardData();
+                        } catch (err) {
+                            showAlert('שגיאה בחסימת המשתמש.');
+                        }
+                    }
+                    break;
+                }
+                case 'suspend-user': {
+                    const { confirmed, value: durationDays } = await showCustomModal({
+                        title: `השעיית ${userName}`,
+                        message: 'לכמה ימים להשעות את המשתמש?',
+                        bodyHtml: `<input type="number" id="suspend-days-input" class="w-full p-2 border rounded-md" placeholder="למשל: 7">`,
+                        buttons: [
+                             { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md', resolves: false },
+                             { text: 'השעה', class: 'bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md', resolves: true }
+                        ]
+                    });
+                    if (confirmed && durationDays && !isNaN(durationDays) && durationDays > 0) {
+                         try {
+                            const res = await fetch(`${SERVER_URL}/api/admin/users/${userId}/suspend`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ durationDays }) });
+                            if (!res.ok) throw new Error('Failed to suspend user');
+                            showToast('המשתמש הושעה בהצלחה.');
+                            fetchAdminDashboardData();
+                        } catch (err) {
+                            showAlert('שגיאה בהשעיית המשתמש.');
+                        }
+                    } else if(confirmed) {
+                        showAlert('יש להזין מספר ימים תקין.');
+                    }
+                    break;
+                }
+                case 'unblock-user': {
+                    try {
+                        const res = await fetch(`${SERVER_URL}/api/admin/users/${userId}/unblock`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+                        if (!res.ok) throw new Error('Failed to unblock user');
+                        showToast('המשתמש הוחזר לפעילות.');
+                        fetchAdminDashboardData();
+                    } catch (err) {
+                        showAlert('שגיאה בביטול חסימת המשתמש.');
+                    }
+                    break;
+                }
                 case 'toggle-favorite': {
                     if (!currentUser) {
                         showAlert('יש להתחבר כדי להוסיף פריטים למועדפים.');
                         break;
                     }
                     const itemId = actionTarget.dataset.id;
-                    const token = localStorage.getItem('authToken');
                     try {
                         const response = await fetch(`${SERVER_URL}/api/favorites/${itemId}`, {
                             method: 'POST',
@@ -2100,9 +2187,7 @@
                     break;
                 }
                 case 'toggle-verification': {
-                    const userId = actionTarget.dataset.userId;
                     const isVerified = actionTarget.checked;
-                    const token = localStorage.getItem('authToken');
                     try {
                         const response = await fetch(`${SERVER_URL}/api/users/${userId}/set-verified`, {
                             method: 'PATCH',
@@ -2132,7 +2217,6 @@
                     button.disabled = true;
                     button.innerHTML = '<span>מוריד...</span>';
                     
-                    const token = localStorage.getItem('authToken');
                     if (!token) {
                         button.disabled = false;
                         button.innerHTML = originalContent;
@@ -2214,7 +2298,7 @@
                 }
                 case 'delete-item': {
                     const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
+                    const { confirmed } = await showCustomModal({
                         title: 'אישור מחיקה',
                         message: 'האם למחוק את הפריט? לא ניתן לשחזר את הפעולה.',
                         buttons: [
@@ -2224,7 +2308,6 @@
                     });
 
                     if (confirmed) {
-                        const token = localStorage.getItem('authToken');
                         if (!token) return showAlert('שגיאת אימות למחיקה.');
                         try {
                             const response = await fetch(`${SERVER_URL}/items/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
@@ -2241,7 +2324,6 @@
                 }
                 case 'toggle-sold': {
                     const id = actionTarget.dataset.id;
-                    const token = localStorage.getItem('authToken'); 
                     if (!token) return showAlert('שגיאת אימות.'); 
                     const item = allItemsCache[id]; 
                     if (!item) return;
@@ -2257,7 +2339,7 @@
                 }
                 case 'promote-item': {
                     const id = actionTarget.dataset.id;
-                    const confirmed = await showCustomModal({
+                    const { confirmed } = await showCustomModal({
                         title: 'קידום פריט',
                         message: 'פעולה זו תקדם את הפריט לראש הפיד למשך 24 שעות. האם להמשיך?',
                         buttons: [
@@ -2266,7 +2348,6 @@
                         ]
                     });
                     if (confirmed) {
-                        const token = localStorage.getItem('authToken');
                         if (!token) return showAlert('שגיאת אימות.');
                         try {
                             const response = await fetch(`${SERVER_URL}/api/items/${id}/promote`, {
@@ -2288,19 +2369,14 @@
                     break;
                 }
                 case 'view-profile': {
-                    const userId = actionTarget.dataset.userId;
                     showPublicProfile(userId);
                     break;
                 }
                 case 'rate-user': {
-                    const userId = actionTarget.dataset.userId;
-                    const userName = actionTarget.dataset.userName;
                     openRatingModal(userId, userName);
                     break;
                 }
                 case 'follow-user': {
-                    const userId = actionTarget.dataset.userId;
-                    const token = localStorage.getItem('authToken');
                     if (!token) return showAlert('עליך להתחבר כדי לעקוב אחר משתמשים.');
                     try {
                         const response = await fetch(`${SERVER_URL}/api/users/${userId}/follow`, {
