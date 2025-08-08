@@ -345,12 +345,11 @@ const uploadToCloudinary = (fileBuffer) => {
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    // --- ⭐️ FIXED: Include isVerified in the JWT payload ---
     const payload = { 
         id: req.user._id, 
         name: req.user.displayName, 
         email: req.user.email,
-        isVerified: req.user.isVerified // Add this line
+        isVerified: req.user.isVerified
     };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     res.redirect(`${CLIENT_URL}?token=${token}`);
@@ -414,7 +413,6 @@ app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (re
     }
 });
 
-// --- NEW: Get all users for admin panel ---
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const users = await User.find().sort({ displayName: 1 });
@@ -492,32 +490,27 @@ app.get('/items', async (req, res) => {
 
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
-app.get('/users/:id/items', async (req, res) => { 
-    try { 
-        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); 
-        res.json(items); 
-    } catch (err) { 
-        res.status(500).json({ message: err.message }); 
-    } 
+// --- ⭐️ START: PUBLIC API ROUTES ---
+app.get('/api/public/users/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-// --- ⭐️ FIXED: Get user by ID route, ensuring isVerified is selected ---
-app.get('/api/users/:id', authMiddleware, async (req, res) => { 
-    try { 
-        // Ensure the ID being requested is the same as the authenticated user's ID
-        if (req.user.id !== req.params.id) {
-            return res.status(403).json({ message: 'Forbidden: You can only access your own profile data.' });
-        }
-        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop'); 
-        if (!user) return res.status(404).json({ message: 'User not found' }); 
-        res.json(user); 
-    } catch (err) { 
-        res.status(500).json({ message: err.message }); 
-    } 
+app.get('/api/public/users/:id/items', async (req, res) => {
+    try {
+        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 });
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-
-app.get('/users/:id/ratings', async (req, res) => {
+app.get('/api/public/users/:id/ratings', async (req, res) => {
     try {
         const user = await User.findById(req.params.id)
             .populate({
@@ -533,6 +526,22 @@ app.get('/users/:id/ratings', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+// --- ⭐️ END: PUBLIC API ROUTES ---
+
+
+app.get('/api/users/:id', authMiddleware, async (req, res) => { 
+    try { 
+        if (req.user.id !== req.params.id) {
+            return res.status(403).json({ message: 'Forbidden: You can only access your own profile data.' });
+        }
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop'); 
+        if (!user) return res.status(404).json({ message: 'User not found' }); 
+        res.json(user); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
+});
+
 
 app.post('/users/:id/rate', authMiddleware, async (req, res) => {
     const { rating, comment } = req.body;
@@ -892,8 +901,12 @@ app.get('/api/my-conversations', authMiddleware, async (req, res) => {
             .populate('item', 'title imageUrls')
             .sort({ updatedAt: -1 });
         
-        res.json(conversations);
+        // ⭐️ FIXED: Filter out conversations where item or participant might have been deleted
+        const validConversations = conversations.filter(c => c.item && c.participants.length > 1);
+
+        res.json(validConversations);
     } catch (err) {
+        console.error("Error fetching conversations:", err);
         res.status(500).json({ message: err.message });
     }
 });
