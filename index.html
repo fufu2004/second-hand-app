@@ -25,12 +25,12 @@
         body { font-family: 'Assistant', sans-serif; }
         .modal-backdrop, .gallery-backdrop { transition: opacity 0.3s ease; }
         .modal-content, .gallery-content { transition: transform 0.3s ease, opacity 0.3s ease; }
-        .item-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .item-card:hover {
+        .item-card, .shop-card { animation: fadeIn 0.5s ease-in-out; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .item-card:hover, .shop-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }
-        .dark .item-card:hover {
+        .dark .item-card:hover, .dark .shop-card:hover {
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -1943,6 +1943,92 @@
                 input.value = '';
             }
         }
+        
+        // --- ⭐️ START: NEW SHOP-RELATED FUNCTIONS ---
+        
+        function createShopCard(shop) {
+            return `
+                <div class="shop-card bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer" data-action="view-shop" data-shop-id="${shop._id}">
+                    <div class="h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <img src="${shop.logoUrl || 'https://placehold.co/100x100/e2e8f0/94a3b8?text=Logo'}" alt="לוגו של ${shop.name}" class="h-24 w-24 object-contain rounded-full">
+                    </div>
+                    <div class="p-4 text-center">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${shop.name}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">מאת: ${shop.owner.displayName}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchShops() {
+            shopsFeed.innerHTML = Array(3).fill('<div class="skeleton-loader h-48 w-full"></div>').join('');
+            try {
+                const response = await fetch(`${SERVER_URL}/api/shops`);
+                if (!response.ok) throw new Error('Failed to fetch shops');
+                const shops = await response.json();
+                
+                shopsFeed.innerHTML = '';
+                if (shops.length === 0) {
+                    shopsFeed.innerHTML = `<p class="text-center col-span-full text-gray-500 dark:text-gray-400">עדיין אין חנויות להצגה.</p>`;
+                } else {
+                    shops.forEach(shop => {
+                        shopsFeed.innerHTML += createShopCard(shop);
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching shops:", error);
+                shopsFeed.innerHTML = `<p class="text-center col-span-full text-red-500">שגיאה בטעינת החנויות.</p>`;
+            }
+        }
+        
+        async function showSingleShopView(shopId) {
+            showView('single-shop-view');
+            singleShopView.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto"></div></div>`;
+            
+            try {
+                const shopResponse = await fetch(`${SERVER_URL}/api/shops/${shopId}`);
+                if (!shopResponse.ok) throw new Error('Could not load shop details.');
+                const shop = await shopResponse.json();
+
+                const itemsResponse = await fetch(`${SERVER_URL}/users/${shop.owner._id}/items`);
+                if (!itemsResponse.ok) throw new Error('Could not load shop items.');
+                const items = await itemsResponse.json();
+
+                let itemsHtml = '';
+                if (items.length > 0) {
+                    items.forEach(item => {
+                        itemsHtml += createItemCard(item);
+                    });
+                } else {
+                    itemsHtml = `<p class="text-center col-span-full py-8 text-gray-500 dark:text-gray-400">אין פריטים בחנות זו כרגע.</p>`;
+                }
+
+                const verifiedBadgeHtml = shop.owner.isVerified ? `<svg class="verified-badge" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>` : '';
+
+                singleShopView.innerHTML = `
+                    <div class="my-6">
+                        <button data-action="show-shops-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לכל החנויות</button>
+                        <div class="flex flex-col items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                            <img src="${shop.logoUrl || 'https://placehold.co/96x96/e2e8f0/94a3b8?text=Logo'}" alt="לוגו של ${shop.name}" class="w-24 h-24 rounded-full border-4 border-pink-200 dark:border-pink-700">
+                            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100">${shop.name}</h2>
+                            <p class="text-center text-gray-600 dark:text-gray-400 max-w-lg">${shop.description || ''}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                מנוהלת על ידי <span class="font-semibold cursor-pointer hover:underline" data-action="view-profile" data-user-id="${shop.owner._id}">${shop.owner.displayName}</span> ${verifiedBadgeHtml}
+                            </p>
+                        </div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-center mb-6">הפריטים בחנות</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        ${itemsHtml}
+                    </div>
+                `;
+            } catch (error) {
+                console.error("Error showing single shop:", error);
+                singleShopView.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת החנות.</p>`;
+            }
+        }
+        // --- ⭐️ END: NEW SHOP-RELATED FUNCTIONS ---
+
 
         // --- Central Event Listener (Event Delegation) ---
         document.body.addEventListener('click', async (e) => {
