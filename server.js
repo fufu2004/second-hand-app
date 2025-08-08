@@ -110,7 +110,6 @@ const UserSchema = new mongoose.Schema({
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isVerified: { type: Boolean, default: false },
     shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' },
-    // --> ADDED FIELDS
     isBanned: { type: Boolean, default: false },
     isSuspended: { type: Boolean, default: false },
     suspensionExpires: { type: Date }
@@ -486,6 +485,42 @@ app.post('/api/admin/users/:id/unblock', authMiddleware, adminMiddleware, async 
         res.status(200).json({ message: `User ${user.displayName} has been unblocked.`, user });
     } catch (error) {
         res.status(500).json({ message: 'Server error while unblocking user.' });
+    }
+});
+
+app.get('/api/admin/reports', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const reports = await Report.find({ status: 'new' })
+            .populate('reporter', 'displayName email')
+            .populate({
+                path: 'reportedItem',
+                populate: {
+                    path: 'owner',
+                    select: 'displayName email'
+                }
+            })
+            .sort({ createdAt: -1 });
+        res.json(reports);
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        res.status(500).json({ message: 'Failed to fetch reports.' });
+    }
+});
+
+app.patch('/api/admin/reports/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
+    const { status } = req.body;
+    if (!['resolved', 'in-progress'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status.' });
+    }
+    try {
+        const report = await Report.findByIdAndUpdate(req.params.id, { status: status }, { new: true });
+        if (!report) {
+            return res.status(404).json({ message: 'Report not found.' });
+        }
+        res.status(200).json({ message: 'Report status updated successfully.', report });
+    } catch (error) {
+        console.error('Error updating report status:', error);
+        res.status(500).json({ message: 'Failed to update report status.' });
     }
 });
 
