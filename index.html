@@ -1216,7 +1216,6 @@
                 if (!itemsResponse.ok) throw new Error('Could not fetch user items'); 
                 const items = await itemsResponse.json(); 
 
-                // --- ⭐️ FIXED: Always fetch the latest profile data ---
                 await fetchUserProfile();
 
                 if (currentUserProfile) {
@@ -1231,7 +1230,6 @@
                         `;
                     }
                 } else {
-                    // Handle case where profile couldn't be fetched
                     profileActionsContainer.innerHTML = '';
                 }
                 
@@ -2334,9 +2332,77 @@
                 submitBtn.disabled = false;
             }
         });
+        
+        // --- ⭐️ NEW: Shop Modal and Form Logic ---
+        async function openShopModal() {
+            shopForm.reset();
+            document.getElementById('shop-logo-preview-container').innerHTML = '';
+
+            if (currentUserProfile && currentUserProfile.shop) {
+                 // Editing an existing shop
+                document.getElementById('shop-modal-title').textContent = 'עריכת פרטי החנות';
+                try {
+                    const token = localStorage.getItem('authToken');
+                    const response = await fetch(`${SERVER_URL}/api/shops/${currentUserProfile.shop}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error('Could not fetch shop details');
+                    const shopDetails = await response.json();
+                    
+                    document.getElementById('shop-name').value = shopDetails.name || '';
+                    document.getElementById('shop-description').value = shopDetails.description || '';
+                    if (shopDetails.logoUrl) {
+                        document.getElementById('shop-logo-preview-container').innerHTML = `<img src="${shopDetails.logoUrl}" class="w-24 h-24 object-cover rounded-md mt-2">`;
+                    }
+                } catch (error) {
+                    console.error("Failed to load shop details for editing:", error);
+                    showAlert('שגיאה בטעינת פרטי החנות.');
+                    return;
+                }
+            } else {
+                // Creating a new shop
+                document.getElementById('shop-modal-title').textContent = 'יצירת חנות חדשה';
+            }
+            showModal(shopModal);
+        }
+
+        shopForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) return showAlert('שגיאת אימות.');
+
+            const formData = new FormData(shopForm);
+            const submitBtn = document.getElementById('submit-shop-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'שומר...';
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/shops`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to save shop details');
+                }
+                
+                hideAllModals();
+                showToast('פרטי החנות נשמרו בהצלחה!');
+                await showProfileView(); // Refresh profile view
+
+            } catch (error) {
+                console.error("Shop form submission error:", error);
+                showAlert(`שגיאה: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'שמור שינויים';
+            }
+        });
+
 
         // --- Init ---
-        // FIXED: Populate categories on load
         function populateCategories() {
             const select = document.getElementById('category-select');
             select.innerHTML = '<option value="all">כל הקטגוריות</option>'; // Default option
