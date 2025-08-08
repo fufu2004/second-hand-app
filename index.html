@@ -1259,10 +1259,11 @@
                 <div class="space-y-6">${Array(2).fill(createSkeletonCard()).join('')}</div>`;
 
             try {
+                // --- ⭐️ FIXED: Use new public API routes ---
                 const [userResponse, itemsResponse, ratingsResponse] = await Promise.all([
-                    fetch(`${SERVER_URL}/users/${userId}`),
-                    fetch(`${SERVER_URL}/users/${userId}/items`),
-                    fetch(`${SERVER_URL}/users/${userId}/ratings`)
+                    fetch(`${SERVER_URL}/api/public/users/${userId}`),
+                    fetch(`${SERVER_URL}/api/public/users/${userId}/items`),
+                    fetch(`${SERVER_URL}/api/public/users/${userId}/ratings`)
                 ]);
 
                 if (!userResponse.ok || !itemsResponse.ok || !ratingsResponse.ok) {
@@ -1990,7 +1991,7 @@
                 if (!shopResponse.ok) throw new Error('Could not load shop details.');
                 const shop = await shopResponse.json();
 
-                const itemsResponse = await fetch(`${SERVER_URL}/users/${shop.owner._id}/items`);
+                const itemsResponse = await fetch(`${SERVER_URL}/api/public/users/${shop.owner._id}/items`);
                 if (!itemsResponse.ok) throw new Error('Could not load shop items.');
                 const items = await itemsResponse.json();
 
