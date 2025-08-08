@@ -168,7 +168,7 @@ const Report = mongoose.model('Report', ReportSchema);
 
 const NotificationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower'] },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower', 'saved-search'] },
     message: { type: String, required: true },
     link: { type: String, required: true },
     isRead: { type: Boolean, default: false },
@@ -201,6 +201,23 @@ const SubscriberSchema = new mongoose.Schema({
     subscribedAt: { type: Date, default: Date.now }
 });
 const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
+
+// --> NEW SCHEMA
+const SavedSearchSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    name: { type: String, required: true }, // e.g., "שמלת זארה מידה M"
+    filters: {
+        searchTerm: String,
+        category: String,
+        condition: String,
+        size: String,
+        brand: String,
+        location: String,
+        minPrice: Number,
+        maxPrice: Number
+    }
+}, { timestamps: true });
+const SavedSearch = mongoose.model('SavedSearch', SavedSearchSchema);
 
 
 // --- הגדרות העלאת קבצים ---
@@ -524,7 +541,6 @@ app.patch('/api/admin/reports/:id/status', authMiddleware, adminMiddleware, asyn
     }
 });
 
-// --> NEW ROUTE
 app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const userId = req.params.id;
@@ -534,7 +550,7 @@ app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (
         }
 
         const items = await Item.find({ owner: userId }).sort({ createdAt: -1 });
-        const reportsAgainstUser = await Report.find({ 'reportedItem.owner': userId })
+        const reportsAgainstUser = await Report.find({ reportedUser: userId })
             .populate('reporter', 'displayName')
             .populate('reportedItem', 'title')
             .sort({ createdAt: -1 });
