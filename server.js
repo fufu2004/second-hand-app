@@ -469,7 +469,7 @@ app.get('/items', async (req, res) => {
         }
         
         const items = await Item.find(filters)
-            .populate('owner', 'displayName email isVerified')
+            .populate('owner', 'displayName email isVerified shop')
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
@@ -488,7 +488,7 @@ app.get('/items', async (req, res) => {
     }
 });
 
-app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
+app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified shop').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 // --- ⭐️ START: PUBLIC API ROUTES ---
 app.get('/api/public/users/:id', async (req, res) => {
@@ -503,7 +503,7 @@ app.get('/api/public/users/:id', async (req, res) => {
 
 app.get('/api/public/users/:id/items', async (req, res) => {
     try {
-        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified').sort({ createdAt: -1 });
+        const items = await Item.find({ owner: req.params.id }).populate('owner', 'displayName email isVerified shop').sort({ createdAt: -1 });
         res.json(items);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -709,7 +709,7 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         
         const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
-        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified');
+        const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified shop');
         io.emit('newItem', populatedItem);
         res.status(201).json(populatedItem);
 
@@ -751,7 +751,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
             delete updateData.isPromoted;
         }
 
-        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email isVerified');
+        const updatedItem = await Item.findByIdAndUpdate(req.params.id, updateData, { new: true }).populate('owner', 'displayName email isVerified shop');
         io.emit('itemUpdated', updatedItem);
         res.json(updatedItem);
     } catch (err) {
@@ -760,7 +760,7 @@ app.patch('/items/:id', authMiddleware, upload.array('images', 6), async (req, r
     }
 });
 
-app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
+app.patch('/items/:id/sold', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); item.sold = req.body.sold; await item.save(); const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified shop'); io.emit('itemUpdated', updatedItem); res.json(updatedItem); } catch (err) { res.status(400).json({ message: err.message }); } });
 app.delete('/items/:id', authMiddleware, async (req, res) => { try { const item = await Item.findById(req.params.id); if (!item) return res.status(404).json({ message: 'Item not found' }); const isOwner = item.owner && item.owner.toString() === req.user.id; const isAdmin = req.user.email === ADMIN_EMAIL; if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' }); await Item.findByIdAndDelete(req.params.id); io.emit('itemDeleted', req.params.id); res.json({ message: 'Item deleted' }); } catch (err) { res.status(500).json({ message: err.message }); } });
 
 app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
@@ -830,7 +830,7 @@ app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
             item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); 
             await item.save();
 
-            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified');
+            const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified shop');
             io.emit('itemUpdated', updatedItem);
             
             res.status(200).json({ message: 'Item promoted successfully!', item: updatedItem });
