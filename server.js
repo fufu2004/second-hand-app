@@ -443,6 +443,7 @@ app.get('/api/admin/subscribers', authMiddleware, adminMiddleware, async (req, r
     }
 });
 
+// THIS IS THE CORRECTED FUNCTION
 app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const subscribers = await Subscriber.find().sort({ subscribedAt: -1 });
@@ -468,4 +469,118 @@ app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (re
         res.status(200).send(csv);
 
     } catch (error) {
-        console.error('Error exporting subscribers to CSV:', error
+        console.error('Error exporting subscribers to CSV:', error);
+        res.status(500).json({ message: 'Failed to export subscribers.' });
+    }
+});
+
+
+app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const users = await User.find().sort({ displayName: 1 }).select('+isBanned +isSuspended +suspensionExpires');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch users.' });
+    }
+});
+
+app.post('/api/admin/users/:id/ban', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id, { isBanned: true, isSuspended: false, suspensionExpires: null }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ message: `User ${user.displayName} has been banned.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while banning user.' });
+    }
+});
+
+app.post('/api/admin/users/:id/suspend', authMiddleware, adminMiddleware, async (req, res) => {
+    const { durationDays } = req.body;
+    if (!durationDays || isNaN(durationDays) || durationDays <= 0) {
+        return res.status(400).json({ message: 'Invalid suspension duration.' });
+    }
+    try {
+        const suspensionExpires = new Date();
+        suspensionExpires.setDate(suspensionExpires.getDate() + parseInt(durationDays));
+
+        const user = await User.findByIdAndUpdate(req.params.id, { isSuspended: true, suspensionExpires: suspensionExpires, isBanned: false }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.status(200).json({ message: `User ${user.displayName} has been suspended for ${durationDays} days.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while suspending user.' });
+    }
+});
+
+app.post('/api/admin/users/:id/unblock', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id, { isBanned: false, isSuspended: false, suspensionExpires: null }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ message: `User ${user.displayName} has been unblocked.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while unblocking user.' });
+    }
+});
+
+app.get('/api/admin/reports', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const reports = await Report.find({ status: 'new' })
+            .populate('reporter', 'displayName email')
+            .populate({
+                path: 'reportedItem',
+                populate: {
+                    path: 'owner',
+                    select: 'displayName email'
+                }
+            })
+            .sort({ createdAt: -1 });
+        res.json(reports);
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        res.status(500).json({ message: 'Failed to fetch reports.' });
+    }
+});
+
+app.patch('/api/admin/reports/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
+    const { status } = req.body;
+    if (!['resolved', 'in-progress'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status.' });
+    }
+    try {
+        const report = await Report.findByIdAndUpdate(req.params.id, { status: status }, { new: true });
+        if (!report) {
+            return res.status(404).json({ message: 'Report not found.' });
+        }
+        res.status(200).json({ message: 'Report status updated successfully.', report });
+    } catch (error) {
+        console.error('Error updating report status:', error);
+        res.status(500).json({ message: 'Failed to update report status.' });
+    }
+});
+
+app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const items = await Item.find({ owner: userId }).sort({ createdAt: -1 });
+        const reportsAgainstUser = await Report.find({ reportedUser: userId })
+            .populate('reporter', 'displayName')
+            .populate('reportedItem', 'title')
+            .sort({ createdAt: -1 });
+
+        res.json({ user, items, reportsAgainstUser });
+
+    } catch (error) {
+        console.error('Error fetching user details for admin:', error);
+        res.status(500).json({ message: 'Failed to fetch user details.' });
+    }
+});
+
+// --- END: Admin Routes ---
+
+// --- The rest of the server.js file remains the same...
+// ...
