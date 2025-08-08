@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const publicProfileView = document.getElementById('public-profile-view');
     const adminView = document.getElementById('admin-view');
     const adminDashboardContent = document.getElementById('admin-dashboard-content');
+    const adminUserProfileView = document.getElementById('admin-user-profile-view');
     const itemsFeed = document.getElementById('items-feed');
     const profileItemsFeed = document.getElementById('profile-items-feed');
     const headerRightContent = document.getElementById('header-right-content');
@@ -1054,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <tr class="border-b dark:border-gray-700">
-                    <td class="p-3">${user.displayName}</td>
+                    <td class="p-3"><a href="#" data-action="view-admin-user-profile" data-user-id="${user._id}" class="text-teal-500 hover:underline">${user.displayName}</a></td>
                     <td class="p-3">${user.email}</td>
                     <td class="p-3">${statusHtml}</td>
                     <td class="p-3">
@@ -1711,6 +1712,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const token = localStorage.getItem('authToken');
         
         switch (action) {
+            case 'view-admin-user-profile': {
+                showAdminUserProfileView(userId);
+                break;
+            }
             case 'resolve-report': {
                 const reportId = actionTarget.dataset.reportId;
                 const { confirmed } = await showCustomModal({
