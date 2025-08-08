@@ -1041,7 +1041,8 @@ app.get('/api/shops', async (req, res) => {
     }
 });
 
-app.get('/api/shops/:id', async (req, res) => {
+// ⭐️ FIX: Changed the route from /api/shops/:id to /api/shop-details/:id
+app.get('/api/shop-details/:id', async (req, res) => {
     try {
         const shop = await Shop.findById(req.params.id).populate('owner', 'displayName image isVerified');
         if (!shop) {
