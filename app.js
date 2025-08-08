@@ -1787,6 +1787,136 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- ⭐️ END: NEW SHOP-RELATED FUNCTIONS ---
 
+    // --- ⭐️ START: NEW SAVED SEARCHES FUNCTIONS ---
+
+    async function saveCurrentSearch() {
+        if (!currentUser) {
+            return showAlert('עליך להתחבר כדי לשמור חיפושים.');
+        }
+
+        const { confirmed, value: searchName } = await showCustomModal({
+            title: 'שמירת חיפוש',
+            message: 'תני שם לחיפוש הזה כדי שתוכלי לזהות אותו מאוחר יותר.',
+            bodyHtml: `<input type="text" id="search-name-input" class="w-full p-2 border rounded-md" placeholder="לדוגמה: שמלות ערב שחורות">`,
+            buttons: [
+                { text: 'ביטול', class: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md', resolves: false },
+                { text: 'שמור', class: 'bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md', resolves: true }
+            ]
+        });
+
+        if (!confirmed || !searchName || searchName.trim() === '') {
+            return; // User cancelled or entered an empty name
+        }
+
+        const filters = {
+            searchTerm: filterInput.value.trim(),
+            category: categorySelect.value,
+            condition: conditionSelect.value,
+            size: sizeFilterInput.value.trim(),
+            brand: brandFilterInput.value.trim(),
+            location: locationFilterInput.value.trim(),
+            minPrice: minPriceInput.value ? Number(minPriceInput.value) : null,
+            maxPrice: maxPriceInput.value ? Number(maxPriceInput.value) : null,
+        };
+
+        const token = localStorage.getItem('authToken');
+        try {
+            const response = await fetch(`${SERVER_URL}/api/saved-searches`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: searchName.trim(), filters })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Failed to save search.');
+            }
+
+            showToast('החיפוש נשמר בהצלחה! תקבלי התראה כשפריט מתאים יעלה.');
+
+        } catch (error) {
+            console.error('Failed to save search:', error);
+            showAlert(`שגיאה בשמירת החיפוש: ${error.message}`);
+        }
+    }
+
+    async function showSavedSearchesView() {
+        showView('saved-searches-view');
+        const view = document.getElementById('saved-searches-view');
+        view.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div><p class="mt-4 text-gray-600 dark:text-gray-300">טוען חיפושים שמורים...</p></div>`;
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            view.innerHTML = `<p class="text-center text-red-500">עליך להתחבר כדי לראות את החיפושים השמורים שלך.</p>`;
+            return;
+        }
+
+        try {
+            const response = await fetch(`${SERVER_URL}/api/saved-searches`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch saved searches');
+            const searches = await response.json();
+
+            let searchesHtml = `
+                <div class="my-6">
+                    <button data-action="show-main-view" class="mb-4 text-teal-500 hover:text-teal-700">&larr; חזרה לפיד הראשי</button>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">החיפושים שלי</h2>
+                </div>`;
+
+            if (searches.length === 0) {
+                searchesHtml += `<p class="text-center text-gray-500 dark:text-gray-400">עדיין לא שמרת חיפושים.</p>`;
+            } else {
+                searchesHtml += '<div class="space-y-4">';
+                searches.forEach(search => {
+                    const filtersDesc = Object.entries(search.filters)
+                        .filter(([key, value]) => value && value !== 'all' && value !== '')
+                        .map(([key, value]) => {
+                            let keyHebrew = key;
+                            switch(key) {
+                                case 'searchTerm': keyHebrew = 'חיפוש'; break;
+                                case 'category': keyHebrew = 'קטגוריה'; value = categoryMap[value] || value; break;
+                                case 'condition': keyHebrew = 'מצב'; value = conditionMap[value] || value; break;
+                                case 'size': keyHebrew = 'מידה'; break;
+                                case 'brand': keyHebrew = 'מותג'; break;
+                                case 'location': keyHebrew = 'מיקום'; break;
+                                case 'minPrice': keyHebrew = 'מחיר מינימלי'; break;
+                                case 'maxPrice': keyHebrew = 'מחיר מקסימלי'; break;
+                            }
+                           return `<li><span class="font-semibold">${keyHebrew}:</span> ${value}</li>`
+                        })
+                        .join('');
+
+                    searchesHtml += `
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-lg font-bold text-teal-600 dark:text-teal-400">${search.name}</h3>
+                                    ${filtersDesc ? `<ul class="text-sm text-gray-600 dark:text-gray-400 mt-2 space-y-1">${filtersDesc}</ul>` : ''}
+                                </div>
+                                <div>
+                                    <button data-action="delete-saved-search" data-id="${search._id}" class="text-gray-400 hover:text-red-500 transition" title="מחק חיפוש שמור">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                searchesHtml += '</div>';
+            }
+            view.innerHTML = searchesHtml;
+
+        } catch (error) {
+            console.error('Error fetching saved searches:', error);
+            view.innerHTML = `<p class="text-center text-red-500">שגיאה בטעינת החיפושים.</p>`;
+        }
+    }
+    
+    // --- ⭐️ END: NEW SAVED SEARCHES FUNCTIONS ---
+
 
     // --- Central Event Listener (Event Delegation) ---
     document.body.addEventListener('click', async (e) => {
@@ -2186,6 +2316,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 showSavedSearchesView();
                 break;
             }
+            case 'delete-saved-search': {
+                const searchId = actionTarget.dataset.id;
+                const { confirmed } = await showCustomModal({
+                    title: 'אישור מחיקה',
+                    message: 'האם למחוק את החיפוש השמור הזה?',
+                    buttons: [
+                        { text: 'ביטול', class: 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 py-2 px-4 rounded-md', resolves: false },
+                        { text: 'מחק', class: 'bg-red-500 text-white py-2 px-4 rounded-md', resolves: true }
+                    ]
+                });
+                if (confirmed) {
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/saved-searches/${searchId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+                        });
+                        if (!response.ok) throw new Error('Failed to delete search');
+                        showToast('החיפוש נמחק.');
+                        showSavedSearchesView(); // Refresh the view
+                    } catch (err) {
+                        showAlert('שגיאה במחיקת החיפוש.');
+                    }
+                }
+                break;
+            }
         }
     });
 
@@ -2398,6 +2553,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    saveSearchBtn.addEventListener('click', saveCurrentSearch);
+
     populateCategories();
     populateFilterCategories();
     populateCondition();
