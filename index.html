@@ -9,16 +9,13 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
 
-    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <!-- External Stylesheet -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Inline script for dark mode to prevent FOUC (Flash of Unstyled Content) -->
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -29,16 +26,13 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
 
-    <!-- Announcement Bar -->
     <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
         <span></span>
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
-    <!-- Main Container -->
     <div class="container mx-auto p-4 max-w-4xl pb-24">
-        
-        <!-- Header -->
+
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <div id="header-right" class="flex-1 flex justify-start items-center gap-2">
@@ -56,11 +50,10 @@
                 <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4"></div>
             </div>
         </header>
-        
+
         <div id="install-app-container" class="my-4 flex justify-center"></div>
         <div id="actions-bar" class="my-4 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-sm flex justify-start items-center gap-2 sm:gap-4 overflow-x-auto"></div>
 
-        <!-- Views Container -->
         <div id="main-view" class="view active">
              <div class="mt-2 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -133,14 +126,13 @@
             <main id="shops-feed" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></main>
         </div>
         <div id="single-shop-view" class="view"></div>
+        <div id="offers-view" class="view"></div>
     </div>
 
-    <!-- Floating Action Button -->
     <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
     </button>
 
-    <!-- Modals -->
     <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto">
             <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2>
@@ -205,6 +197,23 @@
             <div id="custom-modal-buttons" class="flex justify-end gap-3"></div>
         </div>
     </div>
+
+    <div id="offer-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
+            <h2 id="offer-modal-title" class="text-xl font-bold mb-2 text-center text-teal-800 dark:text-teal-300">הגשת הצעה</h2>
+            <p id="offer-modal-item-name" class="text-center text-gray-500 dark:text-gray-400 mb-4"></p>
+            <form id="offer-form">
+                <input type="hidden" id="offer-item-id">
+                <label for="offer-price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ההצעה שלך (בשקלים)</label>
+                <input type="number" id="offer-price" name="offerPrice" class="mt-1 w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח הצעה</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
         <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
@@ -291,7 +300,6 @@
 
     <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
 
-    <!-- External JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
