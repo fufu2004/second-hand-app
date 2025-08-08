@@ -109,7 +109,11 @@ const UserSchema = new mongoose.Schema({
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isVerified: { type: Boolean, default: false },
-    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' }
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' },
+    // --> ADDED FIELDS
+    isBanned: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
+    suspensionExpires: { type: Date }
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -315,10 +319,35 @@ const authMiddleware = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token == null) return res.status(401).json({ message: 'No token provided.' });
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+
+    jwt.verify(token, JWT_SECRET, async (err, decodedUser) => {
         if (err) return res.status(403).json({ message: 'Invalid token.' });
-        req.user = user;
-        next();
+
+        try {
+            const user = await User.findById(decodedUser.id);
+            if (!user) {
+                return res.status(404).json({ message: 'User not found.' });
+            }
+
+            if (user.isBanned) {
+                return res.status(403).json({ message: 'This account has been permanently banned.' });
+            }
+
+            if (user.isSuspended) {
+                if (user.suspensionExpires && user.suspensionExpires > new Date()) {
+                    return res.status(403).json({ message: `This account is suspended until ${user.suspensionExpires.toLocaleDateString('he-IL')}.` });
+                } else {
+                    user.isSuspended = false;
+                    user.suspensionExpires = null;
+                    await user.save();
+                }
+            }
+
+            req.user = decodedUser;
+            next();
+        } catch (dbError) {
+            res.status(500).json({ message: "Server error during authentication check." });
+        }
     });
 };
 
@@ -415,12 +444,51 @@ app.get('/api/admin/subscribers/csv', authMiddleware, adminMiddleware, async (re
 
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
     try {
-        const users = await User.find().sort({ displayName: 1 });
+        const users = await User.find().sort({ displayName: 1 }).select('+isBanned +isSuspended +suspensionExpires');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: 'Failed to fetch users.' });
     }
 });
+
+app.post('/api/admin/users/:id/ban', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id, { isBanned: true, isSuspended: false, suspensionExpires: null }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ message: `User ${user.displayName} has been banned.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while banning user.' });
+    }
+});
+
+app.post('/api/admin/users/:id/suspend', authMiddleware, adminMiddleware, async (req, res) => {
+    const { durationDays } = req.body;
+    if (!durationDays || isNaN(durationDays) || durationDays <= 0) {
+        return res.status(400).json({ message: 'Invalid suspension duration.' });
+    }
+    try {
+        const suspensionExpires = new Date();
+        suspensionExpires.setDate(suspensionExpires.getDate() + parseInt(durationDays));
+
+        const user = await User.findByIdAndUpdate(req.params.id, { isSuspended: true, suspensionExpires: suspensionExpires, isBanned: false }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.status(200).json({ message: `User ${user.displayName} has been suspended for ${durationDays} days.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while suspending user.' });
+    }
+});
+
+app.post('/api/admin/users/:id/unblock', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id, { isBanned: false, isSuspended: false, suspensionExpires: null }, { new: true });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.status(200).json({ message: `User ${user.displayName} has been unblocked.`, user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while unblocking user.' });
+    }
+});
+
 // --- END: Admin Routes ---
 
 
@@ -469,7 +537,7 @@ app.get('/items', async (req, res) => {
         }
         
         const items = await Item.find(filters)
-            .populate('owner', 'displayName email isVerified shop')
+            .populate('owner', 'displayName email isVerified shop averageRating')
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
