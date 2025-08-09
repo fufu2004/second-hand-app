@@ -579,6 +579,9 @@ app.post('/api/log-sw', (req, res) => {
 
 // ############# START: CORRECTED CODE #############
 app.get('/items', async (req, res) => {
+    // --- נקודת בדיקה חדשה ---
+    console.log(`[DEBUG] Entering /items route with query:`, req.query);
+
     try {
         await Item.updateMany(
             { isPromoted: true, promotedUntil: { $lt: new Date() } },
