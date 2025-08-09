@@ -6,7 +6,21 @@ body {
     background-color: #111827; /* gray-900 */
 }
 
-/* Action Bar */
+/* --- כללי ניהול תצוגה (החלק שהיה חסר) --- */
+.view {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+.view.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+/* ------------------------------------ */
+
+/* סרגל פעולות */
 .action-btn {
     padding: 0.5rem 1rem;
     border-radius: 9999px;
@@ -18,14 +32,14 @@ body {
     transition: background-color 0.2s;
 }
 
-/* Item Card Final Polish */
+/* עיצוב סופי לכרטיסי מוצר */
 .item-card {
     background-color: #ffffff;
-    border-radius: 0.75rem; /* Slightly larger radius */
+    border-radius: 0.75rem;
     box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
     overflow: hidden;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid #e5e7eb; /* Subtle border */
+    border: 1px solid #e5e7eb;
 }
 
 .dark .item-card {
@@ -38,13 +52,13 @@ body {
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
 }
 
-/* Star Rating */
+/* דירוג כוכבים */
 .star-rating svg {
     width: 1rem;
     height: 1rem;
 }
 
-/* Card Action Buttons */
+/* כפתורי פעולה בכרטיס */
 .card-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -69,4 +83,13 @@ body {
 }
 .dark .card-actions button:hover {
     background-color: #4b5563; /* gray-600 */
+}
+
+.verified-badge {
+    color: #3b82f6; /* blue-500 */
+    width: 1.1rem;
+    height: 1.1rem;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
 }
