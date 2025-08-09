@@ -23,9 +23,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:8080", // משתמש בכתובת מה-.env
-        methods: ["GET", "POST", "PATCH", "DELETE"],
-        allowedHeaders: ["my-custom-header"],
+        origin: process.env.CLIENT_URL || "http://localhost:8080",
+        methods: ["GET", "POST"],
         credentials: true
     }
 });
@@ -1343,3 +1342,4 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
         console.error('FATAL: MongoDB Connection Error:', err);
         process.exit(1);
     });
+
