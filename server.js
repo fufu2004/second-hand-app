@@ -1,4 +1,4 @@
-// server.js - Final version from backup
+// server.js
 
 // 1. ייבוא ספריות נדרשות
 require('dotenv').config();
@@ -202,10 +202,9 @@ const SubscriberSchema = new mongoose.Schema({
 });
 const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
 
-// --> NEW SCHEMA
 const SavedSearchSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true }, // e.g., "שמלת זארה מידה M"
+    name: { type: String, required: true },
     filters: {
         searchTerm: String,
         category: String,
@@ -227,82 +226,82 @@ const upload = multer({ storage: storage });
 // --- הגדרת Middleware ---
 app.use(cors());
 app.use(express.json());
-
 app.use(express.static(path.join(__dirname)));
-
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- פונקציה לשליחת מייל עדכון ---
-async function sendNewsletterUpdate() {
-    // ... (Your newsletter function logic)
-}
-
-// --- הגדרת Passport.js ---
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
-
-passport.use(new GoogleStrategy({
-    clientID: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: `${SERVER_URL}/auth/google/callback`,
-    proxy: true
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    // ... (Your Google Strategy logic)
-  }
-));
-
-// Middleware לאימות טוקן
-const authMiddleware = (req, res, next) => {
-    // ... (Your auth middleware logic)
-};
-
-// Middleware לבדיקת הרשאות מנהל
-const adminMiddleware = (req, res, next) => {
-    // ... (Your admin middleware logic)
-};
-
-// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
-const uploadToCloudinary = (fileBuffer) => {
-    return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream({ folder: "second-hand-app" }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-        });
-        streamifier.createReadStream(fileBuffer).pipe(uploadStream);
-    });
-};
+// ... (All other functions like sendNewsletterUpdate, passport setup, middlewares, helpers) ...
 
 // --- נתיבים (Routes) ---
-// ... (All your API routes from the backup go here) ...
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
+    const payload = {
+        id: req.user._id,
+        name: req.user.displayName,
+        email: req.user.email,
+        isVerified: req.user.isVerified
+    };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    res.redirect(`${CLIENT_URL}?token=${token}`);
+});
+
 app.get('/items', async (req, res) => {
-    // This is the main route for fetching items that was missing
     try {
+        await Item.updateMany(
+            { isPromoted: true, promotedUntil: { $lt: new Date() } },
+            { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
+        );
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
-        const items = await Item.find({ sold: false })
+        const skip = (page - 1) * limit;
+
+        const filters = {};
+        if (req.query.category && req.query.category !== 'all') filters.category = req.query.category;
+        if (req.query.condition && req.query.condition !== 'all') filters.condition = req.query.condition;
+        if (req.query.size) filters.size = { $regex: req.query.size.trim(), $options: 'i' };
+        if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
+        if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
+        if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
+        if (req.query.brand) filters.brand = { $regex: req.query.brand.trim(), $options: 'i' };
+        if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
+
+        const sortOptions = {};
+        sortOptions.isPromoted = -1;
+        switch (req.query.sort) {
+            case 'price_asc':
+                sortOptions.price = 1;
+                break;
+            case 'price_desc':
+                sortOptions.price = -1;
+                break;
+            default:
+                sortOptions.createdAt = -1;
+        }
+
+        const items = await Item.find(filters)
             .populate('owner', 'displayName email isVerified shop averageRating')
-            .sort({ isPromoted: -1, createdAt: -1 })
-            .skip((page - 1) * limit)
+            .sort(sortOptions)
+            .skip(skip)
             .limit(limit);
-        
-        const totalItems = await Item.countDocuments({ sold: false });
+
+        const totalItems = await Item.countDocuments(filters);
 
         res.json({
             items,
             totalPages: Math.ceil(totalItems / limit),
-            currentPage: page
+            currentPage: page,
+            totalItems: totalItems
         });
     } catch (err) {
+        console.error("Error fetching items:", err);
         res.status(500).json({ message: err.message });
     }
 });
 
 
-// --- הגדרת Socket.io ---
-// ... (Your Socket.io logic from the backup goes here) ...
+// ... (Paste ALL OTHER routes from your backup file here)
 
 // --- נתיב להגשת קובץ ה-HTML ---
 app.get('*', (req, res) => {
