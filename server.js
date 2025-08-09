@@ -579,14 +579,14 @@ app.post('/api/log-sw', (req, res) => {
 
 // ############# START: CORRECTED CODE #############
 app.get('/items', async (req, res) => {
-    // --- נקודת בדיקה חדשה ---
     console.log(`[DEBUG] Entering /items route with query:`, req.query);
 
     try {
-        await Item.updateMany(
-            { isPromoted: true, promotedUntil: { $lt: new Date() } },
-            { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
-        );
+        // The problematic line is temporarily commented out for debugging
+        // await Item.updateMany(
+        //     { isPromoted: true, promotedUntil: { $lt: new Date() } },
+        //     { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
+        // );
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
