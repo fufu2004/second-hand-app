@@ -203,20 +203,6 @@ const PushSubscriptionSchema = new mongoose.Schema({
 });
 const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
 
-const UserSessionSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    loginAt: { type: Date, default: Date.now },
-    logoutAt: { type: Date }
-});
-const UserSession = mongoose.model('UserSession', UserSessionSchema);
-
-const SubscriberSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true },
-    displayName: { type: String, required: true },
-    subscribedAt: { type: Date, default: Date.now }
-});
-const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
-
 const SavedSearchSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
