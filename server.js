@@ -62,10 +62,10 @@ if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
 
 
 // --- הגדרת Cloudinary ---
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
 // --- הגדרת שירות המייל (SendGrid) ---
@@ -93,10 +93,10 @@ const ShopSchema = new mongoose.Schema({
 });
 const Shop = mongoose.model('Shop', ShopSchema);
 
-const UserSchema = new mongoose.Schema({
-    googleId: { type: String, required: true },
-    displayName: String,
-    email: String,
+const UserSchema = new mongoose.Schema({ 
+    googleId: { type: String, required: true }, 
+    displayName: String, 
+    email: String, 
     image: String,
     ratings: [{
         rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -116,23 +116,23 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-const ItemSchema = new mongoose.Schema({
-    title: String,
-    description: String,
-    price: Number,
-    category: String,
-    contact: String,
-    imageUrls: [String],
+const ItemSchema = new mongoose.Schema({ 
+    title: String, 
+    description: String, 
+    price: Number, 
+    category: String, 
+    contact: String, 
+    imageUrls: [String], 
     affiliateLink: { type: String, default: '' },
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    sold: { type: Boolean, default: false },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+    sold: { type: Boolean, default: false }, 
     isPromoted: { type: Boolean, default: false },
     promotedUntil: { type: Date },
     condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
     size: { type: String, trim: true },
     brand: { type: String, trim: true },
     location: { type: String, trim: true },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now } 
 });
 const Item = mongoose.model('Item', ItemSchema);
 
@@ -156,10 +156,10 @@ const ReportSchema = new mongoose.Schema({
     reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     reportedItem: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
     reportedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    reason: {
-        type: String,
-        required: true,
-        enum: ['inappropriate-content', 'spam', 'scam', 'wrong-category', 'harassment']
+    reason: { 
+        type: String, 
+        required: true, 
+        enum: ['inappropriate-content', 'spam', 'scam', 'wrong-category', 'harassment'] 
     },
     details: { type: String },
     status: { type: String, default: 'new', enum: ['new', 'in-progress', 'resolved'] }
@@ -306,7 +306,7 @@ passport.use(new GoogleStrategy({
     try {
         let user = await User.findOne({ googleId: profile.id });
         if (user) return done(null, user);
-
+        
         const newUser = new User({
             googleId: profile.id,
             displayName: profile.displayName,
@@ -314,7 +314,7 @@ passport.use(new GoogleStrategy({
             image: profile.photos[0].value
         });
         await newUser.save();
-
+        
         await Subscriber.findOneAndUpdate(
             { email: newUser.email },
             { displayName: newUser.displayName },
@@ -390,9 +390,9 @@ const uploadToCloudinary = (fileBuffer) => {
 // --- נתיבים (Routes) ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: `${CLIENT_URL}?login_failed=true`, session: false }), (req, res) => {
-    const payload = {
-        id: req.user._id,
-        name: req.user.displayName,
+    const payload = { 
+        id: req.user._id, 
+        name: req.user.displayName, 
         email: req.user.email,
         isVerified: req.user.isVerified
     };
@@ -598,7 +598,7 @@ app.get('/items', async (req, res) => {
         if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
 
         const sortOptions = {};
-        sortOptions.isPromoted = -1;
+        sortOptions.isPromoted = -1; 
         switch (req.query.sort) {
             case 'price_asc':
                 sortOptions.price = 1;
@@ -609,13 +609,13 @@ app.get('/items', async (req, res) => {
             default:
                 sortOptions.createdAt = -1;
         }
-
+        
         const items = await Item.find(filters)
             .populate('owner', 'displayName email isVerified shop averageRating')
             .sort(sortOptions)
             .skip(skip)
             .limit(limit);
-
+        
         const totalItems = await Item.countDocuments(filters);
 
         res.json({
@@ -671,17 +671,17 @@ app.get('/api/public/users/:id/ratings', async (req, res) => {
 // --- ⭐️ END: PUBLIC API ROUTES ---
 
 
-app.get('/api/users/:id', authMiddleware, async (req, res) => {
-    try {
+app.get('/api/users/:id', authMiddleware, async (req, res) => { 
+    try { 
         if (req.user.id !== req.params.id) {
             return res.status(403).json({ message: 'Forbidden: You can only access your own profile data.' });
         }
-        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop');
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+        const user = await User.findById(req.params.id).select('displayName image averageRating followers following isVerified shop'); 
+        if (!user) return res.status(404).json({ message: 'User not found' }); 
+        res.json(user); 
+    } catch (err) { 
+        res.status(500).json({ message: err.message }); 
+    } 
 });
 
 
@@ -697,7 +697,7 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
     try {
         const userToRate = await User.findById(ratedUserId);
         if (!userToRate) return res.status(404).json({ message: "User to be rated not found." });
-
+        
         const rater = await User.findById(raterId);
 
         const existingRatingIndex = userToRate.ratings.findIndex(r => r.rater.toString() === raterId);
@@ -713,7 +713,7 @@ app.post('/users/:id/rate', authMiddleware, async (req, res) => {
         } else {
             userToRate.averageRating = 0;
         }
-
+        
         await userToRate.save();
 
         const notification = new Notification({
@@ -764,14 +764,14 @@ app.post('/api/favorites/:itemId', authMiddleware, async (req, res) => {
     try {
         const itemId = req.params.itemId;
         const user = await User.findById(req.user.id);
-
+        
         const index = user.favorites.indexOf(itemId);
         if (index > -1) {
             user.favorites.splice(index, 1);
         } else {
             user.favorites.push(itemId);
         }
-
+        
         await user.save();
         res.json(user.favorites);
     } catch (err) {
@@ -830,12 +830,12 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
         const uploadResults = await Promise.all(uploadPromises);
         const imageUrls = uploadResults.map(result => result.secure_url);
 
-        const newItemData = {
-            title: req.body.title,
-            description: req.body.description,
-            price: req.body.price,
-            category: req.body.category,
-            contact: req.body.contact,
+        const newItemData = { 
+            title: req.body.title, 
+            description: req.body.description, 
+            price: req.body.price, 
+            category: req.body.category, 
+            contact: req.body.contact, 
             imageUrls: imageUrls,
             owner: req.user.id,
             condition: req.body.condition,
@@ -848,7 +848,7 @@ app.post('/items', authMiddleware, upload.array('images', 6), async (req, res) =
             if (req.body.affiliateLink) newItemData.affiliateLink = req.body.affiliateLink;
             newItemData.isPromoted = req.body.isPromoted === 'on';
         }
-
+        
         const newItem = new Item(newItemData);
         const savedItem = await newItem.save();
         const populatedItem = await Item.findById(savedItem._id).populate('owner', 'displayName email isVerified shop');
@@ -929,7 +929,7 @@ app.post('/api/items/:id/report', authMiddleware, async (req, res) => {
         });
 
         await newReport.save();
-
+        
         if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
             const reporter = await User.findById(reporterId);
             const msg = {
@@ -970,12 +970,12 @@ app.post('/api/items/:id/promote', authMiddleware, async (req, res) => {
 
         if (paymentSuccessful) {
             item.isPromoted = true;
-            item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            item.promotedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); 
             await item.save();
 
             const updatedItem = await Item.findById(item._id).populate('owner', 'displayName email isVerified shop');
             io.emit('itemUpdated', updatedItem);
-
+            
             res.status(200).json({ message: 'Item promoted successfully!', item: updatedItem });
         } else {
             res.status(400).json({ message: 'Payment failed.' });
@@ -1009,7 +1009,7 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
                 item: itemId
             });
             await conversation.save();
-
+            
             const newConversation = await Conversation.findById(conversation._id)
                 .populate('participants', 'displayName email image')
                 .populate('item', 'title');
@@ -1026,7 +1026,7 @@ app.post('/api/conversations', authMiddleware, async (req, res) => {
             }
             return res.status(201).json(newConversation);
         }
-
+        
         const existingConversation = await Conversation.findById(conversation._id)
             .populate('participants', 'displayName email image')
             .populate('item');
@@ -1043,7 +1043,7 @@ app.get('/api/my-conversations', authMiddleware, async (req, res) => {
             .populate('participants', 'displayName email image')
             .populate('item', 'title imageUrls')
             .sort({ updatedAt: -1 });
-
+        
         const validConversations = conversations.filter(c => c.item && c.participants.length > 1);
 
         res.json(validConversations);
@@ -1058,7 +1058,7 @@ app.get('/api/conversations/:id', authMiddleware, async (req, res) => {
         const conversation = await Conversation.findById(req.params.id)
             .populate('participants', 'displayName email image')
             .populate('item', 'title');
-
+        
         if (!conversation) {
             return res.status(404).json({ message: 'Conversation not found' });
         }
@@ -1145,7 +1145,7 @@ app.post('/api/shops', authMiddleware, upload.single('logo'), async (req, res) =
         if (!user.isVerified) {
             return res.status(403).json({ message: 'Only verified users can create shops.' });
         }
-
+        
         let logoUrl = '';
         if (req.file) {
             const uploadResult = await uploadToCloudinary(req.file.buffer);
@@ -1157,7 +1157,7 @@ app.post('/api/shops', authMiddleware, upload.single('logo'), async (req, res) =
             name: req.body.name,
             description: req.body.description,
         };
-
+        
         if (logoUrl) {
             shopData.logoUrl = logoUrl;
         }
@@ -1212,14 +1212,14 @@ io.use((socket, next) => {
     });
 });
 
-io.on('connection', async (socket) => {
+io.on('connection', async (socket) => { 
     if (socket.user) {
         socket.join(socket.user.id);
-
+        
         const session = new UserSession({ user: socket.user.id });
         await session.save();
         socket.sessionId = session._id;
-
+        
         connectedUsers.set(socket.id, {
             userId: socket.user.id,
             name: socket.user.name,
@@ -1234,7 +1234,7 @@ io.on('connection', async (socket) => {
     socket.on('sendMessage', async (data) => {
         try {
             const { conversationId, senderId, receiverId, text } = data;
-
+            
             if (!socket.user || socket.user.id !== senderId) {
                 return socket.emit('auth_error', 'Authentication mismatch. Please log in again.');
             }
@@ -1248,9 +1248,9 @@ io.on('connection', async (socket) => {
             await message.save();
 
             await Conversation.findByIdAndUpdate(conversationId, { updatedAt: new Date() });
-
+            
             const populatedMessage = await Message.findById(message._id).populate('sender', 'displayName image');
-
+            
             io.to(senderId).emit('newMessage', populatedMessage);
             io.to(receiverId).emit('newMessage', populatedMessage);
 
@@ -1264,7 +1264,7 @@ io.on('connection', async (socket) => {
             });
             await notification.save();
             io.to(receiverId).emit('newNotification', notification);
-
+            
             try {
                 const receiver = await User.findById(receiverId);
                 const conversation = await Conversation.findById(conversationId).populate('item', 'title');
@@ -1288,7 +1288,7 @@ io.on('connection', async (socket) => {
                 icon: sender.image || 'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png',
                 data: { url: `${CLIENT_URL}?openChat=${conversationId}` }
             });
-
+            
             const userSubscriptions = await PushSubscription.find({ user: receiverId });
 
             if (userSubscriptions.length > 0) {
@@ -1309,19 +1309,19 @@ io.on('connection', async (socket) => {
         }
     });
 
-    socket.on('disconnect', async () => {
+    socket.on('disconnect', async () => { 
         if (connectedUsers.has(socket.id)) {
             const { name, sessionId } = connectedUsers.get(socket.id);
             connectedUsers.delete(socket.id);
             console.log(`User ${name} disconnected. Total connected: ${connectedUsers.size}`);
-
+            
             if (sessionId) {
                 await UserSession.findByIdAndUpdate(sessionId, { logoutAt: new Date() });
             }
         } else {
             console.log('An anonymous user disconnected');
         }
-    });
+    }); 
 });
 
 // --- נתיב להגשת קובץ ה-HTML ---

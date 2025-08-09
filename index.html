@@ -1,16 +1,6 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <script>
-        // Force unregister all service workers to ensure the latest version is used
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-        }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
@@ -19,13 +9,16 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
 
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
 
+    <!-- External Stylesheet -->
     <link rel="stylesheet" href="style.css">
 
+    <!-- Inline script for dark mode to prevent FOUC (Flash of Unstyled Content) -->
     <script>
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -36,13 +29,16 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
 
+    <!-- Announcement Bar -->
     <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
         <span></span>
         <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
     </div>
 
+    <!-- Main Container -->
     <div class="container mx-auto p-4 max-w-4xl pb-24">
-
+        
+        <!-- Header -->
         <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
             <div class="container mx-auto px-4 flex justify-between items-center">
                 <div id="header-right" class="flex-1 flex justify-start items-center gap-2">
@@ -60,10 +56,11 @@
                 <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4"></div>
             </div>
         </header>
-
+        
         <div id="install-app-container" class="my-4 flex justify-center"></div>
         <div id="actions-bar" class="my-4 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-sm flex justify-start items-center gap-2 sm:gap-4 overflow-x-auto"></div>
 
+        <!-- Views Container -->
         <div id="main-view" class="view active">
              <div class="mt-2 space-y-4">
                 <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
@@ -136,9 +133,165 @@
             <main id="shops-feed" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></main>
         </div>
         <div id="single-shop-view" class="view"></div>
-        <div id="offers-view" class="view"></div>
     </div>
 
+    <!-- Floating Action Button -->
+    <button id="open-modal-btn" class="fixed bottom-6 left-6 bg-teal-500 hover:bg-teal-600 text-white rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-lg transform hover:scale-110 transition-transform z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+    </button>
+
+    <!-- Modals -->
+    <div id="upload-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-4 sm:p-6 transform -translate-y-10 max-h-[90vh] overflow-y-auto">
+            <h2 id="upload-modal-title" class="text-xl sm:text-2xl font-bold mb-4 text-teal-800 dark:text-teal-300">העלאת פריט חדש</h2>
+            <form id="upload-form">
+                <input type="hidden" id="editing-item-id" value="">
+                <div class="space-y-4">
+                    <input type="text" id="item-title" name="title" placeholder="שם הפריט (לדוגמה: שמלת קיץ של זארה)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <textarea id="item-description" name="description" placeholder="תיאור קצר (בד, פרטים מיוחדים, וכו')" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3" required></textarea>
+                    <div class="grid grid-cols-2 gap-4">
+                        <select id="item-category" name="category" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required></select>
+                        <select id="item-condition" name="condition" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required></select>
+                    </div>
+                    <input type="text" id="item-size" name="size" placeholder="מידה (לדוגמה: S, 38, One Size)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    <input type="text" id="item-brand" name="brand" placeholder="מותג (לדוגמה: Nike, Zara)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    <input type="text" id="item-location" name="location" placeholder="מיקום (עיר)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <input type="text" id="item-contact" name="contact" placeholder="פרטי קשר (מספר טלפון, טלגרם...)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <input type="number" id="item-price" name="price" placeholder="מחיר מבוקש (בשקלים)" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" required>
+                    <div id="affiliate-link-container" class="hidden">
+                        <label for="item-affiliate-link" class="block text-sm font-medium text-gray-700 dark:text-gray-300">קישור אפילייט (מנהלים בלבד)</label>
+                        <input type="url" id="item-affiliate-link" name="affiliateLink" placeholder="https://example.com/product/123" class="w-full p-2 sm:p-3 border rounded-md focus:ring-2 focus:ring-amber-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400">
+                    </div>
+                    <div id="promoted-container" class="hidden items-center">
+                        <input id="item-promoted" name="isPromoted" type="checkbox" class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                        <label for="item-promoted" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">קדם פריט זה (יוצג בראש העמוד)</label>
+                    </div>
+                    <div>
+                        <label for="item-images" class="block text-sm font-medium text-gray-700 dark:text-gray-300">העלאת תמונות (עד 6)</label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">בעריכת פריט, השאר שדה זה ריק כדי לשמור את התמונות הקיימות.</p>
+                        <input type="file" id="item-images" name="images" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*" multiple>
+                        <div id="image-preview-container" class="mt-2 flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">פרסמי עכשיו!</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="gallery-modal" class="gallery-backdrop fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="gallery-content relative flex items-center justify-center">
+            <div id="gallery-panzoom-viewport" class="w-full h-full">
+                <img id="gallery-image" src="" alt="תצוגה מקדימה של הפריט" class="rounded-lg shadow-2xl">
+            </div>
+        </div>
+        <div class="absolute top-4 right-4 flex gap-2">
+            <button id="gallery-zoom-in" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אין">+</button>
+            <button id="gallery-zoom-out" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="זום אאוט">-</button>
+            <button id="gallery-close" class="bg-white/80 text-gray-800 rounded-full h-10 w-10 flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-white transition" title="סגור">&times;</button>
+        </div>
+        <button id="gallery-prev" class="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הקודם">&#x276E;</button>
+        <button id="gallery-next" class="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/80 text-gray-800 rounded-full h-12 w-12 flex items-center justify-center text-2xl shadow-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed" title="הבא">&#x276F;</button>
+        <div id="gallery-counter" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm py-1 px-3 rounded-full"></div>
+    </div>
+
+    <div id="custom-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-4 sm:p-6 transform opacity-0 -translate-y-10">
+            <h3 id="custom-modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4"></h3>
+            <div id="custom-modal-body"></div>
+            <p id="custom-modal-message" class="text-gray-600 dark:text-gray-300 mb-6"></p>
+            <div id="custom-modal-buttons" class="flex justify-end gap-3"></div>
+        </div>
+    </div>
+
+    <div id="share-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-xs p-6 transform opacity-0 -translate-y-10">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">שתפי את האפליקציה</h3>
+            <div class="space-y-3">
+                <a id="whatsapp-share-link" target="_blank" class="flex items-center justify-center gap-3 w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.523.074-.797.347-.272.272-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    <span>שתפי בווטסאפ</span>
+                </a>
+                <button id="copy-link-btn" class="flex items-center justify-center gap-3 w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    <span>העתקת קישור</span>
+                </button>
+            </div>
+            <button type="button" class="close-modal-btn absolute top-2 right-2 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
+    
+    <div id="rating-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-sm p-6 transform -translate-y-10">
+            <h2 id="rating-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">דרג את המוכר</h2>
+            <form id="rating-form">
+                <input type="hidden" id="rated-user-id">
+                <div class="star-rating mb-4">
+                    <input type="radio" id="star5" name="rating" value="5" required/><label for="star5" title="5 כוכבים">&#9733;</label>
+                    <input type="radio" id="star4" name="rating" value="4" required/><label for="star4" title="4 כוכבים">&#9733;</label>
+                    <input type="radio" id="star3" name="rating" value="3" required/><label for="star3" title="3 כוכבים">&#9733;</label>
+                    <input type="radio" id="star2" name="rating" value="2" required/><label for="star2" title="2 כוכבים">&#9733;</label>
+                    <input type="radio" id="star1" name="rating" value="1" required/><label for="star1" title="כוכב 1">&#9733;</label>
+                </div>
+                <textarea id="rating-comment" placeholder="ספר/י על חווית הקנייה... (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 placeholder-gray-400 dark:placeholder-gray-400" rows="3"></textarea>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-rating-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דירוג</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="report-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
+            <h2 class="text-xl font-bold mb-4 text-center text-red-700 dark:text-red-400">דיווח על פריט</h2>
+            <form id="report-form">
+                <input type="hidden" id="reported-item-id">
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">מדוע ברצונך לדווח על פריט זה?</p>
+                <div class="space-y-3">
+                    <select id="report-reason" name="reason" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                        <option value="" disabled selected>בחירת סיבה...</option>
+                        <option value="inappropriate-content">תוכן לא הולם (עירום, אלימות וכו')</option>
+                        <option value="spam">ספאם או פרסומת</option>
+                        <option value="scam">חשד להונאה או פריט מזויף</option>
+                        <option value="wrong-category">קטגוריה שגויה</option>
+                    </select>
+                    <textarea id="report-details" name="details" placeholder="פרטים נוספים (אופציונלי)" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-red-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition">שלח דיווח</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-60">
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-lg shadow-xl w-11/12 max-w-md p-6 transform -translate-y-10">
+            <h2 id="shop-modal-title" class="text-xl font-bold mb-4 text-center text-teal-800 dark:text-teal-300">ניהול החנות שלי</h2>
+            <form id="shop-form">
+                <div class="space-y-4">
+                    <input type="text" id="shop-name" name="name" placeholder="שם החנות" class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" required>
+                    <textarea id="shop-description" name="description" placeholder="ספרו קצת על החנות שלכם..." class="w-full p-3 border rounded-md focus:ring-2 focus:ring-teal-400 transition bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600" rows="3"></textarea>
+                    <div>
+                        <label for="shop-logo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">לוגו החנות</label>
+                        <input type="file" id="shop-logo" name="logo" class="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-gray-700 dark:file:text-teal-300 dark:hover:file:bg-gray-600" accept="image/*">
+                        <div id="shop-logo-preview-container" class="mt-2"></div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button type="button" class="close-modal-btn bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-md transition">ביטול</button>
+                    <button type="submit" id="submit-shop-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition">שמור שינויים</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-notification" class="toast-notification hidden bg-gray-800 text-white text-sm py-2 px-4 rounded-full"></div>
+
+    <!-- External JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
