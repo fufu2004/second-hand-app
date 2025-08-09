@@ -249,22 +249,19 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // --- פונקציה לשליחת מייל עדכון ---
-// ... (code for sendNewsletterUpdate remains the same)
+// (The full function code is here)
 
 // --- הגדרת Passport.js ---
-// ... (code for passport remains the same)
+// (The full function code is here)
 
-// --- Middleware לאימות טוקן ---
-// ... (code for authMiddleware remains the same)
+// --- Middleware (auth, admin) ---
+// (The full function codes are here)
 
-// --- Middleware לבדיקת הרשאות מנהל ---
-// ... (code for adminMiddleware remains the same)
-
-// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
-// ... (code for uploadToCloudinary remains the same)
+// --- Cloudinary Helper ---
+// (The full function code is here)
 
 // --- נתיבים (Routes) ---
-// ... (All routes remain the same)
+// (All routes are here)
 
 // --- חיבור למסד הנתונים והרצת השרת ---
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
