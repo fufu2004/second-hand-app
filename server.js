@@ -1,19 +1,7 @@
-// server.js - DEBUGGING VERSION
+// server.js
 
-console.log("--- STARTING SERVER: DEBUG MODE ---");
+// 1. ייבוא ספריות נדרשות
 require('dotenv').config();
-
-// --- Log all environment variables to check them ---
-console.log("MONGO_URI:", process.env.MONGO_URI ? "Loaded" : "MISSING!");
-console.log("JWT_SECRET:", process.env.JWT_SECRET ? "Loaded" : "MISSING!");
-console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "Loaded" : "MISSING!");
-console.log("GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "Loaded" : "MISSING!");
-console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME ? "Loaded" : "MISSING!");
-console.log("CLOUDINARY_API_KEY:", process.env.CLOUDINARY_API_KEY ? "Loaded" : "MISSING!");
-console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "Loaded" : "MISSING!");
-console.log("--- FINISHED CHECKING ENV VARS ---");
-
-
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -52,8 +40,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:8080';
-const SERVER_URL = process.env.SERVER_URL || 'http://localhost:8080';
+// *** THIS IS THE MODIFIED PART ***
+const CLIENT_URL = process.env.CLIENT_URL || 'http://placeholder.com';
+const SERVER_URL = process.env.SERVER_URL || 'http://placeholder.com';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
@@ -260,21 +249,5 @@ app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- פונקציה לשליחת מייל עדכון ---
-// ... (code for sendNewsletterUpdate remains the same)
-
-// --- הגדרת Passport.js ---
-// ... (code for passport remains the same)
-
-// --- Middleware לאימות טוקן ---
-// ... (code for authMiddleware remains the same)
-
-// --- Middleware לבדיקת הרשאות מנהל ---
-// ... (code for adminMiddleware remains the same)
-
-// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
-// ... (code for uploadToCloudinary remains the same)
-
-// --- נתיבים (Routes) ---
-// ... (All routes remain the same)
-// The rest of the file is identical...
+// The rest of the file is identical to the one you already have
+// ...
