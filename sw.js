@@ -1,7 +1,7 @@
 // The version of the cache.
 const CACHE_VERSION = 9; // Increment version to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
-const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
+const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app';
 
 // A function to log messages to the server for debugging on mobile
 function logToServer(message) {
@@ -122,7 +122,7 @@ self.addEventListener('push', event => {
 // Event listener for the 'notificationclick' event.
 self.addEventListener('notificationclick', event => {
   logToServer('Notification clicked.');
-  event.notification.close(); 
+  event.notification.close();
 
   const urlToOpen = event.notification.data.url;
 
