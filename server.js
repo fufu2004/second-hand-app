@@ -1,6 +1,6 @@
-// server.js - Final Corrected Version
+// server.js - Final version from backup
 
-// 1. All require statements must be at the top
+// 1. ייבוא ספריות נדרשות
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
@@ -18,7 +18,7 @@ const sgMail = require('@sendgrid/mail');
 const path = require('path');
 const webPush = require('web-push');
 
-// 2. Initialize the app and server
+// --- הגדרות ראשוניות ---
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -29,55 +29,287 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3000;
 
-// --- Read Environment Variables ---
-const {
-    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MONGO_URI, JWT_SECRET,
-    CLIENT_URL, SERVER_URL, ADMIN_EMAIL, SENDGRID_API_KEY,
-    SENDER_EMAIL_ADDRESS, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
-    CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
-} = process.env;
+// --- מונה גלובלי לעדכון במייל ---
+let newItemCounter = 0;
+// --- מערך למעקב אחר משתמשים מחוברים ---
+const connectedUsers = new Map();
 
-// --- Configure external services ---
-webPush.setVapidDetails('mailto:your-email@example.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-cloudinary.config({ cloud_name: CLOUDINARY_CLOUD_NAME, api_key: CLOUDINARY_API_KEY, api_secret: CLOUDINARY_API_SECRET });
-if (SENDGRID_API_KEY) sgMail.setApiKey(SENDGRID_API_KEY);
 
-// 3. Define all Mongoose Schemas and Models
-const UserSchema = new mongoose.Schema({ /* ... schema definition ... */ });
-const ItemSchema = new mongoose.Schema({ /* ... schema definition ... */ });
-// ... Add all other schemas here
+// --- קריאת משתני סביבה ---
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL;
+const SERVER_URL = process.env.SERVER_URL;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.error("FATAL ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are missing from .env file!");
+} else {
+    webPush.setVapidDetails(
+        'mailto:your-email@example.com',
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY
+    );
+    console.log("Web Push configured successfully.");
+}
+
+
+// --- הגדרת Cloudinary ---
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// --- הגדרת שירות המייל (SendGrid) ---
+if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    console.log("SendGrid configured successfully.");
+} else {
+    console.warn("SendGrid is not configured. Email notifications will be disabled.");
+}
+
+// --- בדיקת משתני סביבה חיוניים ---
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
+    console.error("FATAL ERROR: One or more required environment variables are missing!");
+    process.exit(1);
+}
+
+// --- הגדרת מודלים למסד הנתונים ---
+
+const ShopSchema = new mongoose.Schema({
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    logoUrl: { type: String },
+    createdAt: { type: Date, default: Date.now }
+});
+const Shop = mongoose.model('Shop', ShopSchema);
+
+const UserSchema = new mongoose.Schema({
+    googleId: { type: String, required: true },
+    displayName: String,
+    email: String,
+    image: String,
+    ratings: [{
+        rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: { type: Number, min: 1, max: 5, required: true },
+        comment: String,
+        createdAt: { type: Date, default: Date.now }
+    }],
+    averageRating: { type: Number, default: 0 },
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    isVerified: { type: Boolean, default: false },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' },
+    isBanned: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
+    suspensionExpires: { type: Date }
+});
 const User = mongoose.model('User', UserSchema);
-const Item = mongoose.model('Item', ItemSchema);
-// ... Add all other models here
 
-// 4. Setup all middleware (app.use)
+const ItemSchema = new mongoose.Schema({
+    title: String,
+    description: String,
+    price: Number,
+    category: String,
+    contact: String,
+    imageUrls: [String],
+    affiliateLink: { type: String, default: '' },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    sold: { type: Boolean, default: false },
+    isPromoted: { type: Boolean, default: false },
+    promotedUntil: { type: Date },
+    condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
+    size: { type: String, trim: true },
+    brand: { type: String, trim: true },
+    location: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const Item = mongoose.model('Item', ItemSchema);
+
+const ConversationSchema = new mongoose.Schema({
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    lastMessage: { type: String },
+}, { timestamps: true });
+const Conversation = mongoose.model('Conversation', ConversationSchema);
+
+const MessageSchema = new mongoose.Schema({
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+const Message = mongoose.model('Message', MessageSchema);
+
+const ReportSchema = new mongoose.Schema({
+    reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reportedItem: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    reportedUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: {
+        type: String,
+        required: true,
+        enum: ['inappropriate-content', 'spam', 'scam', 'wrong-category', 'harassment']
+    },
+    details: { type: String },
+    status: { type: String, default: 'new', enum: ['new', 'in-progress', 'resolved'] }
+}, { timestamps: true });
+const Report = mongoose.model('Report', ReportSchema);
+
+const NotificationSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    type: { type: String, required: true, enum: ['new-message', 'new-rating', 'new-follower', 'saved-search'] },
+    message: { type: String, required: true },
+    link: { type: String, required: true },
+    isRead: { type: Boolean, default: false },
+    fromUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { timestamps: true });
+const Notification = mongoose.model('Notification', NotificationSchema);
+
+const PushSubscriptionSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    subscription: {
+        endpoint: { type: String, required: true, unique: true },
+        keys: {
+            p256dh: String,
+            auth: String
+        }
+    }
+});
+const PushSubscription = mongoose.model('PushSubscription', PushSubscriptionSchema);
+
+const UserSessionSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    loginAt: { type: Date, default: Date.now },
+    logoutAt: { type: Date }
+});
+const UserSession = mongoose.model('UserSession', UserSessionSchema);
+
+const SubscriberSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true },
+    displayName: { type: String, required: true },
+    subscribedAt: { type: Date, default: Date.now }
+});
+const Subscriber = mongoose.model('Subscriber', SubscriberSchema);
+
+// --> NEW SCHEMA
+const SavedSearchSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    name: { type: String, required: true }, // e.g., "שמלת זארה מידה M"
+    filters: {
+        searchTerm: String,
+        category: String,
+        condition: String,
+        size: String,
+        brand: String,
+        location: String,
+        minPrice: Number,
+        maxPrice: Number
+    }
+}, { timestamps: true });
+const SavedSearch = mongoose.model('SavedSearch', SavedSearchSchema);
+
+
+// --- הגדרות העלאת קבצים ---
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// --- הגדרת Middleware ---
 app.use(cors());
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname)));
+
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// --- פונקציה לשליחת מייל עדכון ---
+async function sendNewsletterUpdate() {
+    // ... (Your newsletter function logic)
+}
 
+// --- הגדרת Passport.js ---
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => { User.findById(id).then(user => done(null, user)); });
 
-// 5. Define all API routes (app.get, app.post, etc.)
-app.get('/api/items', async (req, res) => {
+passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: `${SERVER_URL}/auth/google/callback`,
+    proxy: true
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    // ... (Your Google Strategy logic)
+  }
+));
+
+// Middleware לאימות טוקן
+const authMiddleware = (req, res, next) => {
+    // ... (Your auth middleware logic)
+};
+
+// Middleware לבדיקת הרשאות מנהל
+const adminMiddleware = (req, res, next) => {
+    // ... (Your admin middleware logic)
+};
+
+// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
+const uploadToCloudinary = (fileBuffer) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream({ folder: "second-hand-app" }, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+        });
+        streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+    });
+};
+
+// --- נתיבים (Routes) ---
+// ... (All your API routes from the backup go here) ...
+app.get('/items', async (req, res) => {
+    // This is the main route for fetching items that was missing
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
         const items = await Item.find({ sold: false })
-            .populate('owner', 'displayName image isVerified averageRating')
-            .sort({ createdAt: -1 });
-        res.json(items);
+            .populate('owner', 'displayName email isVerified shop averageRating')
+            .sort({ isPromoted: -1, createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+        
+        const totalItems = await Item.countDocuments({ sold: false });
+
+        res.json({
+            items,
+            totalPages: Math.ceil(totalItems / limit),
+            currentPage: page
+        });
     } catch (err) {
-        console.error("Error fetching items:", err);
-        res.status(500).json({ message: "Server error while fetching items" });
+        res.status(500).json({ message: err.message });
     }
 });
 
-// ... Add all other API routes here
 
-// 6. Connect to DB and start the server (this should be last)
+// --- הגדרת Socket.io ---
+// ... (Your Socket.io logic from the backup goes here) ...
+
+// --- נתיב להגשת קובץ ה-HTML ---
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- חיבור למסד הנתונים והרצת השרת ---
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('MongoDB Connected Successfully!');
