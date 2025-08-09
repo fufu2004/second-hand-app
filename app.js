@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuration ---
-    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; // כתובת השרת המתוקנת
+    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; // ✨ כתובת השרת הוחלפה
     const ADMIN_EMAIL = 'ohadf1976@gmail.com';
     const CLIENT_URL = window.location.origin;
 
@@ -66,8 +66,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toastNotification = document.getElementById('toast-notification');
 
-    // ... (וכאן ממשיך כל שאר הקוד המלא והתקין מהגיבוי שלך) ...
-    // הדבק כאן את כל תוכן הקובץ app.js מהגיבוי, מתחת לשורה זו.
-    // הקובץ המלא נמצא בתשובות הקודמות ששלחתי לך.
+    // --- PWA Service Worker Registration ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swUrl = `/sw.js`;
+        navigator.serviceWorker.register(swUrl).then(registration => {
+          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        }, err => {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+
+    // --- PWA Custom Install Prompt ---
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      updateUIForAuthState();
+    });
+
+    async function handleInstallClick() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+            updateUIForAuthState();
+        }
+    }
+
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      console.log('PWA was installed');
+      updateUIForAuthState();
+    });
+
+    // --- Global State ---
+    let socket;
+    let currentUser = null;
+    let allItemsCache = {};
+    let galleryImages = [];
+    let currentImageIndex = 0;
+    let favorites = [];
+    let currentConversationId = null;
+    let currentConversationDetails = null;
+    let notificationsCache = [];
+    let panzoomInstance = null;
+    let currentUserProfile = null;
+    let pushSubscription = null;
+
+    // --- Infinite Scroll State ---
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMorePages = true;
+
+    // --- Category and Condition Mapping ---
+    const categoryMap = {
+        'pants': 'מכנסיים',
+        'shirts': 'חולצות',
+        'jackets': 'ג\'קטים',
+        'dresses': 'שמלות',
+        'skirts': 'חצאיות',
+        'top': 'טופ',
+        'tank-tops': 'גופיות',
+        'blazer': 'בלייזר',
+        'accessories': 'אקססוריז',
+        'general': 'כללי'
+    };
+
+    const conditionMap = {
+        'new-with-tags': 'חדש עם טיקט',
+        'new-without-tags': 'חדש ללא טיקט',
+        'like-new': 'כמו חדש',
+        'good': 'במצב טוב',
+        'used': 'משומש'
+    };
+
+    // --- The rest of the original app.js code from the backup goes here ---
+    // ... (Paste the entire content of the app.js backup file from this point onwards)
 
 });
