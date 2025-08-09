@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // --- Configuration ---
-    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; 
-    const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
+    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app';
+    const ADMIN_EMAIL = 'ohadf1976@gmail.com';
     const CLIENT_URL = window.location.origin;
 
     // --- UI Element Selectors ---
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const singleShopView = document.getElementById('single-shop-view');
     const savedSearchesView = document.getElementById('saved-searches-view');
     const offersView = document.getElementById('offers-view');
-    
+
     // --- Modals & Forms Selectors ---
     const allModals = document.querySelectorAll('.modal-backdrop, .gallery-backdrop');
     const uploadModal = document.getElementById('upload-modal');
@@ -47,17 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const customModal = document.getElementById('custom-modal');
     const shareModal = document.getElementById('share-modal');
     const ratingModal = document.getElementById('rating-modal');
-    const reportModal = document.getElementById('report-modal'); 
+    const reportModal = document.getElementById('report-modal');
     const shopModal = document.getElementById('shop-modal');
     const offerModal = document.getElementById('offer-modal');
     const uploadForm = document.getElementById('upload-form');
     const ratingForm = document.getElementById('rating-form');
-    const reportForm = document.getElementById('report-form'); 
+    const reportForm = document.getElementById('report-form');
     const shopForm = document.getElementById('shop-form');
     const offerForm = document.getElementById('offer-form');
     const uploadModalTitle = document.getElementById('upload-modal-title');
     const editingItemIdInput = document.getElementById('editing-item-id');
-    
+
     // --- Gallery Elements Selectors ---
     const galleryImage = document.getElementById('gallery-image');
     const galleryClose = document.getElementById('gallery-close');
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const galleryPanzoomViewport = document.getElementById('gallery-panzoom-viewport');
     const galleryZoomInBtn = document.getElementById('gallery-zoom-in');
     const galleryZoomOutBtn = document.getElementById('gallery-zoom-out');
-    
+
     const toastNotification = document.getElementById('toast-notification');
 
     // --- The rest of your app.js code follows ---
