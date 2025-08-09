@@ -1,7 +1,7 @@
 // The version of the cache.
 const CACHE_VERSION = 8; // Increment version to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
-const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app/'; // Make sure this is the correct URL
+const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; // Make sure this is the correct URL
 
 // A function to log messages to the server for debugging on mobile
 function logToServer(message) {
@@ -169,3 +169,4 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
+
