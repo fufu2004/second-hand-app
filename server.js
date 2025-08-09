@@ -40,8 +40,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL;
-const SERVER_URL = process.env.SERVER_URL;
+// *** THIS IS THE MODIFIED PART ***
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:8080';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:8080';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
@@ -582,5 +583,5 @@ app.get('/api/admin/users/:id/details', authMiddleware, adminMiddleware, async (
 
 // --- END: Admin Routes ---
 
-// --- The rest of the server.js file remains the same...
+// --- The rest of the server.js file is identical to the one we implemented for offers ---
 // ...
