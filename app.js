@@ -2,7 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app/';
+    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app';
     const ADMIN_EMAIL = 'ohadf1976@gmail.com';
     const CLIENT_URL = window.location.origin;
 
@@ -315,3 +315,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- All other functions (checkAuthState, updateUIForAuthState, etc.) remain the same ---
     // Make sure to copy the full app.js content from previous turns, only replacing createItemCard.
 });
+
