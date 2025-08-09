@@ -1,4 +1,4 @@
-// server.js
+// server.js (גרסת בדיקה - שלב 1)
 
 // 1. ייבוא ספריות נדרשות
 require('dotenv').config();
@@ -18,6 +18,7 @@ const sgMail = require('@sendgrid/mail');
 const path = require('path');
 const webPush = require('web-push');
 
+// ... (כל שאר הגדרות השרת, המודלים, והפונקציות נשארות זהות)
 // --- הגדרות ראשוניות ---
 const app = express();
 const server = http.createServer(app);
@@ -402,6 +403,7 @@ app.get('/auth/google/callback', passport.authenticate('google', { failureRedire
 });
 
 // --- START: Admin Routes ---
+// ... (כל נתיבי ה-admin נשארים זהים)
 app.get('/api/admin/dashboard-data', authMiddleware, adminMiddleware, async (req, res) => {
     try {
         const recentSessions = await UserSession.find()
@@ -577,81 +579,22 @@ app.post('/api/log-sw', (req, res) => {
     res.status(200).send({ status: 'logged' });
 });
 
-// ############# START: CORRECTED CODE #############
+// ############# START: DEBUGGING CODE #############
+// This is a temporary test. We are bypassing the database to check if the route itself works.
 app.get('/items', async (req, res) => {
-    console.log(`[DEBUG] Entering /items route with query:`, req.query);
-
-    try {
-        // The problematic line is temporarily commented out for debugging
-        // await Item.updateMany(
-        //     { isPromoted: true, promotedUntil: { $lt: new Date() } },
-        //     { $set: { isPromoted: false }, $unset: { promotedUntil: "" } }
-        // );
-
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
-
-        const filters = {};
-        if (req.query.category && req.query.category !== 'all') filters.category = req.query.category;
-        if (req.query.condition && req.query.condition !== 'all') filters.condition = req.query.condition;
-        if (req.query.size) filters.size = { $regex: req.query.size.trim(), $options: 'i' };
-        if (req.query.minPrice) filters.price = { ...filters.price, $gte: parseInt(req.query.minPrice) };
-        if (req.query.maxPrice) filters.price = { ...filters.price, $lte: parseInt(req.query.maxPrice) };
-        if (req.query.searchTerm) filters.title = { $regex: req.query.searchTerm.trim(), $options: 'i' };
-        if (req.query.brand) filters.brand = { $regex: req.query.brand.trim(), $options: 'i' };
-        if (req.query.location) filters.location = { $regex: req.query.location.trim(), $options: 'i' };
-
-        const sortOptions = {};
-        sortOptions.isPromoted = -1;
-        switch (req.query.sort) {
-            case 'price_asc':
-                sortOptions.price = 1;
-                break;
-            case 'price_desc':
-                sortOptions.price = -1;
-                break;
-            default:
-                sortOptions.createdAt = -1;
-        }
-
-        const itemsWithoutOwner = await Item.find(filters)
-            .sort(sortOptions)
-            .skip(skip)
-            .limit(limit);
-
-        const validItems = [];
-        for (const item of itemsWithoutOwner) {
-            try {
-                const populatedItem = await item.populate('owner', 'displayName email isVerified shop averageRating');
-                if (populatedItem.owner) {
-                    validItems.push(populatedItem);
-                } else {
-                    console.warn(`Skipping item with ID: ${item._id} because its owner could not be found.`);
-                }
-            } catch (populateError) {
-                console.error(`Error populating owner for item ID: ${item._id}`, populateError);
-            }
-        }
-
-        const totalItems = await Item.countDocuments(filters);
-
-        res.json({
-            items: validItems,
-            totalPages: Math.ceil(totalItems / limit),
-            currentPage: page,
-            totalItems: totalItems
-        });
-
-    } catch (err) {
-        console.error("Critical error in /items route:", err);
-        res.status(500).json({ message: err.message });
-    }
+    console.log(`[DEBUG] Ping test for /items route successful!`);
+    res.json({
+        items: [],
+        totalPages: 1,
+        currentPage: 1,
+        totalItems: 0
+    });
 });
-// ############# END: CORRECTED CODE #############
+// ############# END: DEBUGGING CODE #############
 
 app.get('/items/my-items', authMiddleware, async (req, res) => { try { const items = await Item.find({ owner: req.user.id }).populate('owner', 'displayName email isVerified shop').sort({ createdAt: -1 }); res.json(items); } catch (err) { res.status(500).json({ message: err.message }); } });
 
+// ... (כל שאר הנתיבים והקוד נשארים זהים)
 // --- ⭐️ START: PUBLIC API ROUTES ---
 app.get('/api/public/users/:id', async (req, res) => {
     try {
