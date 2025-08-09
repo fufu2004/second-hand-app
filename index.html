@@ -1,144 +1,53 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <script>
-        // Force unregister all service workers to ensure the latest version is used
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-        }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>סטייל מתגלגל - קהילת אופנה יד שנייה</title>
-
-    <meta name="theme-color" content="#14b8a6"/>
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="style.css">
+    <title>בדיקה דיאגנוסטית - סטייל מתגלגל</title>
+    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="text-center p-8 bg-white rounded-lg shadow-lg">
+        <h1 class="text-3xl font-bold text-teal-700 mb-4">מבצע בדיקה...</h1>
+        <p class="text-gray-600">פתח את חלון המפתחים (F12) ועבור ללשונית "Console" כדי לראות את תוצאות הבדיקה.</p>
+        <div class="mt-6 animate-spin rounded-full h-16 w-16 border-b-4 border-teal-500 mx-auto"></div>
+    </div>
 
     <script>
-        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
+        (async function() {
+            console.log("מתחיל בדיקה דיאגנוסטית...");
+            const serverUrl = 'https://octopus-app-iwic4.ondigitalocean.app';
+            // אנחנו מניחים שהנתיב לפריטים הוא /api/items. זהו הסטנדרט בדרך כלל.
+            const itemsEndpoint = `${serverUrl}/api/items`;
+
+            try {
+                console.log(`מנסה למשוך נתונים מהכתובת: ${itemsEndpoint}`);
+                const response = await fetch(itemsEndpoint);
+
+                console.log("התקבלה תשובה מהשרת. סטטוס:", response.status);
+
+                if (!response.ok) {
+                    console.error("השרת החזיר שגיאה:", response.statusText);
+                    const errorText = await response.text();
+                    console.error("פירוט השגיאה מהשרת:", errorText);
+                    alert(`הבדיקה נכשלה. השרת החזיר שגיאה. בדוק את ה-Console (F12) לפרטים. סטטוס: ${response.status}`);
+                    return;
+                }
+
+                const data = await response.json();
+                console.log("הצלחה! הנתונים שהתקבלו מהשרת:", data);
+
+                if (data && data.length > 0) {
+                    alert(`הבדיקה הצליחה! התקבלו ${data.length} פריטים מהשרת. הבעיה נמצאת בקובץ app.js המקורי.`);
+                } else {
+                    alert("הבדיקה הצליחה, אך השרת החזיר רשימה ריקה. האם יש פריטים במסד הנתונים?");
+                }
+
+            } catch (error) {
+                console.error("אירעה שגיאת רשת במהלך הבדיקה:", error);
+                alert("כשלון בחיבור לשרת. בדוק את ה-Console (F12) לשגיאות רשת. האם השרת פועל? האם הכתובת נכונה?");
+            }
+        })();
     </script>
-</head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-
-    <div id="announcement-bar" class="bg-teal-700 text-white text-sm text-center p-2 relative">
-        <span></span>
-        <button id="close-announcement" aria-label="סגור הודעה" class="absolute top-1/2 right-4 transform -translate-y-1/2 text-xl font-bold">&times;</button>
-    </div>
-
-    <div class="container mx-auto p-4 max-w-4xl pb-24">
-
-        <header class="bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm dark:shadow-gray-800 py-1">
-            <div class="container mx-auto px-4 flex justify-between items-center">
-                <div id="header-right" class="flex-1 flex justify-start items-center gap-2">
-                    <div id="header-right-content"></div>
-                </div>
-                <div class="flex-1 sm:flex-grow-0 flex justify-center px-2">
-                    <div data-action="show-main-view" class="flex items-center gap-2 cursor-pointer">
-                        <img src="https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png" alt="לוגו סטייל מתגלגל" class="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex-shrink-0">
-                        <div>
-                            <h1 class="text-xl sm:text-3xl font-bold text-teal-700 dark:text-teal-500 whitespace-nowrap">סטייל מתגלגל</h1>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm sm:text-base flex items-center whitespace-nowrap"><span class="blinking-dot"></span> LIVE</p>
-                        </div>
-                    </div>
-                </div>
-                <div id="header-left" class="flex-1 flex justify-end items-center gap-2 sm:gap-4"></div>
-            </div>
-        </header>
-
-        <div id="install-app-container" class="my-4 flex justify-center"></div>
-        <div id="actions-bar" class="my-4 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg shadow-sm flex justify-start items-center gap-2 sm:gap-4 overflow-x-auto"></div>
-
-        <div id="main-view" class="view active">
-             <div class="mt-2 space-y-4">
-                <input type="text" id="filter-input" placeholder="חיפוש לפי שם הפריט..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <select id="category-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition"></select>
-                    <select id="condition-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                        <option value="all">כל המצבים</option>
-                        <option value="new-with-tags">חדש עם טיקט</option>
-                        <option value="new-without-tags">חדש ללא טיקט</option>
-                        <option value="like-new">כמו חדש</option>
-                        <option value="good">במצב טוב</option>
-                        <option value="used">משומש</option>
-                    </select>
-                    <input type="text" id="size-filter" placeholder="סינון לפי מידה..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="text" id="brand-filter" placeholder="סינון לפי מותג..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="text" id="location-filter" placeholder="סינון לפי עיר..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="number" id="min-price" placeholder="מחיר מינימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <input type="number" id="max-price" placeholder="מחיר מקסימום" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 focus:ring-2 focus:ring-teal-400 transition">
-                    <select id="sort-select" class="w-full p-3 border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-teal-400 transition">
-                        <option value="newest">החדש ביותר</option>
-                        <option value="price_asc">מחיר: מהנמוך לגבוה</option>
-                        <option value="price_desc">מחיר: מהגבוה לנמוך</option>
-                    </select>
-                </div>
-                <button id="favorites-filter-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20" title="הצג מועדפים">
-                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 20.25l-7.682-7.682a4.5 4.5 0 010-6.364z"></path></svg>
-                    <span>הצג מועדפים בלבד</span>
-                </button>
-                <button id="save-search-btn" class="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20" title="שמור חיפוש">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2z" clip-rule="evenodd" />
-                    </svg>
-                    <span>שמור חיפוש וקבל התראות</span>
-                </button>
-            </div>
-            <main id="items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"></main>
-            <div id="loading-indicator" class="text-center py-8 hidden">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto"></div>
-                <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">טוען פריטים נוספים...</p>
-            </div>
-            <div id="empty-state" class="text-center py-16 px-4 hidden">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-200">לא נמצאו פריטים</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">נסה לשנות את תנאי החיפוש.</p>
-            </div>
-        </div>
-        <div id="public-profile-view" class="view"></div>
-        <div id="profile-view" class="view">
-            <div class="my-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">האזור האישי שלי</h2>
-                <p class="text-gray-500 dark:text-gray-400">כאן אפשר לראות, לערוך ולנהל את כל הפריטים והחנות שלך</p>
-                <div id="profile-actions-container" class="mt-4 flex justify-center gap-4"></div>
-            </div>
-            <main id="profile-items-feed" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></main>
-        </div>
-        <div id="chat-view" class="view"></div>
-        <div id="admin-view" class="view">
-            <div class="my-6">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">פאנל ניהול</h2>
-                <div id="admin-dashboard-content"></div>
-            </div>
-        </div>
-        <div id="admin-user-profile-view" class="view"></div>
-        <div id="saved-searches-view" class="view"></div>
-        <div id="shops-view" class="view">
-            <div class="my-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">חנויות הקהילה</h2>
-                <p class="text-gray-500 dark:text-gray-400">גלו את החנויות של המוכרים המאומתים שלנו</p>
-            </div>
-            <main id="shops-feed" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></main>
-        </div>
-        <div id="single-shop-view" class="view"></div>
-        <div id="offers-view" class="view"></div>
-    </div>
-
-    <script src="app.js"></script>
-</body>
+    </body>
 </html>
