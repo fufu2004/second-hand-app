@@ -23,8 +23,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PATCH", "DELETE"]
+        origin: process.env.CLIENT_URL || "http://localhost:8080", // משתמש בכתובת מה-.env
+        methods: ["GET", "POST", "PATCH", "DELETE"],
+        allowedHeaders: ["my-custom-header"],
+        credentials: true
     }
 });
 const PORT = process.env.PORT || 3000;
