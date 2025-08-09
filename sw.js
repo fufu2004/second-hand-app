@@ -1,10 +1,11 @@
 // The version of the cache.
-const CACHE_VERSION = 9; // Increment version to force update
+const CACHE_VERSION = 8; // Increment version to force update
 const CACHE_NAME = `second-hand-cache-v${CACHE_VERSION}`;
-const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app';
+const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; // ✨ כתובת השרת המתוקנת
 
 // A function to log messages to the server for debugging on mobile
 function logToServer(message) {
+    // This function is for debugging and can be removed in production if not needed.
     fetch(`${SERVER_URL}/api/log-sw`, {
         method: 'POST',
         headers: {
@@ -22,6 +23,7 @@ const urlsToCache = [
   'https://raw.githubusercontent.com/fufu2004/second-hand-app/main/ChatGPT%20Image%20Jul%2023%2C%202025%2C%2010_44_20%20AM%20copy.png'
 ];
 
+// Event listener for the 'install' event.
 self.addEventListener('install', event => {
   logToServer(`Installing...`);
   event.waitUntil(
@@ -40,6 +42,7 @@ self.addEventListener('install', event => {
   );
 });
 
+// Event listener for the 'activate' event.
 self.addEventListener('activate', event => {
   logToServer(`Activating...`);
   const cacheWhitelist = [CACHE_NAME];
@@ -61,26 +64,46 @@ self.addEventListener('activate', event => {
 });
 
 
-// --- NEW STRATEGY: Network First for EVERYTHING ---
+// Event listener for the 'fetch' event.
+// --- NEW STRATEGY: Network first for navigation, Cache first for others ---
 self.addEventListener('fetch', event => {
+  // We only want to cache GET requests.
   if (event.request.method !== 'GET') {
     return;
   }
 
+  // Strategy for HTML pages (navigation requests)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // If the fetch is successful, clone the response and cache it.
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          return response;
+        })
+        .catch(() => {
+          // If the fetch fails (e.g., offline), return the cached page.
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Strategy for other assets (CSS, JS, images) - Cache first
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // If fetch is successful, cache the new response
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME)
-          .then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-        return response;
-      })
-      .catch(() => {
-        // If fetch fails (offline), try to get it from the cache
-        return caches.match(event.request);
+    caches.match(event.request)
+      .then(cachedResponse => {
+        // Return the cached response if it exists.
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // If the response is not in the cache, fetch it from the network.
+        // Optionally, you could also cache these new requests here.
+        return fetch(event.request);
       })
   );
 });
