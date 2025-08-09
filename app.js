@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // --- Configuration ---
-    const SERVER_URL = 'https://second-hand-app-j1t7.onrender.com';
+    const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app/';
     const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
     const CLIENT_URL = window.location.origin;
 
