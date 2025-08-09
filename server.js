@@ -1,155 +1,19 @@
 // server.js
 
-// 1. ייבוא ספריות נדרשות
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const { Server } = require("socket.io");
-const mongoose = require('mongoose');
-const cors = require('cors');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const jwt = require('jsonwebtoken');
-const session = require('express-session');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
-const sgMail = require('@sendgrid/mail');
-const path = require('path');
-const webPush = require('web-push');
-
-// --- הגדרות ראשוניות ---
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PATCH", "DELETE"]
-    }
-});
-const PORT = process.env.PORT || 3000;
-
-// --- קריאת משתני סביבה ---
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://placeholder.com';
-const SERVER_URL = process.env.SERVER_URL || 'http://placeholder.com';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-
-if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.error("FATAL ERROR: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are missing from .env file!");
-} else {
-    webPush.setVapidDetails(
-        'mailto:your-email@example.com',
-        VAPID_PUBLIC_KEY,
-        VAPID_PRIVATE_KEY
-    );
-    console.log("Web Push configured successfully.");
-}
-
-// --- הגדרת Cloudinary ---
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// --- הגדרת שירות המייל (SendGrid) ---
-if (SENDGRID_API_KEY && SENDER_EMAIL_ADDRESS) {
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    console.log("SendGrid configured successfully.");
-} else {
-    console.warn("SendGrid is not configured. Email notifications will be disabled.");
-}
-
-// --- בדיקת משתני סביבה חיוניים ---
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !MONGO_URI || !JWT_SECRET || !CLIENT_URL || !SERVER_URL || !ADMIN_EMAIL || !process.env.CLOUDINARY_CLOUD_NAME) {
-    console.error("FATAL ERROR: One or more required environment variables are missing!");
-    process.exit(1);
-}
-
-// --- הגדרת מודלים למסד הנתונים ---
-const ShopSchema = new mongoose.Schema({
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    name: { type: String, required: true, trim: true },
-    description: { type: String, trim: true },
-    logoUrl: { type: String },
-    createdAt: { type: Date, default: Date.now }
-});
-const Shop = mongoose.model('Shop', ShopSchema);
-
-const UserSchema = new mongoose.Schema({
-    googleId: { type: String, required: true },
-    displayName: String,
-    email: String,
-    image: String,
-    ratings: [{
-        rater: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        rating: { type: Number, min: 1, max: 5, required: true },
-        comment: String,
-        createdAt: { type: Date, default: Date.now }
-    }],
-    averageRating: { type: Number, default: 0 },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    isVerified: { type: Boolean, default: false },
-    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' },
-    isBanned: { type: Boolean, default: false },
-    isSuspended: { type: Boolean, default: false },
-    suspensionExpires: { type: Date }
-});
-const User = mongoose.model('User', UserSchema);
-
-const ItemSchema = new mongoose.Schema({
-    title: String,
-    description: String,
-    price: Number,
-    category: String,
-    contact: String,
-    imageUrls: [String],
-    affiliateLink: { type: String, default: '' },
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    sold: { type: Boolean, default: false },
-    isPromoted: { type: Boolean, default: false },
-    promotedUntil: { type: Date },
-    condition: { type: String, enum: ['new-with-tags', 'new-without-tags', 'like-new', 'good', 'used'], default: 'good' },
-    size: { type: String, trim: true },
-    brand: { type: String, trim: true },
-    location: { type: String, trim: true },
-    createdAt: { type: Date, default: Date.now }
-});
-const Item = mongoose.model('Item', ItemSchema);
-
-// ... (Other schemas remain the same)
-
-// --- הגדרות העלאת קבצים ---
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-// --- הגדרת Middleware ---
-app.use(cors());
-app.use(express.json());
-
-app.use(express.static(path.join(__dirname)));
+// ... (כל הקוד עד נתיבי ה-API נשאר זהה) ...
 
 app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ======================= נתיב API חדש =======================
+// ======================= עדכון נתיב API =======================
 // GET all non-sold items
 app.get('/api/items', async (req, res) => {
     try {
         const items = await Item.find({ sold: false })
-            .populate('owner', 'displayName image isVerified') // Get owner info
-            .sort({ createdAt: -1 }); // Sort by newest
+            // **IMPROVED:** Populate averageRating along with other owner details
+            .populate('owner', 'displayName image isVerified averageRating')
+            .sort({ createdAt: -1 });
         res.json(items);
     } catch (err) {
         console.error("Error fetching items:", err);
