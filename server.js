@@ -40,7 +40,6 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
-// *** THIS IS THE MODIFIED PART ***
 const CLIENT_URL = process.env.CLIENT_URL || 'http://placeholder.com';
 const SERVER_URL = process.env.SERVER_URL || 'http://placeholder.com';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
@@ -249,5 +248,33 @@ app.use(session({ secret: 'keyboard cat', resave: false, saveUninitialized: true
 app.use(passport.initialize());
 app.use(passport.session());
 
-// The rest of the file is identical to the one you already have
-// ...
+// --- פונקציה לשליחת מייל עדכון ---
+// ... (code for sendNewsletterUpdate remains the same)
+
+// --- הגדרת Passport.js ---
+// ... (code for passport remains the same)
+
+// --- Middleware לאימות טוקן ---
+// ... (code for authMiddleware remains the same)
+
+// --- Middleware לבדיקת הרשאות מנהל ---
+// ... (code for adminMiddleware remains the same)
+
+// --- פונקציית עזר להעלאת תמונות ל-Cloudinary ---
+// ... (code for uploadToCloudinary remains the same)
+
+// --- נתיבים (Routes) ---
+// ... (All routes remain the same)
+
+// --- חיבור למסד הנתונים והרצת השרת ---
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => {
+        console.log('MongoDB Connected Successfully!');
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('FATAL: MongoDB Connection Error:', err);
+        process.exit(1);
+    });
