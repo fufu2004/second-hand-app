@@ -145,13 +145,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     function initializeSocket(token) {
-        if (socket) {
-            socket.disconnect();
-        }
-        
-        socket = io(SERVER_URL, {
-            auth: { token: token }
-        });
+    if (socket) {
+        socket.disconnect();
+    }
+    
+    socket = io(SERVER_URL, {
+        transports: ['websocket'], // <--- הוסף את השורה הזו
+        auth: { token: token }
+    });
 
         socket.off('connect');
         socket.off('newItem');
@@ -2394,3 +2395,4 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuthState();
 
 });
+
