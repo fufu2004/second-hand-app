@@ -1,119 +1,80 @@
-// server.js - DIAGNOSTIC VERSION
-
+// server.js - FINAL DIAGNOSTIC VERSION
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const mongoose = require('mongoose');
 const cors = require('cors');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const jwt = require('jsonwebtoken');
-const session = require('express-session');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
-const sgMail = require('@sendgrid/mail');
+// ... (All other require statements remain the same)
 const path = require('path');
-const webPush = require('web-push');
 
-// --- START OF DIAGNOSTIC BLOCK ---
-console.log("--- STARTING SERVER: ADVANCED DIAGNOSTIC MODE ---");
-let isDbConnected = false;
+// --- Schemas Definition ---
+// (All schemas like UserSchema, ItemSchema are defined here first)
+// IMPORTANT: Make sure all schemas are defined before they are used.
+const ShopSchema = new mongoose.Schema({ /* ... schema definition ... */ });
+const UserSchema = new mongoose.Schema({ /* ... schema definition ... */ });
+const ItemSchema = new mongoose.Schema({ /* ... schema definition ... */ });
+// ... (and all other schemas)
 
-async function connectToDB() {
-    const MONGO_URI = process.env.MONGO_URI;
-    if (!MONGO_URI) {
-        console.error("FATAL: MONGO_URI environment variable is not set!");
-        isDbConnected = false;
-        return;
-    }
-
-    console.log("Attempting to connect to MongoDB Atlas...");
-    try {
-        await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-        isDbConnected = true;
-        console.log("SUCCESS: MongoDB Connected Successfully!");
-    } catch (err) {
-        console.error("--- !!! FATAL MONGODB CONNECTION ERROR !!! ---");
-        console.error("This is the exact error message from the database:");
-        console.error(err);
-        console.error("--- !!! END OF ERROR MESSAGE !!! ---");
-        isDbConnected = false;
-    }
-}
-// --- END OF DIAGNOSTIC BLOCK ---
+const Shop = mongoose.model('Shop', ShopSchema);
+const User = mongoose.model('User', UserSchema);
+const Item = mongoose.model('Item', ItemSchema);
+// ... (and all other models)
 
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PATCH", "DELETE"]
-    }
-});
+const io = new Server(server, { /* ... cors config ... */ });
 const PORT = process.env.PORT || 3000;
 
-// ... (The rest of the file remains the same, only the items route and the final connection part will be changed)
-
-// --- Define all schemas and models as before ---
-// (All your schemas like UserSchema, ItemSchema, etc. go here)
-// ...
-
-// --- Define all middleware as before ---
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
-// ... (rest of middleware)
 
-// --- Define all routes EXCEPT the items route ---
-// ... (all routes like /auth/google, /api/admin/*, etc.)
-
-// --- MODIFIED items route for diagnostics ---
-app.get('/items', async (req, res) => {
-    if (!isDbConnected) {
-        // If DB is not connected, return an empty array to prevent frontend crash
-        return res.json({ items: [], totalPages: 0, currentPage: 1, totalItems: 0 });
-    }
+// --- NEW DIAGNOSTIC ROUTE ---
+app.get('/api/debug-status', async (req, res) => {
     try {
-        // ... (The original logic of the items route goes here)
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
-        const filters = {};
-        if (req.query.category && req.query.category !== 'all') filters.category = req.query.category;
-        // ... (rest of the filter logic)
-        
-        const items = await Item.find(filters).populate('owner', 'displayName email isVerified shop averageRating').sort({ createdAt: -1 }).skip(skip).limit(limit);
-        const totalItems = await Item.countDocuments(filters);
+        const dbState = mongoose.connection.readyState;
+        let dbStatus = 'Unknown';
+        switch(dbState) {
+            case 0: dbStatus = 'Disconnected'; break;
+            case 1: dbStatus = 'Connected'; break;
+            case 2: dbStatus = 'Connecting'; break;
+            case 3: dbStatus = 'Disconnecting'; break;
+        }
+
+        let itemCount = -1;
+        if (dbStatus === 'Connected') {
+            itemCount = await Item.countDocuments({});
+        }
 
         res.json({
-            items,
-            totalPages: Math.ceil(totalItems / limit),
-            currentPage: page,
-            totalItems: totalItems
+            server_status: "Running",
+            database_status: dbStatus,
+            item_count_in_db: itemCount
         });
-
-    } catch (err) {
-        console.error("Error fetching items:", err);
-        res.status(500).json({ message: err.message });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
-// ... (All other routes remain the same)
 
+// --- All your other routes and logic from the original file go here ---
+// e.g., app.get('/items', ...), app.post('/items', ...), passport config, etc.
+// ...
 
-// --- MODIFIED server start logic ---
-async function startServer() {
-    await connectToDB(); // Attempt to connect to DB
-
-    server.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-        if (!isDbConnected) {
-            console.warn("WARNING: Server is running WITHOUT a database connection. API routes requiring DB will fail.");
-        }
+// --- Database Connection and Server Start ---
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => {
+        console.log('MongoDB Connected Successfully!');
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('FATAL: MongoDB Connection Error:', err);
+        // In this version, we don't process.exit(1) to allow the server to run for diagnostics
+        server.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT} BUT FAILED TO CONNECT TO DB!`);
+        });
     });
-}
-
-startServer(); // Start the server
