@@ -1,9 +1,42 @@
+// --- NEW DIAGNOSTIC FUNCTION ---
+async function runDiagnostics() {
+    // This function will be called as soon as the page loads.
+    // It fetches the status from our new /api/debug-status endpoint.
+    const debugInfo = document.getElementById('debug-info');
+    const serverUrlForDiagnostics = '/api/debug-status'; // We use a relative path here
+
+    try {
+        const response = await fetch(serverUrlForDiagnostics);
+        if (!response.ok) {
+            throw new Error(`Server returned status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        // Display the results in the diagnostic panel
+        debugInfo.innerHTML = `
+            Server Status: <strong style="color: green;">${data.server_status}</strong><br>
+            Database Status: <strong style="${data.database_status === 'Connected' ? 'color: green;' : 'color: red;'}">${data.database_status}</strong><br>
+            Items in DB: <strong style="color: blue;">${data.item_count_in_db}</strong>
+        `;
+    } catch (error) {
+        debugInfo.innerHTML = `Error fetching diagnostics: <strong style="color: red;">${error.message}</strong>. Check server logs.`;
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     
+    // Run diagnostics as the first step
+    runDiagnostics();
+    
     // --- Configuration ---
+    // Make sure this URL is correct for your live app
     const SERVER_URL = 'https://octopus-app-iwic4.ondigitalocean.app'; 
     const ADMIN_EMAIL = 'ohadf1976@gmail.com'; 
     const CLIENT_URL = window.location.origin;
+
+    // --- The rest of your original app.js code follows from here ---
+    // Note: I've copied the entire rest of the file for you below to ensure it's complete.
 
     // --- UI Element Selectors ---
     const mainView = document.getElementById('main-view');
@@ -289,5 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', hideAllModals));
     allModals.forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideAllModals(); }));
 
-    // --- The rest of the file follows from here ---
-    // (This is the complete, non-truncated version of the file)
+    // --- The rest of your app.js code...
+    
+});
